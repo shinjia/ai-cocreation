@@ -22,7 +22,7 @@ function operationOutcome($error) {
     if(!($error instanceof AppError)||$error->errorCode==='REQUEST_ALREADY_ATTEMPTED')return 'unknown';
     // Rejected means no valid result was saved, NOT that a provider charged nothing.
     // Never classify transport errors, generic 5xx or a failed journal write as safe.
-    $rejected=array('IMAGE_RESOURCE_LIMIT','PNG_RUNTIME_UNAVAILABLE','PNG_RESOURCE_LIMIT','PNG_PROCESSING_FAILED','MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_CLARIFICATION_ARTIFACT','MODEL_MINDMAP_GENERATION','MODEL_MINDMAP_ACCEPTED_CHANGED','MODEL_MINDMAP_PENDING_CHANGED','MODEL_MINDMAP_PENDING_COUNT','MODEL_MINDMAP_FUSION_NODE','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
+    $rejected=array('MODEL_PARAMETER_STATE','MODEL_PIXEL_CLAIM','MODEL_IMAGE_REFERENCE_INVALID','IMAGE_RESOURCE_LIMIT','PNG_RUNTIME_UNAVAILABLE','PNG_RESOURCE_LIMIT','PNG_PROCESSING_FAILED','MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_CLARIFICATION_ARTIFACT','MODEL_MINDMAP_GENERATION','MODEL_MINDMAP_ACCEPTED_CHANGED','MODEL_MINDMAP_PENDING_CHANGED','MODEL_MINDMAP_PENDING_COUNT','MODEL_MINDMAP_FUSION_NODE','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
     return $error->status<500||in_array($error->errorCode,$rejected,true)?'rejected':'unknown';
 }
 function errorResponse($error) { return array('error'=>array('code'=>$error instanceof AppError?$error->errorCode:'INTERNAL_ERROR','message'=>$error instanceof AppError?$error->getMessage():'處理未完成。請先檢查最新狀態，再檢查伺服器環境；不要直接重複提交。','operationOutcome'=>operationOutcome($error))); }
@@ -137,7 +137,15 @@ function inferenceGrowthBudget($project,$action,$input=array()) {
 // current summary. The approval is saved in the existing immutable dialogue;
 // checkbox changes alone never infer, save artwork, or contact a provider.
 function webpageDirectionConfirmation($project,$input) {
-    $type=field($project,'module');if($type!=='webpage'&&$type!=='poster')return null;
+    $type=field($project,'module');
+    if($type==='interactive'){
+        $revision=field($input,'directionRevision');
+        ensure(field($input,'confirmedDirections')===array('visual','animation','parameters','interaction')&&is_int($revision)&&$revision===field($project,'summaryRevision'),'DIRECTION_CONFIRMATION_REQUIRED','請依序確認畫面視覺、動畫效果、參數設定與互動表現；動畫或互動可明確不使用，參數控制仍須另行勾選才開放。',409);
+        ensure(is_array(field($project,'brief')),'SUMMARY_REQUIRED','請先整理目前互動視覺方向。',409);$brief=$project['brief'];
+        ensure(trim($brief['message'])!=='','DIRECTION_CONFIRMATION_REQUIRED','畫面視覺是必要方向，請先說明要呈現的畫面。',409);
+        return array('summaryRevision'=>$revision,'visual'=>$brief['message'],'animation'=>$brief['tone'],'parameters'=>$brief['purpose'],'interaction'=>$brief['constraints']);
+    }
+    if($type!=='webpage'&&$type!=='poster')return null;
     $parts=field($input,'confirmedDirections');$summaryRevision=field($input,'directionRevision');$poster=$type==='poster';
     $expected=$poster?array('style','text','layout'):array('style','content','functions');
     ensure(is_array($parts)&&$parts===$expected&&is_int($summaryRevision)&&$summaryRevision===field($project,'summaryRevision'),'DIRECTION_CONFIRMATION_REQUIRED',$poster?'請分別確認目前海報的視覺風格、完整文字內容與圖文排列；方向更新後需重新確認。':'請分別確認目前網頁的視覺風格、內容結構與操作功能；方向更新後需重新確認。',409);

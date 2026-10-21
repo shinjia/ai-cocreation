@@ -1,9 +1,9 @@
-import {scriptedWebpageArtifact,scriptedWebpageBrief,scriptedWebpageRevision,fuseScriptedWebpages} from './webpage-demo.js?v=20261021-version14';
-import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version14';
-import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version14';
+import {scriptedWebpageArtifact,scriptedWebpageBrief,scriptedWebpageRevision,fuseScriptedWebpages} from './webpage-demo.js?v=20261021-version15';
+import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version15';
+import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version15';
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion,webpageDirectionConfirmationError} from './app.js?v=20261021-version14';
-import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version14';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion,webpageDirectionConfirmationError} from './app.js?v=20261021-version15';
+import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version15';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};
@@ -64,7 +64,7 @@ export function createDemoAdapter({seed=true}={}) {
   }
   function newItem(type,title,description='') {
     const item={id:id('item'),type,title,description,enabled:MODULES.some(module=>module.id===type && module.enabled),archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,summaryRevision:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
-    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。'+(['illustrated','poster'].includes(type)?'圖文與海報排版需使用本機版；此離線腳本沒有提供這兩類示範。':type==='image'?'圖片功能需要已安裝本機版的私有儲存；離線示範不接受上傳或分析。':type==='vector'?'向量圖形是事先寫好的虛構幾何示範，不是 AI 生成或你的真實設計。':type==='mindmap'?'心智圖主題與待選分支全部虛構，勾選後才加入草稿。':isArtifactType(type)?'表格與圖表的初始資料全部虛構，僅供操作示範，不是你提供的實際資料。':''):'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
+    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。'+(type==='interactive'?'互動視覺需使用本機版，此離線腳本尚未提供此類示範。':['illustrated','poster'].includes(type)?'圖文與海報排版需使用本機版；此離線腳本沒有提供這兩類示範。':type==='image'?'圖片功能需要已安裝本機版的私有儲存；離線示範不接受上傳或分析。':type==='vector'?'向量圖形是事先寫好的虛構幾何示範，不是 AI 生成或你的真實設計。':type==='mindmap'?'心智圖主題與待選分支全部虛構，勾選後才加入草稿。':isArtifactType(type)?'表格與圖表的初始資料全部虛構，僅供操作示範，不是你提供的實際資料。':''):'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
   }
   function newProject(title,description='',aiBinding=null) {
     const item=newItem('titles','標題名稱');
@@ -316,6 +316,7 @@ export function createDemoAdapter({seed=true}={}) {
     }
     if(body.itemId!==raw.activeItemId)throw new ApiError('目前創作項目已切換。',409);
     if(raw.projectLifecycle==='finalized' || p.archived)throw new ApiError('專案已結案或項目已封存，請先重新開啟。',409);
+    if(p.type==='interactive')throw new ApiError('受限互動視覺請使用已安裝的本機版；離線腳本尚未提供此類示範，沒有執行程式或呼叫 AI。',409);
     if(['illustrated','poster'].includes(p.type))throw new ApiError('圖文與海報排版請使用已安裝的本機版；離線腳本未提供這兩類的示範，沒有呼叫 AI。',409);
     if(p.type==='image')throw new ApiError('離線腳本示範不提供真實圖片上傳、讀取或分析。請在已安裝的本機版使用；沒有任何圖片或 AI 網路請求。',409);
     if(!p.enabled)throw new ApiError('這個項目類型尚未實作，不能執行 AI 或保存版本。',409);

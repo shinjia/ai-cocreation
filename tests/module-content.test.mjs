@@ -11,7 +11,7 @@ test('registry exposes exact twelve established module ids but enables only supp
   const rows = [...source.matchAll(/array\('id'=>'([^']+)','label'=>'([^']+)','enabled'=>(true|false)\)/g)];
   assert.deepEqual(rows.map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive']);
   assert.deepEqual(rows.map(x => x[2]), ['標題名稱','短文','長篇文章','圖文','表格','圖表','心智圖','向量圖形','圖片創作','海報設計','網頁','互動視覺程式']);
-  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage']);
+  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive']);
   assert.match(source, /throw new AppError\('MODULE_UNAVAILABLE'/);
   assert.match(source, /new TextModule\(\$model,\$id\)/);
 });

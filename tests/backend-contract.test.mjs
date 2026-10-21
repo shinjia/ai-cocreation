@@ -21,7 +21,7 @@ test('paid actions require explicit consent, current model, current key generati
 test('goal approval gate, one question, module boundary, no code execution',async()=>{
  const app=await read('app/app.php'), module=await read('app/modules/titles.php'), registry=await read('app/modules.php');
  assert.doesNotMatch(app,/studentTurns\(\$p\)>=\d+/);assert.match(app,/confirm_generate/);assert.match(module,/directionStatus/);assert.match(app,/GOAL_APPROVAL_REQUIRED/);assert.match(app,/approve_goal/);assert.match(module,/preg_match_all/);assert.match(registry,/\$id==='titles'/);
- assert.doesNotMatch(module,/eval\(|shell_exec\(|system\(|exec\(/);assert.match(registry,/'enabled'=>false/);
+ assert.doesNotMatch(module,/eval\(|shell_exec\(|system\(|exec\(/);assert.equal((registry.match(/'enabled'=>true/g)||[]).length,12);assert.match(registry,/throw new AppError\('MODULE_UNAVAILABLE'/);
 });
 test('official pointer changes only on explicit promote; generation never auto-finalizes',async()=>{
  const app=await read('app/app.php');const generate=app.split("if($action==='generate'||$action==='confirm_generate')")[1].split("if($action==='snapshot')")[0];
@@ -66,7 +66,7 @@ test('extensible stable-id naming bundles validated and generated only from appr
 test('project shell separates creative items, isolates active item actions, and pins explicit cross-item references',async()=>{
  const app=await read('app/app.php'),mod=await read('app/modules/titles.php'),registry=await read('app/modules.php');
  for(const token of ['creativeItems','activeItemId','create_item','select_item','ACTIVE_ITEM_CHANGED','attach_reference','targetItemId','versionSnapshot','referencesSnapshot','projectFinalizations','archive_item','restore_item'])assert.ok(app.includes(token));
- assert.match(app,/CAPABILITY_UNAVAILABLE/);assert.match(app,/ITEMS_UNFINISHED/);assert.match(mod,/pinnedReferences/);assert.match(registry,/'id'=>'interactive','label'=>'互動視覺程式','enabled'=>false/);
+ assert.match(app,/CAPABILITY_UNAVAILABLE/);assert.match(app,/ITEMS_UNFINISHED/);assert.match(mod,/pinnedReferences/);assert.match(registry,/'id'=>'interactive','label'=>'互動視覺程式','enabled'=>true/);
 });
 test('context changes invalidate projected approvals consistently and finalized metadata requires reopening',async()=>{
  const app=await read('app/app.php');

@@ -54,6 +54,6 @@ function validateModuleBrief($value,$type) {
 }
 
 function moduleDocumentLabel($type) {
-    $labels=array('table'=>'表格內容','chart'=>'圖表來源','mindmap'=>'心智圖來源','vector'=>'向量圖形來源','webpage'=>'網頁來源','image'=>'圖片來源','illustrated'=>'圖文來源','poster'=>'海報來源');
+    $labels=array('table'=>'表格內容','chart'=>'圖表來源','mindmap'=>'心智圖來源','vector'=>'向量圖形來源','webpage'=>'網頁來源','image'=>'圖片來源','illustrated'=>'圖文來源','poster'=>'海報來源','interactive'=>'互動程式來源');
     ensure(isset($labels[$type]),'ARTIFACT_TYPE_INVALID','此類型沒有完整作品欄位。');return $labels[$type];
 }

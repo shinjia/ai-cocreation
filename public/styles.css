@@ -137,3 +137,26 @@
 @media(max-width:36rem){.composition-preview .composition-layout-left,.composition-preview .composition-layout-right{display:flex;flex-direction:column}.composition-preview .composition-layout-right .composition-copy{order:1}.composition-preview .composition-layout-right .composition-media{order:0}.composition-preview.composition-poster{min-height:0}.composition-preview .composition-media,.composition-preview .composition-copy{width:100%}}
 
 .composition-ai-note,.composition-export-note{font-size:.85rem;color:var(--muted);margin-block:.8rem;line-height:1.7}.composition-preview-slot{max-width:100%;overflow:hidden}.composition-bundle .artifact-downloads{flex-wrap:wrap}
+
+/* Declarative interactive programs. Native Canvas only, no external runtime. */
+.interactive-ai-note { font-size:.85rem; color:var(--muted); margin-block:.8rem; line-height:1.7; }
+.interactive-preview { max-width:100%; padding:16px; border:1px solid #d7dfe9; border-radius:14px; background:#fff; }
+.interactive-preview h4 { margin:0 0 12px; font-size:1.1rem; overflow-wrap:anywhere; }
+.interactive-canvas { display:block; max-width:100%; height:auto; margin:0 auto 12px; border:1px solid #e0e6ef; border-radius:10px; }
+.interactive-preview-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.interactive-preview-controls label { display:flex; gap:8px; align-items:center; padding:6px 8px; font-size:.85rem; }
+.interactive-preview-controls input[type=checkbox],.artifact-interactive-editor input[type=checkbox] { width:1.1rem; height:1.1rem; }
+.interactive-program-description { margin-block:12px; padding:10px 12px; background:#f5f7fb; border-radius:8px; font-size:.85rem; line-height:1.65; overflow-wrap:anywhere; }
+.interactive-program-description summary { font-weight:650; cursor:pointer; }
+.artifact-interactive-editor { display:grid; gap:12px; min-width:0; }
+.interactive-editor-workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 14px; align-items:start; }
+.interactive-editor-workspace > h4,.interactive-editor-workspace > p,.interactive-editor-workspace > .interactive-parameter { grid-column:1/-1; }
+.interactive-editor-workspace > h4 { margin:16px 0 0; padding-top:14px; border-top:1px solid #dde3eb; }
+.interactive-editor-workspace .field { min-width:0; margin:0; }
+.interactive-editor-workspace .button { white-space:normal; }
+.interactive-parameter { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 14px; padding:16px; border:1px solid #d8e1ed; background:#f8faff; border-radius:12px; }
+.interactive-parameter > h4,.interactive-parameter > p,.interactive-parameter-slider { grid-column:1/-1; margin:0; }
+.interactive-parameter h4 { overflow-wrap:anywhere; }
+.interactive-parameter-slider { width:100%; accent-color:#345f8d; }
+.interactive-pending-status { color:#86591e; white-space:pre-wrap; }
+@media(max-width:680px) { .interactive-editor-workspace,.interactive-parameter { grid-template-columns:minmax(0,1fr); } .interactive-preview { padding:10px; } .interactive-preview-controls { align-items:stretch; flex-direction:column; } .interactive-preview-controls .button { width:100%; } }

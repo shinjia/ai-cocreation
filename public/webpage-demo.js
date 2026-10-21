@@ -3,7 +3,7 @@
  * is not derived from a user's brief. All authored values remain plain text;
  * commands never execute markup, request a resource, publish, or save a version.
  */
-import {cloneWebpage} from './webpage.js?v=20261021-version14';
+import {cloneWebpage} from './webpage.js?v=20261021-version15';
 
 const DEMO_TITLE='街角故事日｜探索版（虛構示範）';
 export const SCRIPTED_WEBPAGE_TITLE_REQUEST=`標題改為「${DEMO_TITLE}」。`;

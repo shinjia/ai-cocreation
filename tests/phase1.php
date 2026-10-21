@@ -191,7 +191,7 @@ try {
     phase1Check(!$app->status()['keyPresent'],'fixture never supplies a credential');
     $registry=moduleRegistry();
     phase1Check(array_column($registry,'id')===array('titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive'),'all twelve stable module ids in exact order');
-    phase1Check(array_column(array_values(array_filter($registry,function($item){return $item['enabled'];})),'id')===array('titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage'),'only implemented text and typed artifact modules are enabled');
+    phase1Check(array_column(array_values(array_filter($registry,function($item){return $item['enabled'];})),'id')===array('titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive'),'only implemented text and typed artifact modules are enabled');
 
     $shortBoundary=array(array('id'=>'body','label'=>'全文','content'=>str_repeat('x',12000)));
     phase1Check(validateModuleContentItems($shortBoundary,'short_text')===$shortBoundary,'short full body accepts exact 12000-byte limit without truncation');

@@ -2,7 +2,7 @@
  * Pure, fixed-script fixtures, not AI. No network, storage, inferred relationships,
  * arbitrary-input interpretation, or automatic acceptance of pending proposals.
  */
-import {cloneMindmap} from './mindmap.js?v=20261021-version14';
+import {cloneMindmap} from './mindmap.js?v=20261021-version15';
 
 export const SCRIPTED_MINDMAP_CHILD_REQUEST='請提供這個節點的子分支示範。';
 const KEEP_EXPLORING_REQUEST='先保留目前分支，繼續自由探索。';

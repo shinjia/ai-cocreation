@@ -1,9 +1,10 @@
-import {defaultComposition,validateCompositionArtifact,compositionItems,createCompositionPreview,createCompositionEditor} from './composition.js?v=20261021-version14';
-import {exportComposition} from './composition-export.js?v=20261021-version14';
-import {validateImageArtifact,imageArtifactItems,createImagePreview,createImageEditor} from './image.js?v=20261021-version14';
-import {defaultWebpage,validateWebpage,webpageItems,renderWebpage,renderWebpageEditor,exportWebpage} from './webpage.js?v=20261021-version14';
-import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version14';
-import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version14';
+import {defaultInteractive,validateInteractive,interactiveItems,renderInteractive,renderInteractiveEditor,exportInteractive} from './interactive.js?v=20261021-version15';
+import {defaultComposition,validateCompositionArtifact,compositionItems,createCompositionPreview,createCompositionEditor} from './composition.js?v=20261021-version15';
+import {exportComposition} from './composition-export.js?v=20261021-version15';
+import {validateImageArtifact,imageArtifactItems,createImagePreview,createImageEditor} from './image.js?v=20261021-version15';
+import {defaultWebpage,validateWebpage,webpageItems,renderWebpage,renderWebpageEditor,exportWebpage} from './webpage.js?v=20261021-version15';
+import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version15';
+import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version15';
 /** Typed, text-only table/chart documents. No storage, network, or implicit downloads. */
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART_TYPES = ['flowchart','bar','line','pie'];
@@ -46,9 +47,10 @@ function sourceText(value) {
   fail(!normalized.includes('\r'),'圖表來源不可包含單獨的 CR 換行字元。');
   return normalized;
 }
-export function isArtifactType(type) { return type==='table'||type==='chart'||type==='mindmap'||type==='vector'||type==='webpage'||type==='image'||type==='illustrated'||type==='poster'; }
+export function isArtifactType(type) { return type==='table'||type==='chart'||type==='mindmap'||type==='vector'||type==='webpage'||type==='image'||type==='illustrated'||type==='poster'||type==='interactive'; }
 export function cloneArtifact(value) { return JSON.parse(JSON.stringify(value)); }
 export function defaultArtifact(type) {
+  if(type==='interactive')return defaultInteractive();
   if(type==='illustrated'||type==='poster')return defaultComposition(type);
   if(type==='image')return null; // A saved private asset is required; never fabricate an image.
   if(type==='mindmap')return defaultMindmap();
@@ -135,6 +137,7 @@ export function parseFlowchartSource(value) {
   return {direction,nodes,edges};
 }
 function checkedArtifact(value,type) {
+  if(type==='interactive'){const error=validateInteractive(value);if(error)throw new Error(error);return cloneArtifact(value);}
   if(type==='illustrated'||type==='poster'){const error=validateCompositionArtifact(value,type);if(error)throw new Error(error);return cloneArtifact(value);}
   if(type==='image'){const error=validateImageArtifact(value);if(error)throw new Error(error);return cloneArtifact(value);}
   if(type==='mindmap'){const error=validateMindmap(value);if(error)throw new Error(error);return cloneArtifact(value);}
@@ -181,6 +184,7 @@ function delimitedField(value,delimiter,spreadsheet=false) {
   return result.includes(delimiter)||/[\r\n"]/.test(result)?'"'+result.replace(/"/g,'""')+'"':result;
 }
 export function artifactItems(value) {
+  if(value?.kind==='interactive')return interactiveItems(value);
   if(value?.kind==='illustrated'||value?.kind==='poster')return compositionItems(value);
   if(value?.kind==='image')return imageArtifactItems(value);
   if(value?.kind==='mindmap')return mindmapItems(value);
@@ -356,6 +360,7 @@ function serializeSvg(node) {
   return '<'+node.tag+Object.entries(node.attrs).map(([name,value])=>' '+name+'="'+xml(value)+'"').join('')+'>'+(node.value===null?'':xml(node.value))+node.children.map(serializeSvg).join('')+'</'+node.tag+'>';
 }
 export function renderArtifact(value,{document=globalThis.document,compact=false,loadImage,onError,references=[]}={}) {
+  if(value?.kind==='interactive')return renderInteractive(value,{document,compact});
   if(value?.kind==='illustrated'||value?.kind==='poster')return createCompositionPreview(document,value,{references,loadImage});
   if(value?.kind==='image')return createImagePreview(document,value,{loadImage,onError});
   if(value?.kind==='mindmap')return renderMindmap(value,{document,compact});
@@ -385,6 +390,7 @@ function newStableId(kind,existing) {
   return id;
 }
 export function renderArtifactEditor(value,{document=globalThis.document,disabled=false,onChange=()=>{},idPrefix='artifact',uiState={},onPendingChange=()=>{},references=[],loadImage}={}) {
+  if(value?.kind==='interactive')return renderInteractiveEditor(value,{document,disabled,onChange,idPrefix,uiState,onPendingChange});
   if(value?.kind==='illustrated'||value?.kind==='poster')return createCompositionEditor(document,value,{disabled,onChange,uiState,onPendingChange,references,loadImage});
   if(value?.kind==='image')return createImageEditor(document,value,{disabled,onChange,idPrefix,uiState,onPendingChange});
   if(value?.kind==='mindmap')return renderMindmapEditor(value,{document,disabled,onChange,idPrefix,uiState,onPendingChange});
@@ -459,6 +465,7 @@ export function renderArtifactEditor(value,{document=globalThis.document,disable
   root.append(error);if(preview)root.append(preview);update();return root;
 }
 export function exportArtifact(value,format) {
+  if(value?.kind==='interactive')return exportInteractive(value,format);
   if(value?.kind==='illustrated'||value?.kind==='poster')return exportComposition(value,format);
   if(value?.kind==='image'){const artifact=checkedArtifact(value,'image');fail(format==='json','圖片檔案須從私人圖片讀取介面下載 PNG；JSON 僅含中繼資料，不是圖片備份。');return {filename:'image-metadata-only.json',mime:'application/json;charset=utf-8',text:JSON.stringify({notice:'僅含圖片中繼資料，未包含 PNG 圖片檔，不是完整備份。',artifact},null,2)};}
   if(value?.kind==='mindmap')return exportMindmap(value,format);

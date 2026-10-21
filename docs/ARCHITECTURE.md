@@ -1,6 +1,6 @@
 # AI共創工作室架構與開發契約
 
-本版里程碑：第四階段：圖文與海報原生排版。前九類功能保留，新增圖文與海報兩類原生排版；不等於 AI 像素生成。
+本版里程碑：第五階段：受限互動視覺程式。前十一類功能保留，十二類均啟用；互動視覺是有界宣告式幾何資料與原生 Canvas 預覽，不是任意 p5.js 執行器，也不等於 AI 像素生成。
 
 ## 模組與目錄
 
@@ -16,12 +16,13 @@
 - `app/png-upload.php`：有界 PNG 驗證及正規化；`app/media-store.php`：同一 SQLite PDO 的私有 BLOB 與上傳收據；`public/media.php` 為同源 POST 端點。
 - `public/image-upload.js`：本機 PNG／JPEG 檢查、旋轉與縮圖；`public/media.js`：同源上傳／讀取；`public/image.js`：授權 Blob 預覽與純文字中繼資料編輯。
 - `app/composition.php`、`app/modules/composition.php`：圖文／海報完整原生結構、固定文字模型與 metadata-only 契約；`app/composition-actions.php` 驗證同專案固定引用、歷史來源與私人媒體。`public/composition.js` 提供原生編輯／預覽，`public/composition-export.js` 提供有界、逐圖驗證的 HTML 及 metadata-only JSON／文字 TXT 匯出。
+- `app/interactive.php`、`app/modules/interactive.php`：受限視覺資料驗證、參數狀態保護、四部分方向與完整固定模型候選／修訂／比較／融合；`public/interactive.js` 提供 Canvas 2D 預覽、原生草稿編輯、參數選用與可信任 p5.js／JSON／TXT 匯出，沒有獨立程式執行端點。
 - `app/content.php`：各類型內容／段落定義及完整內容限制；驗證不默默截斷正文。
 - `app/versioning.php`：主／小版本、舊版讀取、封存、合併目標與比較快照。
 - `app/members.php`、`model.php`、`ollama.php`：非秘密成員設定及兩家 provider adapters。
 - `tests/`：來源契約、前端／示範、SQLite、PHP fixture；`phase1.php` 覆蓋第一階段流程，`artifacts.php` 為表格／圖表契約 fixture，`mindmap.php` 為心智圖契約 fixture，`vector.php` 為原生向量與數值 schema fixture，`webpage.php` 為原生網頁、完整版本與三部分方向確認 fixture。本次缺少原生 PHP，未執行 PHP fixture。
 
-`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。除 `interactive` 外共十一個 enabled；圖片只提供上傳、分析與比較，不生成／修改／融合像素。圖文與海報生成的是原生文字／既有圖片排版，非新圖片。互動視覺程式保留規劃／引用，尚無生成或定稿能力。「共聊」排除。
+`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。十二類均為 enabled；圖片只提供上傳、分析與比較，不生成／修改／融合像素，圖片生成模型仍待決定。圖文與海報生成原生文字／既有圖片排版；互動視覺生成受限幾何主程式，不執行模型程式。「共聊」排除。
 
 ## 正規資料與相容讀取
 
@@ -29,7 +30,7 @@ SQLite `projects.body` 保存專案：`id`、`title`、`description`、`aiBindin
 
 每個 creative item 各自有類型、名稱、說明、封存狀態、phase／lifecycle、messages、brief、versions、officialVersionId、comparisons、finalizations、references 與 contextRevision。API 加上 activeItem 並把選取項目的工作欄位投影到頂層；頂層 id／title／description／revision 仍是專案，不得把投影寫成第二份持久內容。
 
-`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image`、`illustrated`、`poster` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
+`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image`、`illustrated`、`poster`、`interactive` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
 
 ## 一次性專案模型綁定
 
@@ -64,9 +65,9 @@ phase 為 discussion → summary → ready → work；項目及專案 lifecycle 
 - 長篇文章必須明確提供非空、無重複且屬於來源的 `targetItemIds`，不預設全選。模型取得完整 `sourceVersion.items` 及目標；schema 與伺服器限制它只回傳選取段落，id／label 必須保持。未選段落沿來源原陣列逐位元組保存，保持順序，再與選段合併為完整新文章並重新驗證。
 - AI 選段不可新增、刪除、改名或重排段落；手動 snapshot 可改結構，保存完整新版、既有 ID 與新段落新 ID，來源仍不變。
 
-`outcome=revision` 必須有實際內容或本版目標差異、完整可審閱內容與 metadata，question／choices 為空。追加來源 major 的下一 minor，保存 basedOnVersionId、revisionInstruction、targetItemIds、provenance 及來源對話。文字模組的 `outcome=clarification` 必須 items=[]，不建立假版本；有界說明 metadata 驗證後丟棄。表格／圖表／心智圖／向量圖形／網頁／圖文／海報的模型 schema 則要求完整 artifact：釐清時必須原樣回傳來源 artifact，驗證與來源相同後捨棄，不建立版本或修改目標。多問、明顯假稱修改完成或畸形輸出拒收；有界文字檢查不是完整語意理解保證。
+`outcome=revision` 必須有實際內容或本版目標差異、完整可審閱內容與 metadata，question／choices 為空。追加來源 major 的下一 minor，保存 basedOnVersionId、revisionInstruction、targetItemIds、provenance 及來源對話。文字模組的 `outcome=clarification` 必須 items=[]，不建立假版本；有界說明 metadata 驗證後丟棄。表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動視覺的模型 schema 則要求完整 artifact：釐清時必須原樣回傳來源 artifact，驗證與來源相同後捨棄，不建立版本或修改目標。多問、明顯假稱修改完成或畸形輸出拒收；有界文字檢查不是完整語意理解保證。
 
-每版是不可覆寫的完整快照，不只保存差異。文字版保存 `items:[{id,label,content}]`；表格／圖表／心智圖／向量圖形／網頁／圖文／海報另保存具型別的完整 `artifact`，items 僅是伺服器從 artifact 衍生的相容文字投影，不能取代原件。`id` 是識別碼；`major`／`minor` 是整數，V5.10 不是浮點數。主版取目前最大 major+1；小版取來源 major 下最大 minor+1，封存版也計入。`basedOnVersionId` 指實際來源，不以相鄰版號推測。
+每版是不可覆寫的完整快照，不只保存差異。文字版保存 `items:[{id,label,content}]`；表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動視覺另保存具型別的完整 `artifact`，items 僅是伺服器從 artifact 衍生的相容文字投影，不能取代原件。`id` 是識別碼；`major`／`minor` 是整數，V5.10 不是浮點數。主版取目前最大 major+1；小版取來源 major 下最大 minor+1，封存版也計入。`basedOnVersionId` 指實際來源，不以相鄰版號推測。
 
 `goalAndRationale` 為單一、非空、最多 12,000 UTF-8 bytes 的本版目標與修改意見；有此欄位就優先使用。舊 goalText／goalSnapshot／changeSummary／rationale 留作相容歷史，缺合併欄時才組合不同既有文字，不重寫舊快照或捏造紀錄。AI metadata 取自同一次回覆，手動輸入驗證後保留，不猜測拆分。
 
@@ -258,7 +259,7 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 已保存版本可個別下載最終 PNG 或匯出單件 metadata JSON；單件 JSON 不含歷史，專案 JSON 另保存完整 metadata／歷史／來源，不內嵌 PNG，不是完整圖片備份，也沒有還原／匯入完整媒體的介面。完整離線備份須在程式停止寫入時保存整個私有資料夾（包括 SQLite 及可能存在的 journal／WAL 檔）與 config.local.php；內含 Session／暫存 Key 時須按敏感資料保管，不分享。
 
-固定腳本示範不開放圖片上傳、私人圖片讀取或真正圖片分析，不使用假圖片或固定描述冒充看圖。圖文與海報已在本機版啟用；離線腳本未提供這兩類示範。互動視覺程式仍未啟用。
+固定腳本示範不開放圖片上傳、私人圖片讀取或真正圖片分析，不使用假圖片或固定描述冒充看圖。圖文與海報已在本機版啟用；離線腳本未提供這兩類示範。互動視覺程式已在正式本機版啟用，但離線腳本明確不提供其示範。
 
 ## 原生圖文／海報契約
 
@@ -296,6 +297,40 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 HTML 僅含固定 CSS、安全跳脫完整文字及程式內部建立的 `data:image/png;base64,`。早期 CSP 使用 default-src none、img-src data:、固定 style-src unsafe-inline，禁用 script／connect／object／frame／base／form；沒有腳本、外部 URL／網路請求或表單。匯出準備仍需讀取本機私人媒體，不等於輸出的 HTML 會連線，也不改主頁 CSP。JSON 是 `{notice,artifact}`，只含可編輯排版與引用 ID；TXT 是警語與完整文字投影，不含圖片或視覺排版。兩者不含引用來源完整快照，HTML 也不是完整專案備份；沒有檔案匯入／自動還原介面。離線固定腳本不支援圖文／海報，不拿假結果代替真實能力。
 
+## 互動視覺：受限主程式與選用參數
+
+### 資料與四部分確認
+
+原生 artifact 精確包含 `kind=interactive`、`title`、`width`、`height`、`background`、`animation`、`duration`、`layers`、`parameters`。不接受 code、HTML、URL、資源位置或任意欄位。`items` 固定為一個 `{id:"document",label:"互動程式來源",content:...}`，內容是完整正規 JSON，不是可執行碼或摘要。原始 JSON schema 先確認物件／陣列／布林／數值型別，語意層再驗證精確欄位、UTF-8、穩定 ID、容量及跨欄位限制。
+
+brief 沿用七欄而明確映射：`message` 是必填畫面視覺，`tone` 是動畫效果，`purpose` 是參數設定說明，`constraints` 是互動表現；`audience` 僅為用途／觀眾背景，`summary` 綜合四部分，`items` 固定 document。動畫、互動可明確為無，參數可為無或待建議，不強迫純靜態作品加功能。02 依序顯示四部分，伺服器要求 `confirmedDirections=["visual","animation","parameters","interaction"]` 與最新整數 `directionRevision`；缺漏、錯序及過期確認拒絕。四個 checkbox 只是方向確認，不等於選用參數；更新方向會清除先前勾選，明確按生成才呼叫模型一次並保存一份完整候選。
+
+layers 依底至頂排列，只支援 rect／ellipse／line。每層保存 id、label、type、x、y、width、height、fill、stroke、strokeWidth、opacity、rotation、motion、motionAmount、motionSpeed、interaction。矩形／橢圓 x、y 是左上角，線段 width、height 是可為負的端點差量；旋轉以中心為軸。x／y 為 -4096–4096，寬高最多 4096 且非線段須至少 0.001；外框 0–64、不透明度 0–1、旋轉 -360–360 度、動畫幅度 0–512、速度 0–10。色彩僅六位十六進位或 none，數字最多三位小數。motion 為 none／orbit／wave／pulse／spin，interaction 為 none／pointer／hover。沒有文字、圖片或任意路徑繪製；title／label 是純文字 UI 說明。
+
+參數精確保存 id、label、layerId、target、min、max、step、value、previousValue、selected。target 限 x、y、width、height、strokeWidth、opacity、rotation、motionAmount、motionSpeed，必須指向存在圖層，同一 layerId／target 只能有一個參數。min／max 依目標屬性邊界，max 大於 min；step 0.001–8192，最多 10,000 個步進間隔，目前值與前次值都須在範圍內且對齊。未選參數不覆蓋圖層字面值，已選參數依 value 覆蓋對應屬性。
+
+### 固定模型與參數狀態保護
+
+沿用專案固定文字／結構化模型、版本索引、完整來源與同次目標整理，不增加 provider 或程式執行工具。生成／修訂／融合請求 24,000 output tokens，比較 6,000；模型回覆另限 90,000 bytes，完整脈絡上限 600,000 bytes，不保證最大作品能生成。圖片引用只給標題、替代文字、來源註記、尺寸等 allowlist 中繼資料，標示 pixelsProvided=false／imagePixelsProvided=false，不傳 PNG、base64 或讀圖 URL。明顯宣稱看過未提供像素的說明會有界拒收，但這不是所有語言或語意真實性的保證。
+
+新參數必須 selected=false 且 previousValue=value。既有參數不得由 AI 改選用狀態、穩定 ID 或 layerId／target；未選參數的 value／previousValue 須原樣保留。提示要求只依本次明確要求修改已選 value；伺服器強制改值時 previousValue 等於來源 value，未改值則保留原 previousValue。已選控制項不可消失，圖層存在性驗證也阻止其目標消失；若需要移除，先由使用者取消選用並另存來源。這些結構驗證不等於能自動證明所有自然語言要求都被模型遵守，候選仍需審閱。
+
+修訂使用完整已保存來源，不讀未另存草稿；釐清必須原樣回傳來源 artifact，驗證後捨棄，不建版本。內容指紋消除單純 ID 及等值色碼變化，保留有意義的提案／標籤修改；只有目標變更時完整 artifact 必須不變。提案或說明修改不能假稱畫面已改變。
+
+比較與融合分開，皆選 2–5 個不同未封存完整來源，依每版自己的目標，非目前共用目標。融合前先合併參數來源：同 ID 的控制目標、min／max／step、selected、value／previousValue 不同，或同控制目標有不同 ID，均在推論前拒絕，需手動統一；比較不做這項融合預檢，因此仍可比較衝突方案。融合候選須保留已選控制狀態並通過有界畫面／行為指紋檢查，不能只換標題、標籤、ID、前次值或未選提案冒充融合。指紋是特定資料規則，不是完整畫面等價、像素相同或創意品質證明。
+
+### 原生預覽、草稿與 p5.js 匯出
+
+`public/interactive.js` 的可信任 evaluator／painter 只接受驗證後資料，使用 Canvas 2D 固定命令，不使用 eval、Function、iframe、模型腳本或外部資源。初始僅畫第一影格，沒有自動 requestAnimationFrame 迴圈；明確按開始才以 30fps 的作品時間推進，duration 最多 60 秒／1800 影格，可暫停／重設。頁面隱藏、預覽移除、重畫或離頁時停止並清除既有播放。游標互動另行明確啟用：pointer 是相對畫布中心的小幅跟隨，hover 是中心包圍圓內放大，不是精確物件命中或任意事件系統。沒有 Canvas 2D 時明確顯示未執行，不偽造預覽。
+
+頂端正式版與編輯器可直接建立預覽，其餘候選／歷史／固定引用／比較只先顯示中繼資料，須明確載入且共用一個額外位置。替換時移除前個 Canvas、取消 RAF 並恢復載入按鈕；過期載入器無作用。60 個 2048×2048 版本的 mock 案例初始 2、最多 3 個 live Canvas，並非累積只建立三次或真實瀏覽器記憶體量測。
+
+編輯器區分畫布、圖層及參數原始欄位與已套用草稿。勾選參數後須套用，才啟用目前值及滑桿；滑桿也只改待套用欄位。目前／前次值還原、只對已選參數亂數，以及最近 20 步完整草稿復原都不呼叫 AI，不自動保存或採用。未套用欄位會阻擋另存及可能丟失內容的結構操作，同頁重畫保留；整頁關閉／重新整理仍可能遺失。所有主／小版 snapshot、固定引用與定稿保存完整 artifact 及選用／數值歷史，不只存差異。
+
+JS 匯出是可信任產生器組裝的 p5.js global-mode 主程式，帶完整資料及同一 evaluator／painter，透過 `createCanvas()` 與 `drawingContext` 繪製。`setup()` 以 `noLoop()` 保持初始靜態；明確 `startInteractive()`／`pauseInteractive()`／`resetInteractive()` 控制播放，`enableInteractivePointer(true)` 另啟游標，`setInteractiveParameter(id,value)` 只允許已選參數且維持步進／前次值。資料中的標記安全序列化，title／label 不作程式來源。匯出不含 p5 函式庫或 HTML 容器、不自行 import／載入 CDN、連線或部署；使用者須自行供應可信 p5.js 執行環境。
+
+官方 API 說明見 [createCanvas](https://p5js.org/reference/p5/createCanvas/) 與 [noLoop](https://p5js.org/reference/p5/noLoop/)。本機預覽沒有使用 p5 runtime；Node 中的 p5 替身／Canvas 命令對照不等於真正 p5.js 或瀏覽器像素驗收，不能保證跨環境像素完全相同。JSON／TXT 匯出完整原生資料，沒有檔案匯入、任意程式編輯或執行介面；單件匯出不含完整共創歷史。離線固定腳本明確不支援此類。
+
 ## API、請求保護與錯誤
 
 GET `state` 回傳 CSRF、非秘密設定、Key 狀態、專案清單及模組登錄；GET `project&id=...` 回完整專案投影，不推論。主 JSON API 的 POST 僅接受同 Origin、正確 X-CSRF-Token、application/json；操作名稱從 JSON `body.action` 解析。HTTP body 上限 1 MiB（1,048,576 bytes），超限 413。
@@ -321,9 +356,10 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 - vector：1–100 個 shapes，整數畫布 1–4096；title 600、label 120、text 4,000 bytes，最多 80 個局部頂點。原生 artifact JSON 與精確緊湊投影各最多 60,000 bytes，數值最多三位小數；具體幾何及伺服器序列化差異見上節。生成／修訂／融合請求 24,000 output tokens，不保證產出最大作品。
 - webpage：1–20 區塊，cards／faq 每區 1–12 條目；網頁／區塊／條目標題 600、眉標／按鈕文字 240、區塊內文 12,000、條目內文 6,000 bytes。完整正規 JSON 與投影各最多 60,000 bytes，總量包含欄位結構與跳脫字元；生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
 - illustrated／poster：完整 JSON／投影最多 60,000 bytes；圖文 1–24、海報 2–16 區塊，title 600，圖文 heading／caption 600、body 12,000，海報文字 2,000、圖說 600 bytes；具體結構與含圖 HTML 配額見上節。
+- interactive：1–40 個 layers、0–24 個 parameters；畫布寬高 1–2048、duration 1–60 整數秒；title 600、layer／parameter label 120 bytes。完整原生 JSON 與精確投影各最多 60,000 bytes，數字最多三位小數；參數範圍及目前／前次值須對齊 step，最多 10,000 個間隔。
 - image：title 600、alt 3,000、attribution 2,000 bytes；PNG、傳輸、儲存及分析配額依圖片契約，像素不計入專案 JSON 本體。
 - 本版合併意見 12,000；版本 goalText 6,000；對談輸入 4,000；比較／融合問題及生成方向 2,000。其他結構欄位另有限制，不因合併輸入而解除。
-- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage／image／illustrated／poster 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁／圖文／海報模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
+- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage／image／illustrated／poster／interactive 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動視覺模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
 - 每 owner 最多 100 專案，每專案 30 項目（含封存），每項目 60 版本（含封存）、60 比較、60 輪討論、400 則訊息、12 筆固定引用。專案序列化內容最多 2,000,000 bytes。
 
 推論前按操作保守預留完整結果、引用、來源快照與 JSON 跳脫空間，接近容量可提前拒絕，即使名義版本數尚未滿；不保證磁碟或 SQLite 故障時可保存。資料保存上限、HTTP 限制、模型脈絡及 output tokens 是不同界線，不能互相當作可生成長度保證。
@@ -334,4 +370,4 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 
 結構化單選 2–6 答案，ID 最多 64、label 120、value 1,000 bytes；只接受最新 assistant discussion／clarification。choiceContext 綁定項目、正式版、共同脈絡、項目名稱／說明、baseVersionId 及 targetItemIds，心智圖指定來源另綁定 targetNodeId；伺服器解析已保存答案並核對 input.text，失效或篡改於推論前拒絕。按鈕以 textContent 顯示，不清除文字草稿，不從舊 prose 補造選項。
 
-本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version14`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
+本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version15`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
