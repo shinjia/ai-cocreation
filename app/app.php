@@ -48,7 +48,7 @@ class CocreationApp {
     private function itemKeys() { return array('phase','lifecycle','brief','goalApprovedAt','summaryRevision','versions','archivedVersionIds','officialVersionId','comparisons','messages','finalizedVersionId','finalizedAt','finalizations','references','contextRevision'); }
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':'先不用一次想完。這個創作項目要替什麼內容命名？')))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -127,10 +127,17 @@ class CocreationApp {
             $known=array_column($base['items'],'id');foreach($targets as $target)ensure(is_string($target)&&in_array($target,$known,true),'TARGET_ITEMS_INVALID','修改範圍包含不屬於這個版本的段落。',409);
             ensure(count(array_unique($targets,SORT_STRING))===count($targets),'TARGET_ITEMS_INVALID','修改範圍不可重複。',409);sort($targets,SORT_STRING);
         }else ensure($targets===array(),'TARGET_ITEMS_INVALID','這個創作類型或階段不接受段落範圍。',409);
-        return array('base'=>$base,'targetItemIds'=>$targets);
+        $nodeId=field($input,'targetNodeId');
+        if($project['module']==='mindmap'&&$base!==null){
+            $artifact=validateMindmapArtifact(field($base,'artifact'));
+            ensure(is_string($nodeId)&&mindmapNode($artifact,$nodeId)!==null,'TARGET_NODE_INVALID','請選擇來源版本中已加入心智圖的節點；待選建議尚不能作為子分支起點。',409);
+        }else ensure($nodeId===null,'TARGET_NODE_INVALID','這個創作類型或階段不接受心智圖節點範圍。',409);
+        return array('base'=>$base,'targetItemIds'=>$targets,'targetNodeId'=>$nodeId);
     }
     private function choiceContext($project,$selection) {
-        return array('itemId'=>$project['activeItemId'],'officialVersionId'=>$project['officialVersionId'],'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description'],'baseVersionId'=>$selection['base']===null?null:$selection['base']['id'],'targetItemIds'=>$selection['targetItemIds']);
+        $context=array('itemId'=>$project['activeItemId'],'officialVersionId'=>$project['officialVersionId'],'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description'],'baseVersionId'=>$selection['base']===null?null:$selection['base']['id'],'targetItemIds'=>$selection['targetItemIds']);
+        if($project['module']==='mindmap'&&$selection['base']!==null)$context['targetNodeId']=$selection['targetNodeId'];
+        return $context;
     }
     private function questionMetadata($project,$result,$selection) {
         $extra=array('question'=>$result['question'],'choices'=>$result['choices']);
@@ -162,7 +169,7 @@ class CocreationApp {
         $combined=validateCombinedVersionNote(field($metadata,'goalAndRationale',versionGoalAndRationale(array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'rationale'=>$rationale))));
         $links=array($messageId);$last=end($project['messages']);if(is_array($last)&&$last['role']==='student'&&(($source==='revision'&&$last['kind']==='discussion')||($source==='generated'&&$last['kind']==='generation_request')||($source==='fusion'&&$last['kind']==='fusion_request')))array_unshift($links,$last['id']);$links=array_values(array_unique($links));
         $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'contentType'=>$project['module'],'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','goalAndRationale'=>$combined,'changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
-        if($artifact!==null){$v['artifact']=$artifact;$name=$project['module']==='table'?$artifact['caption']:$artifact['title'];$v['title']=trim($name)===''?($project['module']==='table'?'表格':'圖表'):bundleDisplayTitle(array(array('label'=>'title','content'=>$name)));}
+        if($artifact!==null){$v['artifact']=$artifact;$name=$project['module']==='table'?$artifact['caption']:($project['module']==='mindmap'?mindmapNode($artifact,$artifact['rootId'])['label']:$artifact['title']);$v['title']=trim($name)===''?($project['module']==='table'?'表格':($project['module']==='mindmap'?'心智圖':($project['module']==='vector'?'向量圖形':'圖表'))):bundleDisplayTitle(array(array('label'=>'title','content'=>$name)));}
         $project['versions'][]=$v;return $v['id'];
     }
     public function action($input) {
@@ -255,12 +262,15 @@ class CocreationApp {
                 // Legacy discussions may have cleared approval: editing an existing
                 // official bundle still works, without inventing new goal approval.
                 ensure(count($p['versions'])<60,'VERSION_LIMIT','此項目已達60個版本，請匯出保存後延續新項目；本次未呼叫AI。',409);
-                $official=$selection['base'];$result=$module->refine($p,$official,$text,$model,$selection['targetItemIds']);$provenance=$this->provenance($connection,$adapter,$requestedAt);
-                $p['messages'][]=$this->message('student',$text,'discussion',array_merge(array('basedOnVersionId'=>$official['id']),$answerMetadata));
+                $official=$selection['base'];$refinementProject=$p;if($p['module']==='mindmap')$refinementProject['mindmapTargetNodeId']=$selection['targetNodeId'];$result=$module->refine($refinementProject,$official,$text,$model,$selection['targetItemIds']);$provenance=$this->provenance($connection,$adapter,$requestedAt);
+                $sourceMetadata=array('basedOnVersionId'=>$official['id']);if($p['module']==='mindmap')$sourceMetadata['targetNodeId']=$selection['targetNodeId'];
+                $p['messages'][]=$this->message('student',$text,'discussion',array_merge($sourceMetadata,$answerMetadata));
                 $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array_merge(array('basedOnVersionId'=>$official['id'],'targetItemIds'=>$selection['targetItemIds'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result,$selection)));
+                if($p['module']==='mindmap')$message['targetNodeId']=$selection['targetNodeId'];
                 if($result['outcome']==='revision'){
                     $id=$this->appendVersion($p,$result['items'],$result['rationale'],'revision',$official['id'],$message['id'],$provenance,'minor',$result);
-                    $p['versions'][count($p['versions'])-1]['revisionInstruction']=$text;$p['versions'][count($p['versions'])-1]['targetItemIds']=$selection['targetItemIds'];$message['versionIds']=array($id);$message['text'].=' 已新增可審閱的完整修訂版，尚未取代正式版；請查看差異，再決定是否採用，或選這一版接續微調。';$p['phase']='work';
+                    if($p['module']==='mindmap'){$message['targetNodeId']=$selection['targetNodeId'];$p['versions'][count($p['versions'])-1]['targetNodeId']=$selection['targetNodeId'];}
+                    $p['versions'][count($p['versions'])-1]['revisionInstruction']=$text;$p['versions'][count($p['versions'])-1]['targetItemIds']=$selection['targetItemIds'];$message['versionIds']=array($id);$message['text'].=$p['module']==='mindmap'?' 已新增含待選分支的完整候選；已加入的圖形節點沒有改動，建議尚未入圖。請在工作區勾選想要的分支後另存版本。':' 已新增可審閱的完整修訂版，尚未取代正式版；請查看差異，再決定是否採用，或選這一版接續微調。';$p['phase']='work';
                     $p['messages'][]=$message;$saved=$this->save($p);$saved['revisionVersionId']=$id;return $saved;
                 }
                 $p['messages'][]=$message;return $this->save($p);

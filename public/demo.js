@@ -1,6 +1,8 @@
+import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version11';
+import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version11';
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version9';
-import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version9';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version11';
+import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version11';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};
@@ -34,6 +36,8 @@ export function createDemoAdapter({seed=true}={}) {
     if(body.approvedKeyRevision!==undefined && body.approvedKeyRevision!==settings.keyRevision)fail('STALE_KEY','金鑰狀態已更新。');
   }
   function demoBrief(type,chartMode='flowchart') {
+    if(type==='mindmap')return scriptedMindmapBrief();
+    if(type==='vector')return scriptedVectorBrief();
     const brief=clone(DEMO_BRIEF);
     if(type==='short_text'){brief.items=[{id:'body',label:'全文'}];brief.summary='為社區影像展撰寫一篇溫暖、清楚的宣傳短文，邀請居民與創作者從日常生活看見故事。';}
     if(type==='article'){brief.items=[{id:'paragraph-1',label:'開場'},{id:'paragraph-2',label:'展覽內容'},{id:'paragraph-3',label:'邀請與結語'}];brief.summary='以開場、展覽內容及邀請結語三段介紹社區影像展，讓居民與創作者理解活動意義，從日常生活看見故事。';}
@@ -53,12 +57,12 @@ export function createDemoAdapter({seed=true}={}) {
     const value={id:id('message'),role,text,kind,at:now(),...extra};
     if(role==='assistant')value.provenance=provenance(project);project.messages.push(value);return value;
   }
-  function scriptedQuestion(raw,item,question,choices,baseVersionId=null,targetItemIds=[]) {
-    return {question,choices:clone(choices),choiceContext:{itemId:item.id,officialVersionId:item.officialVersionId,sharedContextRevision:raw.sharedContextRevision,itemTitle:item.title,itemDescription:item.description,baseVersionId,targetItemIds:clone(targetItemIds)}};
+  function scriptedQuestion(raw,item,question,choices,baseVersionId=null,targetItemIds=[],targetNodeId=null) {
+    return {question,choices:clone(choices),choiceContext:{itemId:item.id,officialVersionId:item.officialVersionId,sharedContextRevision:raw.sharedContextRevision,itemTitle:item.title,itemDescription:item.description,baseVersionId,targetItemIds:clone(targetItemIds),...(item.type==='mindmap'&&baseVersionId?{targetNodeId}:{})}};
   }
   function newItem(type,title,description='') {
     const item={id:id('item'),type,title,description,enabled:MODULES.some(module=>module.id===type && module.enabled),archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,summaryRevision:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
-    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。'+(isArtifactType(type)?'表格與圖表的初始資料全部虛構，僅供操作示範，不是你提供的實際資料。':''):'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
+    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。'+(type==='vector'?'向量圖形是事先寫好的虛構幾何示範，不是 AI 生成或你的真實設計。':type==='mindmap'?'心智圖主題與待選分支全部虛構，勾選後才加入草稿。':isArtifactType(type)?'表格與圖表的初始資料全部虛構，僅供操作示範，不是你提供的實際資料。':''):'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
   }
   function newProject(title,description='',aiBinding=null) {
     const item=newItem('titles','標題名稱');
@@ -76,14 +80,16 @@ export function createDemoAdapter({seed=true}={}) {
     if(type==='chart')artifact.sourceText=artifact.sourceText.replace(/\r\n/g,'\n');
     return artifact;
   }
-  function artifactTitle(artifact,items) {return String(artifact?.kind==='table'?artifact.caption:artifact?.kind==='chart'?artifact.title:items[0].content).slice(0,180);}
+  function artifactTitle(artifact,items) {return String(artifact?.kind==='table'?artifact.caption:['chart','vector'].includes(artifact?.kind)?artifact.title:artifact?.kind==='mindmap'?artifact.nodes.find(node=>node.id===artifact.rootId).label:items[0].content).slice(0,180);}
   function scriptedArtifact(type,brief) {
+    if(type==='mindmap')return scriptedMindmapArtifact(brief);
+    if(type==='vector')return scriptedVectorArtifact(brief);
     if(type==='chart' && !brief?.constraints?.includes('示範種類：統計圖表'))return {kind:'chart',chartType:'flowchart',title:'想法整理流程（虛構示範）',xLabel:'',yLabel:'',sourceText:'flowchart TD\nStart("開始")\nIdea["整理想法"]\nReview{"確認方向？"}\nDraft["建立候選"]\nStart --> Idea\nIdea --> Review\nReview -->|需要調整| Idea\nReview -->|確認| Draft'};
     return type==='table'?{kind:'table',caption:'活動時段（虛構示範資料）',columns:[{id:'time',label:'時段'},{id:'activity',label:'活動'}],rows:[{id:'morning',cells:['10:00','開場與導覽（虛構）']},{id:'noon',cells:['11:00','作品交流（虛構）']},{id:'afternoon',cells:['14:00','分享時段（虛構）']}]}:{kind:'chart',chartType:'bar',title:'參觀人次（虛構示範資料）',xLabel:'時段',yLabel:'人次',sourceText:'時段\t人次\n上午\t12\n下午\t18\n傍晚\t9'};
   }
   function addGeneratedArtifact(project) {
     const artifact=checkedArtifact(scriptedArtifact(project.type,project.brief),project.type),items=artifactItems(artifact);
-    const msg=message(project,'assistant','已建立一個完整的'+(project.type==='table'?'表格':artifact.chartType==='flowchart'?'流程圖':'統計圖表')+'候選。'+(artifact.chartType==='flowchart'?'所有節點、判斷與連線皆為事先寫好的虛構示範流程，沒有解析或採用你的真實流程。':'所有時段、活動名稱與人數皆為事先寫好的虛構示範資料，沒有解析或採用你的真實資料。')+'\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
+    const msg=message(project,'assistant','已建立一個完整的'+(project.type==='vector'?'向量圖形':project.type==='mindmap'?'心智圖':project.type==='table'?'表格':artifact.chartType==='flowchart'?'流程圖':'統計圖表')+'候選。'+(project.type==='vector'?'幾何圖形與文字皆為事先寫好的虛構示範，可選取物件修改並匯出 SVG；沒有解析或採用你的真實設計。':project.type==='mindmap'?'目前圖中只有主題，所有建議分支都是固定的虛構內容，尚未加入圖中；請勾選想要的分支，再另存完整版本。':artifact.chartType==='flowchart'?'所有節點、判斷與連線皆為事先寫好的虛構示範流程，沒有解析或採用你的真實流程。':'所有時段、活動名稱與人數皆為事先寫好的虛構示範資料，沒有解析或採用你的真實資料。')+'\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
     const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:artifactTitle(artifact,items),artifact,items,rationale:'使用明確標示的虛構資料，示範完整結構與版本保存；未推論或補造使用者資料。',goalText:project.brief.summary,goalSource:'ai',changeSummary:'建立一個固定腳本的虛構示範候選。',discussionMessageIds:project.messages.filter(m=>['student','assistant'].includes(m.role)).map(m=>m.id),source:'generated',basedOnVersionId:null,goalSnapshot:{summary:project.brief.summary},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
     v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';
   }
@@ -121,9 +127,9 @@ export function createDemoAdapter({seed=true}={}) {
     const msg=message(project,'assistant','各版本創作內容的比較已整理在右側。各版本有不同優點與取捨，沒有自動選出贏家，也沒有變更正式版。\n（固定腳本意見，不是真實 AI 評估）','comparison');
     const comparison={id:id('comparison'),versionIds:[...versionIds],question,goalBasis:'version_snapshots',versionGoalSnapshots:versionIds.map(versionId=>({versionId,goalSnapshot:clone(project.versions.find(v=>v.id===versionId).goalSnapshot || null),goalText:versionGoalText(project.versions.find(v=>v.id===versionId)),goalAndRationale:versionGoalAndRationale(project.versions.find(v=>v.id===versionId)),goalSource:project.versions.find(v=>v.id===versionId).goalSource || null,changeSummary:project.versions.find(v=>v.id===versionId).changeSummary || '',rationale:project.versions.find(v=>v.id===versionId).rationale || '',discussionMessageIds:clone(project.versions.find(v=>v.id===versionId).discussionMessageIds || [])})),goalSnapshot:null,referencesSnapshot:clone(project.references || []),items:versionIds.map((versionId,index)=>({versionId,fit:index===0?'名稱與宣傳短句方向一致，能連結這次展示情境。':'情感較直接，能邀請讀者走進創作者的故事。',strength:index===0?'中英文名稱有共同意象，宣傳短句能接續同一方向。':'親近、好理解，容易形成觀眾共鳴。',tradeoff:index===0?'意象較多，可能需要副標補充活動資訊。':'名稱、短句與短文的語氣可以再確認是否一致。',suggestion:index===0?'可以試著調整動詞，讓語氣更主動。':'保留情緒核心，再考慮是否加入影像相關詞彙。'})),summary:'這些版本適合不同的溝通重點：有的強調影像意象，有的強調人與故事的關係。請回到你最希望觀眾記得的那件事，決定下一步。'+(question?' 這是固定腳本示範，不會因比較問題而改寫分析。':''),messageId:msg.id,createdAt:now(),provenance:provenance(project)};
     if(isArtifactType(project.type)){
-      comparison.items=versionIds.map(versionId=>({versionId,fit:'請對照這個版本保存的完整資料與本版目標。',strength:'完整原生內容、資料來源與版本紀錄都保持不變。',tradeoff:'固定腳本沒有分析資料真實性、呈現品質或不同版本的優劣。',suggestion:project.type==='table'?'逐欄檢查欄位名稱、列內容及表格說明。':'逐項檢查圖表類型、標題，以及流程節點／連線或統計資料來源。'}));
+      comparison.items=versionIds.map(versionId=>({versionId,fit:'請對照這個版本保存的完整資料與本版目標。',strength:'完整原生內容、資料來源與版本紀錄都保持不變。',tradeoff:'固定腳本沒有分析資料真實性、呈現品質或不同版本的優劣。',suggestion:project.type==='vector'?'逐一檢查圖形、文字、顏色、位置及圖層遮擋，依各版本自己的目標判斷；固定腳本沒有看圖評比。':project.type==='mindmap'?'區分已加入的節點與待選建議，檢查節點名稱、說明與父子關係；不要把未採用建議當成作品內容。':project.type==='table'?'逐欄檢查欄位名稱、列內容及表格說明。':'逐項檢查圖表類型、標題，以及流程節點／連線或統計資料來源。'}));
       comparison.summary='這是版本並排檢視的固定操作提示，不是內容評估或 AI 分析；請自行檢閱完整資料、各版目標與差異。'+(question?' 已保存你的比較問題，固定腳本不會解析或回答該問題。':'');
-      msg.text='已保存選定版本的比較紀錄；完整表格或圖表資料保持在各自的固定版本中。固定腳本只提供操作提示，不判斷優劣，也不會變更正式版。';
+      msg.text='已保存選定版本的比較紀錄；完整結構化作品保持在各自的固定版本中。固定腳本只提供操作提示，不判斷優劣，也不會變更正式版。';
     }
     project.comparisons.push(comparison);msg.comparisonId=comparison.id;msg.goalBasis=comparison.goalBasis;msg.text+='\n'+COMPARISON_SNAPSHOT_NOTE;return comparison;
   }
@@ -140,6 +146,8 @@ export function createDemoAdapter({seed=true}={}) {
   const setSignature=values=>JSON.stringify([...new Set(values.map(value=>JSON.stringify(value)))].sort());
   function flowSignature(graph) {return JSON.stringify([graph.direction,setSignature(graph.nodes.map(node=>[node.id,node.label,node.shape])),setSignature(graph.edges.map(edge=>[edge.from,edge.to,edge.label]))]);}
   function fuseArtifacts(sources,type) {
+    if(type==='vector'){try{return fuseScriptedVectors(sources.map(source=>source.artifact));}catch(error){throw new ApiError(error.message,400);}}
+    if(type==='mindmap'){try{return fuseScriptedMindmaps(sources.map(source=>source.artifact));}catch(error){throw new ApiError(error.message,400);}}
     const artifacts=sources.map(source=>checkedArtifact(source.artifact,type)),artifact=cloneArtifact(artifacts[0]);
     if(type==='chart' && artifacts.some(source=>source.chartType==='flowchart')){
       if(artifacts.some(source=>source.chartType!=='flowchart'))throw new ApiError('固定腳本不能混合流程圖與統計圖表，沒有建立融合版。',400);
@@ -199,11 +207,14 @@ export function createDemoAdapter({seed=true}={}) {
     const items=artifact?artifactItems(artifact):sources[0].items.map((item,index)=>clone(sources[index%sources.length].items.find(candidate=>candidate.id===item.id && candidate.label===item.label) || item));
     if(project.type==='short_text')items[0].content=sources.map(source=>source.items[0].content).join('\n\n');
     if(!validItems(items,project.type))throw new ApiError('示範融合結果超過內容限制，請減少來源版本或縮短內容。',400);
-    const method=project.type==='table'?'依選取順序加入不同的完整資料列，相同儲存格內容的列不重複加入；保留第一份來源的欄位與說明，僅在列 ID 衝突時另建 ID':project.type==='chart'?(artifact.chartType==='flowchart'?'依選取順序合併已宣告的相容節點與不同連線，保留第一份來源的標題與方向；重新排列成安全文字來源，不新增任何未在來源出現的連線':'依選取順序加入新分類，跳過同名且同值的分類；保留第一份來源的圖表類型、標題、座標軸與欄位，不計算或改寫數值'):'依選取順序輪流取用同名欄位；短文則逐篇串接';
+    const method=project.type==='vector'?'依選取順序追加相容的新圖形物件，保留第一份來源的畫布、背景與既有圖層順序；不猜測相衝突的圖形內容或外部工具相容性':project.type==='mindmap'?'合併已在來源中加入的相容節點，待選建議仍保持待選；不推測關係、不把未勾選建議加入圖中':project.type==='table'?'依選取順序加入不同的完整資料列，相同儲存格內容的列不重複加入；保留第一份來源的欄位與說明，僅在列 ID 衝突時另建 ID':project.type==='chart'?(artifact.chartType==='flowchart'?'依選取順序合併已宣告的相容節點與不同連線，保留第一份來源的標題與方向；重新排列成安全文字來源，不新增任何未在來源出現的連線':'依選取順序加入新分類，跳過同名且同值的分類；保留第一份來源的圖表類型、標題、座標軸與欄位，不計算或改寫數值'):'依選取順序輪流取用同名欄位；短文則逐篇串接';
+    const goal='固定腳本未綜合或重新判斷來源目標；下方逐版保留本版目標與修改意見，請自行審閱。';
+    const combined=[goal,...sources.map(source=>`${versionLabel(source)} 來源目標與修改意見：\n${versionGoalAndRationale(source) || '此舊版未保存目標與修改意見。'}`),`本次固定腳本操作：\n${method}`].join('\n\n');
+    if(combinedMetadataError(combined))throw new ApiError('完整來源目標與意見合計超過示範融合的 12,000 位元組限制；未省略、未截斷，也沒有建立融合版。請減少來源版本。',400);
     const msg=message(project,'assistant',`已建立獨立的融合候選，沒有變更任何來源或正式版。固定腳本只會${method}，不是真實 AI 融合。`,'fusion',{versionIds:[]});
     const rationale=`固定腳本${method}，僅示範融合版本與來源快照的保存方式。`;
-    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:artifactTitle(artifact,items),items,...(artifact?{artifact}:{}),rationale,goalText:versionGoalText(sources[0]),goalSource:'ai',changeSummary:'建立獨立融合候選；原版本和正式版維持不變。'+(question?' 已保存融合重點，但固定腳本不會解析或依此重寫內容。':''),discussionMessageIds:[msg.id],source:'fusion',basedOnVersionId:null,fusionSourceVersionIds:[...versionIds],fusionSourceSnapshots:sources.map(pinVersion),fusionInstruction:question,goalSnapshot:{summary:versionGoalText(sources[0])},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
-    v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:artifactTitle(artifact,items),items,...(artifact?{artifact}:{}),rationale,goalText:goal,goalSource:'ai',changeSummary:'建立獨立融合候選；原版本和正式版維持不變。'+(question?' 已保存融合重點，但固定腳本不會解析或依此重寫內容。':''),discussionMessageIds:[msg.id],source:'fusion',basedOnVersionId:null,fusionSourceVersionIds:[...versionIds],fusionSourceSnapshots:sources.map(pinVersion),fusionInstruction:question,goalSnapshot:{summary:goal},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+    v.goalAndRationale=combined;project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
   if(seed) {
     const project=newProject('社區影像展 · 共創企劃','為年度社區影像展規劃名稱、宣傳與主視覺。希望邀請居民、創作者與第一次來看影展的觀眾，從日常看見故事。',bindingFor(settings.activeMemberId,settings.settingsRevision));
@@ -316,15 +327,37 @@ export function createDemoAdapter({seed=true}={}) {
           if(!Array.isArray(body.targetItemIds) || !body.targetItemIds.length || new Set(body.targetItemIds).size!==body.targetItemIds.length || body.targetItemIds.some(target=>typeof target!=='string' || !base.items.some(item=>item.id===target)))throw new ApiError('請明確選擇來源文章中要修改的段落，未選段落會保持不變。',400);
           targetItemIds=[...body.targetItemIds].sort();
         }else if(body.targetItemIds!==undefined && (!Array.isArray(body.targetItemIds) || body.targetItemIds.length))throw new ApiError('只有文章修改可指定段落範圍。',400);
+        let targetNodeId=null;
+        if(base && p.type==='mindmap'){targetNodeId=body.targetNodeId;if(typeof targetNodeId!=='string' || !base.artifact?.nodes.some(node=>node.id===targetNodeId))throw new ApiError('請選擇來源版本中已加入心智圖的節點，待選建議尚不能作為起點。',409);}
+        else if(body.targetNodeId!==undefined && body.targetNodeId!==null)throw new ApiError('此階段不接受心智圖節點範圍。',409);
         let studentExtra={};
         if(body.choiceAnswer!==undefined){
           const question=p.messages.at(-1),answer=body.choiceAnswer;
           if(!answer || typeof answer!=='object' || Array.isArray(answer) || Object.keys(answer).length!==2 || typeof answer.questionMessageId!=='string' || typeof answer.choiceId!=='string')throw new ApiError('選項答案格式不正確。',400);
           const context=question?.choiceContext;
-          if(!currentChoiceQuestion(view(raw),question,{baseVersionId:baseId,targetItemIds}) || answer.questionMessageId!==question.id || body.officialVersionId!==p.officialVersionId || context.baseVersionId!==baseId || JSON.stringify(context.targetItemIds)!==JSON.stringify(targetItemIds))throw new ApiError('這個選項問題已失效，請重新載入最新討論或確認修改來源。',409);
+          if(!currentChoiceQuestion(view(raw),question,{baseVersionId:baseId,targetItemIds,targetNodeId}) || answer.questionMessageId!==question.id || body.officialVersionId!==p.officialVersionId || context.baseVersionId!==baseId || JSON.stringify(context.targetItemIds)!==JSON.stringify(targetItemIds))throw new ApiError('這個選項問題已失效，請重新載入最新討論或確認修改來源。',409);
           const choice=question.choices.find(option=>option.id===answer.choiceId);
           if(!choice || body.text!==choice.value)throw new ApiError('選項答案與保存的問題不一致。',400);
           studentExtra={choiceAnswer:{questionMessageId:question.id,choiceId:choice.id,label:choice.label,value:choice.value}};
+        }
+        if(base && p.type==='vector'){
+          let result;try{result=scriptedVectorRevision(base.artifact,body.text);}catch(error){throw new ApiError(error.message,400);}
+          if(result.outcome==='revision'){
+            const combined=[versionGoalAndRationale(base),'本次向量修改：\n'+result.changeSummary].filter(Boolean).join('\n\n');if(combinedMetadataError(combined))throw new ApiError('完整目標與向量修改意見超過 12,000 位元組，未截斷或建立修改版。',400);
+            message(p,'student',body.text,'discussion',{...studentExtra,basedOnVersionId:base.id});
+            const revised=addScriptedRevision(p,base,artifactItems(result.artifact),[],result.artifact);revised.revisionInstruction=body.text;revised.changeSummary=result.changeSummary;revised.rationale=result.rationale;revised.goalAndRationale=combined;p.messages.find(m=>m.id===revised.messageId).text=result.reply;revisionVersionId=revised.id;
+          }else{message(p,'student',body.text,'discussion',{...studentExtra,basedOnVersionId:base.id});message(p,'assistant',result.reply,'clarification',{...scriptedQuestion(raw,p,result.question || '',result.choices || [],base.id,[]),basedOnVersionId:base.id});p.lifecycle='in_progress';}
+          break;
+        }
+        if(base && p.type==='mindmap'){
+          let result;try{result=scriptedMindmapRevision(base.artifact,targetNodeId,body.text);}catch(error){throw new ApiError(error.message,400);}
+          message(p,'student',body.text,'discussion',{...studentExtra,targetNodeId,basedOnVersionId:base.id});
+          if(result.outcome==='revision'){
+            const combined=[versionGoalAndRationale(base),'本次待選建議：\n'+result.changeSummary].filter(Boolean).join('\n\n');if(combinedMetadataError(combined))throw new ApiError('完整目標與待選變更意見超過 12,000 位元組，沒有建立修改版或截斷原文。',400);
+            const revised=addScriptedRevision(p,base,artifactItems(result.artifact),[],result.artifact);revised.targetNodeId=targetNodeId;revised.revisionInstruction=body.text;revised.changeSummary=result.changeSummary;revised.rationale=result.rationale;revised.goalText=result.goalText || versionGoalText(base);revised.goalSnapshot={summary:revised.goalText};revised.goalAndRationale=combined;
+            const msg=p.messages.find(m=>m.id===revised.messageId);msg.text=result.reply;msg.targetNodeId=targetNodeId;revisionVersionId=revised.id;
+          }else message(p,'assistant',result.reply,'clarification',{...scriptedQuestion(raw,p,result.question || '',result.choices || [],base.id,[],targetNodeId),basedOnVersionId:base.id,targetNodeId});
+          p.lifecycle='in_progress';break;
         }
         if(base && isArtifactType(p.type)){
           const artifact=checkedArtifact(base.artifact,p.type),field=p.type==='table'?'表格說明':'圖表標題',key=p.type==='table'?'caption':'title';
@@ -372,6 +405,14 @@ export function createDemoAdapter({seed=true}={}) {
           break;
         }
         message(p,'student',body.text,'discussion',studentExtra);p.phase='discussion';p.brief=null;p.summaryRevision=null;p.goalApprovedAt=null;p.lifecycle='in_progress';
+        if(p.type==='vector'){
+          if(/示範|向量/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
+          message(p,'assistant','固定腳本不會解析你的設計要求。可使用虛構向量圖，體驗可編輯幾何物件與 SVG 匯出；確認前不建立作品。','discussion',scriptedQuestion(raw,p,'要先使用固定的虛構向量示範嗎？',[{id:'vector-demo',label:'使用向量圖形示範',value:'請使用向量圖形示範。'},{id:'vector-continue',label:'繼續自由輸入',value:'我想先繼續說明想法。'}]));break;
+        }
+        if(p.type==='mindmap'){
+          if(/示範|心智圖|探索/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
+          message(p,'assistant','這是固定腳本，不會解析你的真實主題。可以用虛構主題示範如何挑選分支；確認前不建立圖形。','discussion',scriptedQuestion(raw,p,'要用固定的虛構主題，試試勾選分支嗎？',[{id:'mindmap-demo',label:'使用心智圖示範',value:'請使用心智圖示範。'},{id:'mindmap-continue',label:'繼續自由輸入',value:'我想先繼續說明想法。'}]));break;
+        }
         if(isArtifactType(p.type)){
           if(/示範|活動時段|參觀人次|流程圖/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
           const table=p.type==='table',options=scriptedQuestion(raw,p,table?'要使用虛構活動時段，示範表格操作嗎？':'要先使用虛構流程圖，示範節點與連線操作嗎？也可明確選擇統計圖表。',[

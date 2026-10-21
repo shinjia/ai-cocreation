@@ -89,7 +89,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version9"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version9"/);assert.match(html,/demo\.js\?v=20261021-version9/);assert.match(demo,/app\.js\?v=20261021-version9/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version11"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version11"/);assert.match(html,/demo\.js\?v=20261021-version11/);assert.match(demo,/app\.js\?v=20261021-version11/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -953,11 +953,11 @@ async function generatedItem(api,project,type){
  return call(api,'confirm_generate',p,{consent:true});
 }
 
-test('module registry preserves all twelve ordered choices and honestly enables three text modules and two structured artifacts',async()=>{
+test('module registry preserves all twelve ordered choices and honestly enables three text modules and four structured artifacts',async()=>{
  const registry=[['titles','標題名稱'],['short_text','短文'],['article','長篇文章'],['illustrated','圖文'],['table','表格'],['chart','圖表'],['mindmap','心智圖'],['vector','向量圖形'],['image','圖片創作'],['poster','海報設計'],['webpage','網頁'],['interactive','互動視覺程式']];
- assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart']);
+ assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart','mindmap','vector']);
  const api=createDemoAdapter({seed:false});let p=await boundProject(api);
- for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
+ for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart','mindmap','vector'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
 });
 
 test('module content validation distinguishes full short text and bounded stable paragraphs without truncation',()=>{
@@ -1283,4 +1283,119 @@ test('scripted artifact fusion rejects a union already present in any selected s
   p=await call(source,'snapshot',p,{artifact,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'來源本身已包含全部資料，無新整合。'});const before=structuredClone(p),ids=[base.id,p.versions.at(-1).id];
   await assert.rejects(call(source,'fuse',p,{versionIds:ids,question:'不要僅複製任何來源。',consent:true}),/未變動|已包含|已完整存在|沒有.*新|沒有.*融合|沒有可新增/);const after=(await source.request('project',{id:p.id})).project;assert.deepEqual(after,before);
  }
+});
+
+async function mindmapWorkspace(context){
+ const {source,app,doc}=context;await call(source,'create_item',context.project,{type:'mindmap',title:'自由探索心智圖'});await app.reload();
+ await fixtureFill(doc,'chat-input','請使用心智圖示範。');await fixtureClick(doc,'送出想法 ↗');assert.equal(context.project.versions.length,0);assert.equal(context.project.phase,'summary');
+ await fixtureClick(doc,'確認方向並生成候選 ↗');const base=structuredClone(context.project.versions[0]);assert.equal(base.artifact.nodes.length,1);assert.equal(base.artifact.proposals.length,3);assert.equal(context.project.officialVersionId,null);await fixtureCardClick(doc,base.id,'編輯');return base;
+}
+async function mindmapCheck(doc,id){const check=artifactInput(doc,'proposal-'+id);check.checked=true;await check.dispatchEvent('change');}
+
+test('mindmap native pending acceptance saves only explicitly checked branches through real renderer and fetch',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,base=await mindmapWorkspace(context),projectTitle=context.project.title,itemTitle=context.project.activeItem.title;
+  assert.equal(root.querySelector('.artifact-live-preview').querySelectorAll('svg').length,1);assert.equal(root.querySelectorAll('input').filter(input=>input.id.includes('-proposal-')&&input.checked).length,0);
+  await mindmapCheck(doc,base.artifact.proposals[0].id);await mindmapCheck(doc,base.artifact.proposals[1].id);await fixtureClick(doc,'將勾選分支加入草稿');
+  assert.equal(context.project.versions.length,1);assert.equal(calls.filter(c=>c.action==='snapshot').length,0);await fixtureFill(doc,'editor-goal','先保留兩條探索路線，不急著選結論。');await fixtureClick(doc,'另存小修改 V1.1');
+  const saved=structuredClone(context.project.versions.at(-1)),payload=calls.filter(c=>c.action==='snapshot').at(-1).payload;assert.equal(saved.artifact.nodes.length,3);assert.equal(saved.artifact.proposals.length,1);assert.deepEqual(payload.artifact,saved.artifact);assert.equal(payload.items,undefined);assert.equal(saved.basedOnVersionId,base.id);assert.deepEqual(context.project.versions[0],base);assert.match(saved.goalAndRationale,/兩條探索/);
+  await fixtureCardClick(doc,saved.id,'設為正式版');assert.match(doc.body.querySelector('dialog').textContent,/待選建議仍待勾選/);await fixtureDialogClick(doc,'設為正式版');assert.equal(context.project.officialVersionId,saved.id);assert.equal(context.project.title,projectTitle);assert.equal(context.project.activeItem.title,itemTitle);assert.deepEqual(context.project.versions.at(-1),saved);assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='匯出 JSON'));
+ });
+});
+
+test('mindmap selected saved node gets reviewable pending-only revision and continuing adoption preserves provenance',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await mindmapWorkspace(context);await mindmapCheck(doc,base.artifact.proposals[0].id);await fixtureClick(doc,'將勾選分支加入草稿');await fixtureClick(doc,'另存小修改 V1.1');const saved=structuredClone(context.project.versions.at(-1)),target=saved.artifact.nodes[1].id;
+  await fixtureSelect(doc,'mindmap-discussion-node',target);await fixtureFill(doc,'chat-input','請提供這個節點的子分支示範。');await fixtureClick(doc,'送出想法 ↗');
+  const revision=structuredClone(context.project.versions.at(-1)),payload=calls.filter(c=>c.action==='discuss').at(-1).payload;assert.equal(revision.source,'revision');assert.equal(revision.basedOnVersionId,saved.id);assert.equal(revision.targetNodeId,target);assert.deepEqual(revision.artifact.nodes,saved.artifact.nodes);assert.equal(revision.artifact.proposals.filter(p=>p.parentId===target).length,3);assert.deepEqual(revision.artifact.proposals.filter(p=>p.parentId!==target),saved.artifact.proposals);assert.equal(payload.targetNodeId,target);assert.equal(payload.baseVersionId,saved.id);assert.equal(payload.approvedMemberId,context.project.aiBinding.memberId);assert.equal(context.project.officialVersionId,null);assert.match(doc.getElementById('revision-review').textContent,/待選分支/);
+  await fixtureClick(doc,'採用這次修改');await fixtureDialogClick(doc,'確認採用這次修改');assert.equal(context.project.officialVersionId,revision.id);assert.deepEqual(context.project.versions.find(v=>v.id===saved.id),saved);
+  await fixtureSelect(doc,'editor-source',revision.id);let selected=artifactInput(doc,'selection');selected.value=target;await selected.dispatchEvent('change');await mindmapCheck(doc,revision.artifact.proposals.find(p=>p.parentId===target).id);await fixtureClick(doc,'將勾選分支加入草稿');await fixtureClick(doc,'另存小修改 V1.3');const next=context.project.versions.at(-1);assert.equal(next.artifact.nodes.length,3);assert.equal(next.basedOnVersionId,revision.id);assert.deepEqual(context.project.versions.find(v=>v.id===revision.id),revision);assert.equal(context.project.officialVersionId,revision.id);
+ });
+});
+
+test('mindmap raw node and child drafts survive outer reload and AI response, block incomplete saves, and escape malicious text',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,app,root,calls}=context,base=await mindmapWorkspace(context);const label='  <img src=x onerror=evil()>\n保留名稱  ',description='  第一行\n\n第二行  ';await artifactFill(doc,'label',label);await artifactFill(doc,'description',description);await artifactFill(doc,'child-label','尚未加入的自填分支');assert.equal(doc.getElementById('save-minor').disabled,true);assert.match(doc.getElementById('draft-status').textContent,/套用或放棄/);
+  const old=artifactInput(doc,'label');await app.reload();assert.equal(artifactInput(doc,'label').value,label);assert.equal(artifactInput(doc,'child-label').value,'尚未加入的自填分支');old.value='stale';await old.dispatchEvent('input');assert.equal(artifactInput(doc,'label').value,label);
+  await fixtureFill(doc,'chat-input','我想再探索，還沒決定方向。');await fixtureClick(doc,'送出想法 ↗');assert.equal(context.project.versions.length,1);assert.equal(artifactInput(doc,'label').value,label);assert.equal(artifactInput(doc,'description').value,description);assert.equal(artifactInput(doc,'child-label').value,'尚未加入的自填分支');assert.equal(doc.getElementById('save-minor').disabled,true);
+  await fixtureClick(doc,'套用節點修改至草稿');assert.equal(doc.getElementById('save-minor').disabled,true);await fixtureClick(doc,'放棄自填子節點');assert.equal(doc.getElementById('save-minor').disabled,false);await fixtureClick(doc,'另存小修改 V1.1');assert.equal(context.project.versions.at(-1).artifact.nodes[0].label,label);assert.equal(context.project.versions.at(-1).artifact.nodes[0].description,description);assert.deepEqual(context.project.versions[0],base);assert.equal(root.querySelectorAll('img,script').length,0);assert.equal(calls.filter(c=>c.action==='snapshot').length,1);
+ });
+});
+
+test('mindmap choices are node-scoped and a deliberate choice uses saved-source context without clearing typed draft',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await mindmapWorkspace(context);await mindmapCheck(doc,base.artifact.proposals[0].id);await fixtureClick(doc,'將勾選分支加入草稿');await fixtureClick(doc,'另存小修改 V1.1');const source=context.project.versions.at(-1);
+  await fixtureFill(doc,'chat-input','想繼續探索');await fixtureClick(doc,'送出想法 ↗');const q=context.project.messages.at(-1);assert.equal(choiceButtons(doc,q.id).length,2);assert.ok(choiceButtons(doc,q.id).every(b=>!b.disabled));await fixtureSelect(doc,'mindmap-discussion-node',source.artifact.nodes[1].id);assert.ok(choiceButtons(doc,q.id).every(b=>b.disabled));await fixtureSelect(doc,'mindmap-discussion-node',source.artifact.rootId);assert.ok(choiceButtons(doc,q.id).every(b=>!b.disabled));
+  await fixtureFill(doc,'chat-input','保留我的自由文字草稿');void choiceButtons(doc,q.id)[0].dispatchEvent('click');await settle();const payload=calls.filter(c=>c.action==='discuss').at(-1).payload;assert.equal(payload.choiceAnswer.questionMessageId,q.id);assert.equal(payload.targetNodeId,source.artifact.rootId);assert.equal(payload.baseVersionId,source.id);assert.equal(payload.approvedMemberId,context.project.aiBinding.memberId);assert.equal(doc.getElementById('chat-input').value,'保留我的自由文字草稿');assert.deepEqual(context.project.versions.at(-1).artifact.nodes,source.artifact.nodes);
+ });
+});
+
+test('mindmap manual split branches compare and fuse explicitly without accepting remaining proposals or overwriting sources',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await mindmapWorkspace(context);await mindmapCheck(doc,base.artifact.proposals[0].id);await fixtureClick(doc,'將勾選分支加入草稿');await fixtureFill(doc,'editor-goal','只探索地方聲音。保留完整人工意見。');await fixtureClick(doc,'另存小修改 V1.1');const one=structuredClone(context.project.versions.at(-1));
+  await fixtureCardClick(doc,base.id,'編輯');await mindmapCheck(doc,base.artifact.proposals[1].id);await fixtureClick(doc,'將勾選分支加入草稿');await fixtureFill(doc,'editor-goal','只探索人物觀點。第二版人工目標。');await fixtureClick(doc,'另存小修改 V1.2');const two=structuredClone(context.project.versions.at(-1));await fixtureVersionSelect(doc,one.id);await fixtureVersionSelect(doc,two.id);await fixtureClick(doc,'請 AI 提供比較意見 ↗');assert.equal(context.project.versions.length,3);assert.equal(doc.getElementById('comparison-section').querySelectorAll('.mindmap-preview').length,2);
+  await fixtureClick(doc,'融合所選版本為新候選 ↗');const fused=context.project.versions.at(-1);assert.equal(fused.source,'fusion');assert.equal(fused.major,2);assert.equal(fused.minor,0);assert.equal(fused.artifact.nodes.length,3);assert.equal(fused.artifact.proposals.length,1);assert.match(fused.goalAndRationale,/只探索地方聲音。保留完整人工意見。/);assert.match(fused.goalAndRationale,/只探索人物觀點。第二版人工目標。/);assert.deepEqual(fused.fusionSourceVersionIds,[one.id,two.id]);assert.deepEqual(context.project.versions.find(v=>v.id===one.id),one);assert.deepEqual(context.project.versions.find(v=>v.id===two.id),two);assert.equal(context.project.officialVersionId,null);assert.equal(calls.filter(c=>c.action==='fuse').length,1);
+ });
+});
+
+test('mindmap custom child and merge are explicit draft edits, lossless and saved only as a full new snapshot',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await mindmapWorkspace(context);await mindmapCheck(doc,base.artifact.proposals[0].id);await mindmapCheck(doc,base.artifact.proposals[1].id);await fixtureClick(doc,'將勾選分支加入草稿');let selected=artifactInput(doc,'selection');selected.value=base.artifact.proposals[0].id;await selected.dispatchEvent('change');await artifactFill(doc,'child-label','新的觀察');await artifactFill(doc,'child-description','  保留完整細節\n與空白  ');await fixtureClick(doc,'將自填子節點加入草稿');assert.equal(calls.filter(c=>c.action==='snapshot').length,0);
+  let merge=artifactInput(doc,'merge');merge.value=base.artifact.proposals[1].id;await merge.dispatchEvent('change');await fixtureClick(doc,'合併節點至草稿');await fixtureClick(doc,'另存小修改 V1.1');const saved=context.project.versions.at(-1),target=base.artifact.proposals[1].id;assert.equal(saved.artifact.nodes.length,3);assert.ok(!saved.artifact.nodes.some(n=>n.id===base.artifact.proposals[0].id));assert.match(saved.artifact.nodes.find(n=>n.id===target).description,/生活場景/);assert.equal(saved.artifact.nodes.find(n=>n.label==='新的觀察').parentId,target);assert.equal(saved.artifact.nodes.find(n=>n.label==='新的觀察').description,'  保留完整細節\n與空白  ');assert.deepEqual(context.project.versions[0],base);assert.equal(calls.filter(c=>c.action==='snapshot').length,1);
+ });
+});
+
+test('mindmap transport rejects pending or stale target nodes and over-budget combined fusion metadata without side effects',async()=>{
+ const api=createDemoAdapter({seed:false});let p=await boundProject(api);p=await call(api,'create_item',p,{type:'mindmap',title:'探索'});p=await call(api,'discuss',p,{text:'心智圖示範',consent:true});p=await call(api,'confirm_generate',p,{consent:true});const base=structuredClone(p.versions[0]);
+ for(const targetNodeId of [undefined,'missing',base.artifact.proposals[0].id,123]){const before=structuredClone(p);await assert.rejects(call(api,'discuss',p,{text:'請提供這個節點的子分支示範。',baseVersionId:base.id,targetNodeId,consent:true}),e=>e.status===409);p=(await api.request('project',{id:p.id})).project;assert.deepEqual(p,before);}
+ const {acceptMindmapProposals}=await import('../public/mindmap.js');const first=acceptMindmapProposals(base.artifact,[base.artifact.proposals[0].id]),second=acceptMindmapProposals(base.artifact,[base.artifact.proposals[1].id]);p=await call(api,'snapshot',p,{artifact:first,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'甲'.repeat(2100)});const one=p.versions.at(-1);p=await call(api,'snapshot',p,{artifact:second,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'乙'.repeat(2100)});const two=p.versions.at(-1),before=structuredClone(p);await assert.rejects(call(api,'fuse',p,{versionIds:[one.id,two.id],consent:true}),/12,000/);p=(await api.request('project',{id:p.id})).project;assert.deepEqual(p,before);
+});
+
+async function vectorWorkspace(context){
+ const {source,app,doc}=context;await call(source,'create_item',context.project,{type:'vector',title:'幾何識別設計'});await app.reload();await fixtureFill(doc,'chat-input','請使用向量圖形示範。');await fixtureClick(doc,'送出想法 ↗');assert.equal(context.project.versions.length,0);assert.equal(context.project.phase,'summary');await fixtureClick(doc,'確認方向並生成候選 ↗');const base=structuredClone(context.project.versions[0]);assert.equal(base.artifact.kind,'vector');assert.equal(base.artifact.shapes.length,5);await fixtureCardClick(doc,base.id,'編輯');return base;
+}
+
+test('vector editor validates native numeric drafts and saves full geometry via real fetch without replacing source',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,base=await vectorWorkspace(context);assert.equal(root.querySelectorAll('.artifact-vector-editor').length,1);assert.ok(root.querySelector('.artifact-live-preview').querySelector('ellipse'));assert.equal(root.querySelector('.artifact-live-preview').querySelector('image'),null);
+  await artifactFill(doc,'shape-x','1e3');await fixtureClick(doc,'套用圖形修改至草稿');assert.equal(doc.getElementById('save-minor').disabled,true);assert.equal(artifactInput(doc,'shape-x').value,'1e3');assert.equal(calls.filter(c=>c.action==='snapshot').length,0);
+  await artifactFill(doc,'shape-x','12.345');await artifactFill(doc,'shape-fill','#126a58');await fixtureClick(doc,'套用圖形修改至草稿');assert.equal(doc.getElementById('save-minor').disabled,false);await fixtureFill(doc,'editor-goal','保留書屋意象，調整晨光位置與填色。');await fixtureClick(doc,'另存小修改 V1.1');const saved=context.project.versions.at(-1),payload=calls.filter(c=>c.action==='snapshot').at(-1).payload;assert.equal(saved.artifact.shapes[0].x,12.345);assert.equal(saved.artifact.shapes[0].fill,'#126a58');assert.deepEqual(saved.artifact.shapes.slice(1),base.artifact.shapes.slice(1));assert.deepEqual(payload.artifact,saved.artifact);assert.equal(payload.items,undefined);assert.deepEqual(context.project.versions[0],base);assert.equal(saved.basedOnVersionId,base.id);assert.equal(context.project.officialVersionId,null);assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='匯出 SVG'));assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='匯出 JSON'));
+ });
+});
+
+test('vector ongoing AI-style scripted refinement stays visible and adopting a later revision preserves full object history',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await vectorWorkspace(context),projectTitle=context.project.title,itemTitle=context.project.activeItem.title;await fixtureCardClick(doc,base.id,'設為正式版');await fixtureDialogClick(doc,'設為正式版');
+  await fixtureFill(doc,'chat-input','標題改為「新的書屋標記」。');await fixtureClick(doc,'送出想法 ↗');const revision=structuredClone(context.project.versions.at(-1));assert.equal(revision.source,'revision');assert.equal(revision.artifact.title,'新的書屋標記');assert.deepEqual(revision.artifact.shapes,base.artifact.shapes);assert.equal(context.project.officialVersionId,base.id);assert.ok(doc.getElementById('revision-review').querySelector('.vector-preview'));await fixtureClick(doc,'採用這次修改');await fixtureDialogClick(doc,'確認採用這次修改');assert.equal(context.project.officialVersionId,revision.id);
+  await fixtureSelect(doc,'editor-source',revision.id);await fixtureFill(doc,'chat-input','將「晨光」的填色改為「#ef8354」。');await fixtureClick(doc,'送出想法 ↗');const next=context.project.versions.at(-1);assert.equal(next.basedOnVersionId,revision.id);assert.equal(next.artifact.shapes[0].fill,'#ef8354');assert.deepEqual(next.artifact.shapes.slice(1),revision.artifact.shapes.slice(1));assert.deepEqual(context.project.versions.find(v=>v.id===revision.id),revision);assert.deepEqual(context.project.versions[0],base);assert.equal(context.project.title,projectTitle);assert.equal(context.project.activeItem.title,itemTitle);assert.equal(calls.filter(c=>c.action==='discuss').at(-1).payload.approvedMemberId,context.project.aiBinding.memberId);
+ });
+});
+
+test('vector raw document and shape drafts survive reload and clarification, while invalid paint remains inert and unsaved',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,app,root,calls}=context,base=await vectorWorkspace(context);await artifactFill(doc,'document-title','尚未套用的畫布');await artifactFill(doc,'shape-fill','url(javascript:evil())');const old=artifactInput(doc,'shape-fill');assert.equal(doc.getElementById('save-minor').disabled,true);await app.reload();assert.equal(artifactInput(doc,'document-title').value,'尚未套用的畫布');assert.equal(artifactInput(doc,'shape-fill').value,'url(javascript:evil())');old.value='#ffffff';await old.dispatchEvent('input');assert.equal(artifactInput(doc,'shape-fill').value,'url(javascript:evil())');
+  await fixtureFill(doc,'chat-input','這些方向怎麼想？');await fixtureClick(doc,'送出想法 ↗');assert.equal(context.project.versions.length,1);assert.equal(artifactInput(doc,'shape-fill').value,'url(javascript:evil())');assert.equal(artifactInput(doc,'document-title').value,'尚未套用的畫布');assert.ok(choiceButtons(doc,context.project.messages.at(-1).id).length===2);await fixtureClick(doc,'放棄此圖形欄位修改');await fixtureClick(doc,'套用畫布修改至草稿');assert.equal(doc.getElementById('save-minor').disabled,false);await fixtureClick(doc,'另存小修改 V1.1');assert.equal(context.project.versions.at(-1).artifact.title,'尚未套用的畫布');assert.deepEqual(context.project.versions[0],base);assert.equal(root.querySelectorAll('script,image,foreignObject').length,0);assert.equal(calls.filter(c=>c.action==='snapshot').length,1);
+ });
+});
+
+test('vector shape addition ordering undo and literal text stay native and explicit through full snapshot transport',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,base=await vectorWorkspace(context);let add=artifactInput(doc,'add-type');add.value='text';await add.dispatchEvent('change');await fixtureClick(doc,'新增圖形至草稿');await artifactFill(doc,'shape-text','  <script>alert(1)</script>\n完整文字  ');await fixtureClick(doc,'套用圖形修改至草稿');await fixtureClick(doc,'向後移一層');await fixtureClick(doc,'復原上一步草稿操作');await fixtureClick(doc,'另存新版本 V2');const saved=context.project.versions.at(-1);assert.equal(saved.artifact.shapes.length,6);assert.equal(saved.artifact.shapes.at(-1).type,'text');assert.equal(saved.artifact.shapes.at(-1).text,'  <script>alert(1)</script>\n完整文字  ');assert.deepEqual(saved.artifact.shapes.slice(0,-1),base.artifact.shapes);assert.equal(new Set(saved.artifact.shapes.map(s=>s.id)).size,6);assert.equal(root.querySelectorAll('script').length,0);assert.deepEqual(context.project.versions[0],base);assert.equal(calls.filter(c=>c.action==='snapshot').length,1);
+ });
+});
+
+test('vector comparison and explicit fusion preserve ordered compatible objects and authoritative per-version notes',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await vectorWorkspace(context);await fixtureClick(doc,'新增圖形至草稿');await artifactFill(doc,'shape-x','10');await fixtureClick(doc,'套用圖形修改至草稿');await fixtureFill(doc,'editor-goal','新增左側標記，保留書屋主題。');await fixtureClick(doc,'另存小修改 V1.1');const one=structuredClone(context.project.versions.at(-1));await fixtureCardClick(doc,base.id,'編輯');await fixtureClick(doc,'新增圖形至草稿');await artifactFill(doc,'shape-x','500');await fixtureClick(doc,'套用圖形修改至草稿');await fixtureFill(doc,'editor-goal','新增右側標記，給雙側觀察空間。');await fixtureClick(doc,'另存小修改 V1.2');const two=structuredClone(context.project.versions.at(-1));await fixtureVersionSelect(doc,one.id);await fixtureVersionSelect(doc,two.id);await fixtureClick(doc,'請 AI 提供比較意見 ↗');assert.equal(context.project.versions.length,3);assert.equal(doc.getElementById('comparison-section').querySelectorAll('.vector-preview').length,2);await fixtureClick(doc,'融合所選版本為新候選 ↗');const fused=context.project.versions.at(-1);assert.equal(fused.source,'fusion');assert.equal(fused.artifact.shapes.length,7);assert.deepEqual(fused.artifact.shapes.slice(0,6),one.artifact.shapes);assert.deepEqual(fused.artifact.shapes.at(-1),two.artifact.shapes.at(-1));assert.match(fused.goalAndRationale,/新增左側標記/);assert.match(fused.goalAndRationale,/新增右側標記/);assert.equal(context.project.officialVersionId,null);assert.deepEqual(context.project.versions.find(v=>v.id===one.id),one);assert.deepEqual(context.project.versions.find(v=>v.id===two.id),two);assert.equal(calls.filter(c=>c.action==='fuse').length,1);
+ });
+});
+
+test('vector deliberate reply buttons validate saved question before one request and preserve typed free-text draft',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls}=context,base=await vectorWorkspace(context);await fixtureFill(doc,'chat-input','先聊聊有哪些可能');await fixtureClick(doc,'送出想法 ↗');const question=context.project.messages.at(-1);assert.equal(question.kind,'clarification');assert.equal(context.project.versions.length,1);assert.equal(choiceButtons(doc,question.id).length,2);await fixtureFill(doc,'chat-input','尚未送出的其他想法');const n=calls.filter(c=>c.action==='discuss').length;void choiceButtons(doc,question.id)[0].dispatchEvent('click');await settle();const payload=calls.filter(c=>c.action==='discuss').at(-1).payload;assert.equal(calls.filter(c=>c.action==='discuss').length,n+1);assert.equal(payload.baseVersionId,base.id);assert.equal(payload.choiceAnswer.questionMessageId,question.id);assert.equal(payload.approvedMemberId,context.project.aiBinding.memberId);assert.equal(doc.getElementById('chat-input').value,'尚未送出的其他想法');assert.equal(context.project.versions.at(-1).source,'revision');assert.ok(choiceButtons(doc,question.id).every(b=>b.disabled));assert.deepEqual(context.project.versions[0],base);
+ });
+});
+
+test('vector saved references finalization and export preserve native geometry despite later source changes',async()=>{
+ const api=createDemoAdapter({seed:false});let p=await boundProject(api);p=await call(api,'create_item',p,{type:'vector',title:'向量來源'});p=await call(api,'discuss',p,{text:'向量示範',consent:true});p=await call(api,'confirm_generate',p,{consent:true});const base=structuredClone(p.versions[0]),sourceItem=p.activeItemId;p=await call(api,'promote',p,{versionId:base.id});p=await call(api,'finalize',p);assert.deepEqual(p.finalizations[0].versionSnapshot.artifact,base.artifact);p=await call(api,'reopen',p);const finalization=structuredClone(p.finalizations[0]);p=await call(api,'create_item',p,{type:'titles',title:'向量引用'});const targetItem=p.activeItemId;p=await call(api,'attach_reference',p,{targetItemId:sourceItem,versionId:base.id});const reference=structuredClone(p.references[0]);assert.deepEqual(reference.versionSnapshot.artifact,base.artifact);p=await call(api,'select_item',p,{itemId:sourceItem});p=await call(api,'discuss',p,{text:'標題改為「第二份向量版本」。',baseVersionId:base.id,consent:true});assert.equal(p.versions.length,2);assert.deepEqual(p.finalizations[0],finalization);assert.deepEqual(p.versions[0],base);p=await call(api,'select_item',p,{itemId:targetItem});assert.deepEqual(p.references[0],reference);assert.deepEqual(exportProject(p).project.creativeItems.find(item=>item.id===sourceItem).versions[0].artifact,base.artifact);
 });

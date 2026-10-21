@@ -38,6 +38,12 @@ class TitleModule {
             ensure(count($value)>=field($schema,'minItems',0)&&count($value)<=field($schema,'maxItems',1000),'MODEL_OUTPUT_INVALID','模型回覆清單數量不符，未保存。',502);
             foreach($value as $entry)$this->validateSchemaValue($entry,$schema['items'],$depth+1);
         }elseif($type==='string')ensure(is_string($value)&&preg_match('//u',$value)&&strpos($value,"\0")===false,'MODEL_OUTPUT_INVALID','模型回覆的文字欄位型別不正確，未保存。',502);
+        elseif($type==='number'||$type==='integer'){
+            ensure((is_int($value)||is_float($value))&&is_finite((float)$value),'MODEL_OUTPUT_INVALID','模型回覆的數值必須是有限數字，不接受文字或布林值。',502);
+            if($type==='integer')ensure(floor($value)===$value||is_int($value),'MODEL_OUTPUT_INVALID','模型回覆需使用整數，未保存。',502);
+            if(isset($schema['minimum']))ensure($value>=$schema['minimum'],'MODEL_OUTPUT_INVALID','模型回覆的數值小於允許範圍，未保存。',502);
+            if(isset($schema['maximum']))ensure($value<=$schema['maximum'],'MODEL_OUTPUT_INVALID','模型回覆的數值超過允許範圍，未保存。',502);
+        }
         else throw new AppError('MODEL_OUTPUT_INVALID','模型回覆結構無法驗證，未保存。',502);
         if(isset($schema['enum']))ensure(in_array($value,$schema['enum'],true),'MODEL_OUTPUT_INVALID','模型回覆選項不在允許範圍內，未保存。',502);
     }

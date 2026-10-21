@@ -280,7 +280,7 @@ test('choice answer is resolved from only the latest bound question before any p
  assert.doesNotMatch(binding,/provenance|memberId|settingsRevision|\['revision'\]/,'switching an enabled member or leaving/reopening an unchanged item does not expire the question');
  const route=app.split("if($action==='discuss') {")[1].split("if($action==='summarize')")[0];
  assert.ok(route.indexOf('resolveChoiceAnswer($p,$input,$selection)')<route.indexOf('$module->refine'));assert.ok(route.indexOf('resolveChoiceAnswer($p,$input,$selection)')<route.indexOf('$module->discuss'));
- assert.match(route,/'discussion',\$answerMetadata/);assert.match(route,/array_merge\(array\('basedOnVersionId'=>\$official\['id'\]\),\$answerMetadata\)/);
+ assert.match(route,/'discussion',\$answerMetadata/);assert.match(route,/\$sourceMetadata=array\('basedOnVersionId'=>\$official\['id'\]\)/);assert.match(route,/array_merge\(\$sourceMetadata,\$answerMetadata\)/);
  assert.equal((route.match(/questionMetadata\(\$p,\$result,\$selection\)/g)||[]).length,2);
 });
 test('choice history preserves server-resolved source linkage and outbound question without relabeling model origin',async()=>{

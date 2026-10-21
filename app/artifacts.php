@@ -1,7 +1,7 @@
 <?php
 // Native, immutable document data. Cells are text, never expressions or HTML.
 // Validation is authoritative for manual snapshots and strict model responses.
-function artifactType($type) { return $type==='table'||$type==='chart'; }
+function artifactType($type) { return $type==='table'||$type==='chart'||$type==='mindmap'||$type==='vector'; }
 function artifactObject($value,$keys,$name) {
     ensure(is_array($value),'ARTIFACT_INVALID',$name.'必須是完整物件。');
     $actual=array_keys($value);sort($actual,SORT_STRING);$expected=$keys;sort($expected,SORT_STRING);
@@ -123,7 +123,9 @@ function parseChartSource($sourceText,$chartType) {
     return array('labels'=>$labels,'series'=>$series,'categoryLabel'=>$categoryLabel);
 }
 function validateArtifact($value,$type) {
-    ensure(artifactType($type),'ARTIFACT_TYPE_INVALID','此類型不是可保存的表格或圖表。');
+    if($type==='mindmap')return validateMindmapArtifact($value);
+    if($type==='vector')return validateVectorArtifact($value);
+    ensure(artifactType($type),'ARTIFACT_TYPE_INVALID','此類型不是可保存的結構化作品。');
     if($type==='table'){
         artifactObject($value,array('kind','caption','columns','rows'),'表格');
         ensure($value['kind']==='table','ARTIFACT_INVALID','表格類型欄位不正確。');
@@ -160,6 +162,8 @@ function artifactTsvField($value) {
     return strpbrk($value,"\t\r\n\"")===false?$value:'"'.str_replace('"','""',$value).'"';
 }
 function artifactItems($artifact) {
+    if(field($artifact,'kind')==='mindmap')return mindmapItems($artifact);
+    if(field($artifact,'kind')==='vector')return vectorItems($artifact);
     $type=field($artifact,'kind');$artifact=validateArtifact($artifact,$type);
     if($type==='table'){
         $lines=array();if($artifact['caption']!=='')$lines[]=$artifact['caption'];
@@ -174,6 +178,8 @@ function artifactItems($artifact) {
 }
 function artifactSchemaObject($properties) { return array('type'=>'object','properties'=>$properties,'required'=>array_keys($properties),'additionalProperties'=>false); }
 function artifactSchema($type) {
+    if($type==='mindmap')return mindmapSchema();
+    if($type==='vector')return vectorSchema();
     ensure(artifactType($type),'ARTIFACT_TYPE_INVALID','不支援此原生作品類型。');$text=array('type'=>'string');
     if($type==='table')return artifactSchemaObject(array('kind'=>array('type'=>'string','enum'=>array('table')),'caption'=>$text,
         'columns'=>array('type'=>'array','minItems'=>1,'maxItems'=>12,'items'=>artifactSchemaObject(array('id'=>$text,'label'=>$text))),
@@ -195,7 +201,12 @@ function artifactJsonSchemaValue($value,$schema,$depth=0) {
         ensure(count($value)>=field($schema,'minItems',0)&&count($value)<=field($schema,'maxItems',1000),'ARTIFACT_INVALID','作品 JSON 清單數量超過限制。');
         foreach($value as $entry)artifactJsonSchemaValue($entry,$schema['items'],$depth+1);
     }elseif($type==='string')ensure(is_string($value)&&preg_match('//u',$value)&&strpos($value,"\0")===false,'ARTIFACT_INVALID','作品 JSON 文字欄位型別不正確。');
-    else throw new AppError('ARTIFACT_INVALID','作品 JSON 結構不受支援。');
+    elseif($type==='number'||$type==='integer'){
+        ensure((is_int($value)||is_float($value))&&is_finite((float)$value),'ARTIFACT_INVALID','作品 JSON 數值必須是有限數字，不接受文字或布林值。');
+        if($type==='integer')ensure(is_int($value)||floor($value)===$value,'ARTIFACT_INVALID','作品 JSON 此欄位需要整數。');
+        if(isset($schema['minimum']))ensure($value>=$schema['minimum'],'ARTIFACT_INVALID','作品 JSON 數值小於允許範圍。');
+        if(isset($schema['maximum']))ensure($value<=$schema['maximum'],'ARTIFACT_INVALID','作品 JSON 數值超過允許範圍。');
+    }else throw new AppError('ARTIFACT_INVALID','作品 JSON 結構不受支援。');
     if(isset($schema['enum']))ensure(in_array($value,$schema['enum'],true),'ARTIFACT_INVALID','作品 JSON 選項不在允許範圍內。');
 }
 function validateArtifactJsonShape($rawObject) {

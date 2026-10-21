@@ -11,7 +11,7 @@ test('registry exposes exact twelve established module ids but enables only supp
   const rows = [...source.matchAll(/array\('id'=>'([^']+)','label'=>'([^']+)','enabled'=>(true|false)\)/g)];
   assert.deepEqual(rows.map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive']);
   assert.deepEqual(rows.map(x => x[2]), ['標題名稱','短文','長篇文章','圖文','表格','圖表','心智圖','向量圖形','圖片創作','海報設計','網頁','互動視覺程式']);
-  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','table','chart']);
+  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','table','chart','mindmap','vector']);
   assert.match(source, /throw new AppError\('MODULE_UNAVAILABLE'/);
   assert.match(source, /new TextModule\(\$model,\$id\)/);
 });
@@ -103,4 +103,11 @@ test('fusion is one new complete candidate based only on selected version goals'
   assert.match(fusion, /validateModuleContentItems\(\$v\['items'\],\$this->moduleType\(\),\$definitions\)/);
   assert.match(fusion, /MODEL_NO_REVISION/);
   assert.doesNotMatch(fusion, /->(?:save|generate|compare)\(|\$project\['officialVersionId'\]=/);
+});
+
+test('strict shared numeric schema handles finite native numbers only, integral values and explicit bounds',async()=>{
+ const source=await read('app/modules/titles.php');const validate=method(source,'validateSchemaValue','ask');
+ assert.match(validate,/\$type==='number'\|\|\$type==='integer'/);assert.match(validate,/is_int\(\$value\)\|\|is_float\(\$value\)/);assert.match(validate,/is_finite\(\(float\)\$value\)/);assert.match(validate,/floor\(\$value\)===\$value\|\|is_int\(\$value\)/);
+ assert.match(validate,/\$value>=\$schema\['minimum'\]/);assert.match(validate,/\$value<=\$schema\['maximum'\]/);assert.doesNotMatch(validate,/is_numeric\(|floatval\(|intval\(/);
+ const fixture=await read('tests/response-contract.php');assert.match(fixture,/NumericSchemaFixture/);assert.match(fixture,/NAN,INF,-INF/);
 });

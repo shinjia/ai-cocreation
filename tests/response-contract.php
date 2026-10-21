@@ -423,3 +423,14 @@ foreach(array(
 }
 
 echo 'TOTAL '.$contractChecks.' response-contract checks passed across '.$contractAttempts." single-call attempts; no credentials, network or PDO.\n";
+
+// Shared strict numeric-schema support is needed for native vector geometry.
+class NumericSchemaFixture extends TitleModule {
+    public function accepts($value,$schema) { $this->validateSchemaValue($value,$schema);return true; }
+}
+$numericFixture=new NumericSchemaFixture(null);
+foreach(array(0,-0.0,0.125,4096,1.0) as $value)contractCheck($numericFixture->accepts($value,array('type'=>'number','minimum'=>-4096,'maximum'=>8192)),'finite native number accepted');
+foreach(array(1,1.0,4096) as $value)contractCheck($numericFixture->accepts($value,array('type'=>'integer','minimum'=>1,'maximum'=>4096)),'mathematically integral JSON number accepted');
+foreach(array('1',true,false,null,array(),(object)array(),NAN,INF,-INF,8193) as $value){$rejected=false;try{$numericFixture->accepts($value,array('type'=>'number','minimum'=>-4096,'maximum'=>8192));}catch(AppError $e){$rejected=$e->errorCode==='MODEL_OUTPUT_INVALID'&&$e->status===502;}contractCheck($rejected,'nonnumeric or nonfinite/out-of-range value rejected without coercion');}
+foreach(array(0,4097,1.001,'2',true) as $value){$rejected=false;try{$numericFixture->accepts($value,array('type'=>'integer','minimum'=>1,'maximum'=>4096));}catch(AppError $e){$rejected=$e->errorCode==='MODEL_OUTPUT_INVALID';}contractCheck($rejected,'integer schema precision and limits enforced');}
+echo 'TOTAL including numeric schemas: '.$contractChecks." checks; native fixture requires PHP and was not executed by a lexer.\n";

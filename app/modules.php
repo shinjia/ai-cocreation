@@ -9,8 +9,8 @@ function moduleRegistry() {
         array('id'=>'illustrated','label'=>'圖文','enabled'=>false),
         array('id'=>'table','label'=>'表格','enabled'=>true),
         array('id'=>'chart','label'=>'圖表','enabled'=>true),
-        array('id'=>'mindmap','label'=>'心智圖','enabled'=>false),
-        array('id'=>'vector','label'=>'向量圖形','enabled'=>false),
+        array('id'=>'mindmap','label'=>'心智圖','enabled'=>true),
+        array('id'=>'vector','label'=>'向量圖形','enabled'=>true),
         array('id'=>'image','label'=>'圖片創作','enabled'=>false),
         array('id'=>'poster','label'=>'海報設計','enabled'=>false),
         array('id'=>'webpage','label'=>'網頁','enabled'=>false),
@@ -20,6 +20,8 @@ function moduleRegistry() {
 function moduleAdapter($id,$model) {
     if($id==='titles')return new TitleModule($model);
     if($id==='short_text'||$id==='article')return new TextModule($model,$id);
+    if($id==='mindmap')return new MindmapModule($model);
+    if($id==='vector')return new VectorModule($model);
     if(artifactType($id))return new ArtifactModule($model,$id);
-    throw new AppError('MODULE_UNAVAILABLE','此模組仍在規劃中，尚未開放；目前提供標題名稱、短文、長篇文章、表格及圖表。',409);
+    throw new AppError('MODULE_UNAVAILABLE','此模組仍在規劃中，尚未開放；目前提供標題名稱、短文、長篇文章、表格、圖表、心智圖及向量圖形。',409);
 }

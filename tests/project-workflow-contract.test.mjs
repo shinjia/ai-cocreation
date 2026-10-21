@@ -23,7 +23,7 @@ test('candidate refinement pins selected source and article selection into quest
  const s=await read('app/app.php'),select=method(s,'refinementSelection'),binding=method(s,'choiceContext'),discuss=s.split("if($action==='discuss') {")[1].split("if($action==='summarize')")[0];
  assert.match(select,/baseVersionId/);assert.match(select,/TARGET_ITEMS_REQUIRED/);assert.match(select,/sort\(\$targets,SORT_STRING\)/);
  for(const key of ['baseVersionId','targetItemIds'])assert.ok(binding.includes("'"+key+"'"));
- assert.match(discuss,/if\(\$selection\['base'\]!==null\)/);assert.match(discuss,/\$module->refine\(\$p,\$official,\$text,\$model,\$selection\['targetItemIds'\]\)/);
+ assert.match(discuss,/if\(\$selection\['base'\]!==null\)/);assert.match(discuss,/\$module->refine\(\$refinementProject,\$official,\$text,\$model,\$selection\['targetItemIds'\]\)/);
  assert.match(discuss,/'revision',\$official\['id'\].*'minor'/);assert.doesNotMatch(discuss,/officialVersionId'\]=/);
 });
 test('fusion uses new major, complete direct snapshots and bounded ancestor lineage, without adoption',async()=>{
