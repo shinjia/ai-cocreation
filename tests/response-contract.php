@@ -61,7 +61,7 @@ function contractFixture() {
 function contractClarification($changes=array()) {
     return array_merge(array(
         'outcome'=>'clarification','reply'=>'這組內容的語氣溫暖，名稱與邀請語也相互呼應。',
-        'question'=>'你希望先討論哪一項？','items'=>array(),
+        'question'=>'你希望先討論哪一項？','choices'=>array(),'items'=>array(),
         'rationale'=>'','goalText'=>'','changeSummary'=>''
     ),$changes);
 }
@@ -70,10 +70,21 @@ function contractRevision($official,$changes=array()) {
     $items=$official['items'];
     $items[0]['content']='一起看見日常';
     return array_merge(array(
-        'outcome'=>'revision','reply'=>'已準備一份待你審閱的名稱修訂。','question'=>'',
+        'outcome'=>'revision','reply'=>'已準備一份待你審閱的名稱修訂。','question'=>'','choices'=>array(),
         'items'=>$items,'rationale'=>'只將中文名稱改得更口語，其餘項目原文保留。',
         'goalText'=>$official['goalText'],'changeSummary'=>'縮短中文名稱，完整保留其他命名內容。'
     ),$changes);
+}
+
+function contractDiscussion($changes=array()) {
+    return array_merge(array('reply'=>'這個方向可以討論。','question'=>'你希望先討論哪一項？','choices'=>array()),$changes);
+}
+
+function contractChoices() {
+    return array(
+        array('id'=>'warm','label'=>'溫暖親切','value'=>'我希望語氣溫暖親切。'),
+        array('id'=>'direct','label'=>'簡潔直接','value'=>'我希望語氣簡潔直接。')
+    );
 }
 
 function contractRaw($value) {
@@ -133,6 +144,8 @@ function contractAttempt($provider,$method,$raw,$label,$transportError=null) {
     contractCheck(!array_key_exists('referencesSnapshot',$data['dialogue'][0])&&!array_key_exists('referencesSnapshot',$data['versions'][0]),$prefix.': stale attachment snapshots excluded only from outbound context');
     contractCheck($data['pinnedReferences']===$project['references'],$prefix.': current pinned references retained');
     contractCheck(strpos($messages[0]['content'],'任何使用者')!==false&&strpos($messages[0]['content'],'不預設身分、年齡或用途')!==false&&strpos($messages[0]['content'],'學生')===false&&strpos($messages[0]['content'],'latestStudentMessage')===false,$prefix.': general-audience prompt');
+    contractCheck(count($schema['properties'])===($method==='discuss'?3:8),$prefix.': all required choice-aware response fields');
+    contractCheck($schema['properties']['choices']['type']==='array'&&$schema['properties']['choices']['items']['type']==='object'&&$schema['properties']['choices']['items']['additionalProperties']===false&&$schema['properties']['choices']['items']['required']===array_keys($schema['properties']['choices']['items']['properties']),$prefix.': strict nested choice object schema');
     contractCheck($schema['type']==='object'&&$schema['additionalProperties']===false&&$schema['required']===array_keys($schema['properties']),$prefix.': strict complete root schema');
     contractCheck($captured['stream']===false,$prefix.': single non-streaming request');
     if($provider==='openai')contractCheck($captured['store']===false&&$captured['text']['format']['strict']===true,$prefix.': non-stored strict structured request');
@@ -171,6 +184,7 @@ $accepted=array(
     'trailing closing quote and punctuation'=>contractClarification(array('question'=>'你希望語氣更親切嗎？）」')),
     'courteous request without question mark'=>contractClarification(array('question'=>'請先說說你想傳達的一個重點。')),
     'evaluation with empty question'=>contractClarification(array('question'=>'')),
+    'choice question'=>contractClarification(array('choices'=>contractChoices())),
     'repeated adjacent question marks count once'=>contractClarification(array('question'=>'你希望更口語嗎？？？')),
     'quoted editing words are title not edit claim'=>contractClarification(array('reply'=>'「已經修改好了。」作為名稱較像流程提示，和目前溫暖的語氣不同。','question'=>''))
 );
@@ -179,6 +193,7 @@ foreach(array('openai','ollama') as $provider) {
     foreach($accepted as $label=>$value) {
         $result=contractAccept(contractAttempt($provider,'refine',contractRaw($value),$label),'clarification');
         contractCheck($result['items']===array()&&$result['rationale']===''&&!array_key_exists('goalText',$result)&&!array_key_exists('changeSummary',$result),$provider.' '.$label.': clarification metadata discarded, no revision or goal payload');
+        contractCheck($result['question']===$value['question']&&$result['choices']===$value['choices'],$provider.' '.$label.': structured question and choices retained');
         contractCheck(strpos($result['reply'],'此回覆僅供討論，作品內容與正式版都尚未變更。')===0&&strpos($result['reply'],$value['reply'])!==false,$provider.' '.$label.': clear discussion-only prefix and original reply');
         if($value['question']!=='')contractCheck(strpos($result['reply'],$value['question'])!==false,$provider.' '.$label.': original question punctuation preserved');
     }
@@ -187,6 +202,7 @@ foreach(array('openai','ollama') as $provider) {
     // A provider may reorder entries; the module restores the official item order.
     $validRevision['items']=array_reverse($validRevision['items']);
     $result=contractAccept(contractAttempt($provider,'refine',contractRaw($validRevision),'valid full-bundle revision'),'revision');
+    contractCheck($result['question']===''&&$result['choices']===array(),$provider.': revision never exposes unresolved choices');
     contractCheck($result['items'][0]['content']==='一起看見日常'&&count($result['items'])===count($fixtureOfficial['items']),$provider.': valid revision contains actual change and complete item count');
     contractCheck(array_slice($result['items'],1)===array_slice($fixtureOfficial['items'],1),$provider.': all unedited standard and custom fields preserved in official order');
     contractCheck($result['goalText']===$fixtureOfficial['goalText']&&$result['rationale']===$validRevision['rationale']&&$result['changeSummary']===$validRevision['changeSummary'],$provider.': revision keeps own goal and supplied explanation');
@@ -261,25 +277,81 @@ foreach(array('openai','ollama') as $provider) {
     contractReject(contractAttempt($provider,'refine','{"outcome":','truncated JSON'),'MODEL_OUTPUT_INVALID');
 
     $discussions=array(
-        'quoted title punctuation'=>array('reply'=>'「為什麼？」這個名稱保留了好奇心。','question'=>'你希望讀者記住什麼？'),
-        'trailing closing punctuation'=>array('reply'=>'你想讓語氣更自然。','question'=>'你希望更口語嗎？）」'),
-        'no question mark'=>array('reply'=>'你想讓語氣更自然。','question'=>'請先說說希望讀者記住的一件事。'),
-        'repeated question marks'=>array('reply'=>'你想讓語氣更自然。','question'=>'你希望更口語嗎？？？')
+        'quoted title punctuation'=>contractDiscussion(array('reply'=>'「為什麼？」這個名稱保留了好奇心。','question'=>'你希望讀者記住什麼？')),
+        'trailing closing punctuation'=>contractDiscussion(array('reply'=>'你想讓語氣更自然。','question'=>'你希望更口語嗎？）」')),
+        'no question mark'=>contractDiscussion(array('reply'=>'你想讓語氣更自然。','question'=>'請先說說希望讀者記住的一件事。')),
+        'repeated question marks'=>contractDiscussion(array('reply'=>'你想讓語氣更自然。','question'=>'你希望更口語嗎？？？')),
+        'empty choices remain free text'=>contractDiscussion(),
+        'choice question'=>contractDiscussion(array('choices'=>contractChoices()))
     );
     foreach($discussions as $label=>$value) {
         $result=contractAccept(contractAttempt($provider,'discuss',contractRaw($value),$label));
-        contractCheck($result===$value['reply']."\n\n".$value['question'],$provider.' discussion '.$label.': text preserved');
+        contractCheck($result===array('reply'=>$value['reply']."\n\n".$value['question'],'question'=>$value['question'],'choices'=>$value['choices']),$provider.' discussion '.$label.': combined text and structured question preserved');
     }
     $badDiscussions=array(
-        array('two unquoted questions',array('reply'=>'這個方向可以討論。','question'=>'想更短嗎？還是更親切？'),'MODEL_QUESTION_COUNT'),
-        array('missing question',array('reply'=>'這個方向可以討論。'),'MODEL_OUTPUT_INVALID'),
-        array('extra field',array('reply'=>'這個方向可以討論。','question'=>'想更短嗎？','extra'=>''),'MODEL_OUTPUT_INVALID'),
-        array('wrong reply type',array('reply'=>array(),'question'=>'想更短嗎？'),'MODEL_OUTPUT_INVALID'),
-        array('overlong reply',array('reply'=>str_repeat('x',601),'question'=>'想更短嗎？'),'MODEL_OUTPUT_INVALID'),
-        array('overlong question',array('reply'=>'這個方向可以討論。','question'=>str_repeat('x',601)),'MODEL_OUTPUT_INVALID'),
-        array('NUL in discussion',array('reply'=>"文字\0不可接受",'question'=>'想更短嗎？'),'MODEL_OUTPUT_INVALID')
+        array('two unquoted questions',contractDiscussion(array('question'=>'想更短嗎？還是更親切？')),'MODEL_QUESTION_COUNT'),
+        array('extra field',contractDiscussion(array('extra'=>'')),'MODEL_OUTPUT_INVALID'),
+        array('wrong reply type',contractDiscussion(array('reply'=>array())),'MODEL_OUTPUT_INVALID'),
+        array('overlong reply',contractDiscussion(array('reply'=>str_repeat('x',601))),'MODEL_OUTPUT_INVALID'),
+        array('overlong question',contractDiscussion(array('question'=>str_repeat('x',601))),'MODEL_OUTPUT_INVALID'),
+        array('NUL in discussion',contractDiscussion(array('reply'=>"文字\0不可接受")),'MODEL_OUTPUT_INVALID')
     );
+    foreach(array_keys(contractDiscussion()) as $key) {
+        $missing=contractDiscussion();unset($missing[$key]);
+        $badDiscussions[]=array('missing '.$key,$missing,'MODEL_OUTPUT_INVALID');
+    }
     foreach($badDiscussions as $case)contractReject(contractAttempt($provider,'discuss',contractRaw($case[1]),$case[0]),$case[2]);
+
+    // Choices use byte limits, exact field names and values, and stable ASCII ids.
+    // Exercise both real provider adapters and both module paths for each case.
+    $badChoices=array();
+    foreach(array(null,'',false,1,new stdClass()) as $i=>$value)$badChoices['choice list wrong type '.$i]=$value;
+    $badChoices['one choice']=array(contractChoices()[0]);
+    $badChoices['seven choices']=array();
+    for($i=0;$i<7;$i++)$badChoices['seven choices'][]=array('id'=>'choice'.$i,'label'=>'選項 '.$i,'value'=>'回答 '.$i);
+    $badChoices['numeric-key object list']=(object)contractChoices();
+    foreach(array('id','label','value') as $key) {
+        $choices=contractChoices();unset($choices[0][$key]);$badChoices['missing choice '.$key]=$choices;
+        foreach(array(null,7,true,array(),new stdClass()) as $i=>$wrong) {
+            $choices=contractChoices();$choices[0][$key]=$wrong;$badChoices['choice '.$key.' wrong type '.$i]=$choices;
+        }
+        $choices=contractChoices();$choices[0][$key]='';$badChoices['empty choice '.$key]=$choices;
+        $choices=contractChoices();$choices[0][$key]="bad\0value";$badChoices['NUL in choice '.$key]=$choices;
+        $choices=contractChoices();$choices[0][$key]='sk-'.str_repeat('x',40);$badChoices['secret in choice '.$key]=$choices;
+    }
+    foreach(array('-leading','_leading','with space','非ASCII','a.b',str_repeat('a',65)) as $i=>$id) {
+        $choices=contractChoices();$choices[0]['id']=$id;$badChoices['invalid choice id '.$i]=$choices;
+    }
+    foreach(array('label'=>str_repeat('字',41),'value'=>str_repeat('字',334)) as $key=>$value) {
+        $choices=contractChoices();$choices[0][$key]=$value;$badChoices['UTF-8 byte limit '.$key]=$choices;
+    }
+    $choices=contractChoices();$choices[0]['extra']='no';$badChoices['extra choice field']=$choices;
+    $choices=contractChoices();$choices[0]=array('warm','溫暖','回答');$badChoices['array instead of choice object']=$choices;
+    $choices=contractChoices();$choices[1]['id']=$choices[0]['id'];$badChoices['duplicate choice id']=$choices;
+    $choices=contractChoices();$choices[1]['value']=$choices[0]['value'];$badChoices['duplicate choice value']=$choices;
+    foreach(array('discuss','refine') as $method) {
+        foreach($badChoices as $label=>$choices) {
+            $value=$method==='discuss'?contractDiscussion(array('choices'=>$choices)):contractClarification(array('choices'=>$choices));
+            contractReject(contractAttempt($provider,$method,contractRaw($value),$label),'MODEL_OUTPUT_INVALID');
+        }
+        $value=$method==='discuss'?contractDiscussion(array('question'=>'','choices'=>contractChoices())):contractClarification(array('question'=>'','choices'=>contractChoices()));
+        contractReject(contractAttempt($provider,$method,contractRaw($value),'choices require a nonempty question'),'MODEL_OUTPUT_INVALID');
+        foreach(array('id','label','value') as $key) {
+            $choices=contractChoices();$choices[0][$key]='UTF8_CHOICE_SENTINEL';
+            $value=$method==='discuss'?contractDiscussion(array('choices'=>$choices)):contractClarification(array('choices'=>$choices));
+            $raw=str_replace('UTF8_CHOICE_SENTINEL',"\xC3\x28",contractRaw($value));
+            contractReject(contractAttempt($provider,$method,$raw,'malformed UTF-8 choice '.$key),'MODEL_OUTPUT_INVALID');
+        }
+        $choices=contractChoices();$choices[0]=array('id'=>'9'.str_repeat('a',61).'_-','label'=>str_repeat('字',40),'value'=>str_repeat('字',333).'a');
+        $value=$method==='discuss'?contractDiscussion(array('choices'=>$choices)):contractClarification(array('choices'=>$choices));
+        $result=contractAccept(contractAttempt($provider,$method,contractRaw($value),'exact choice byte boundaries'));
+        contractCheck($result['choices']===$choices,$provider.' '.$method.': exact valid choice boundaries preserved');
+        $choices=array();for($i=0;$i<6;$i++)$choices[]=array('id'=>'choice'.$i,'label'=>'選項 '.$i,'value'=>'回答 '.$i);
+        $value=$method==='discuss'?contractDiscussion(array('choices'=>$choices)):contractClarification(array('choices'=>$choices));
+        $result=contractAccept(contractAttempt($provider,$method,contractRaw($value),'six choices'));
+        contractCheck($result['choices']===$choices,$provider.' '.$method.': maximum six choices accepted');
+    }
+    contractReject(contractAttempt($provider,'refine',contractRaw(contractRevision($fixtureOfficial,array('choices'=>contractChoices()))),'revision cannot carry choices'),'MODEL_OUTPUT_INVALID');
 
     $transportError=$provider==='openai'
         ?new AppError('MODEL_TIMEOUT','模擬逾時，無法確認上游是否已完成。',502)

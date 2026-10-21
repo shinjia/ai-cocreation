@@ -18,6 +18,7 @@ class RevisionFixtureAdapter {
   }elseif(isset($props['question']))$out=array('reply'=>'我了解這個方向。','question'=>'讀者最需要記住什麼？');
   elseif(isset($props['purpose']))$out=array('purpose'=>'影展命名','audience'=>'同學','message'=>'發現日常','tone'=>'溫暖','constraints'=>'不誇張','summary'=>'用清楚溫暖的名稱邀請同學參加影展。','items'=>array(array('id'=>'name','label'=>'中文名稱')));
   else{$out=array('candidates'=>array());foreach(array('日常的光','一起看見','故事之間') as $content)$out['candidates'][]=array('items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>$content)),'rationale'=>'對應創作目標。','goalText'=>'邀請同學一起發現日常故事。','changeSummary'=>'初次候選，整理已確認的影展方向。');}
+  if(isset($props['choices']))$out['choices']=array();
   return json_decode(jsonEncode($out));
  }
 }

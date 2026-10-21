@@ -30,6 +30,7 @@ try {
   elseif(isset($props['purpose']))$out=array('purpose'=>'活動命名','audience'=>'大學生','message'=>'試著表達','tone'=>'清楚且有趣','constraints'=>'不要過度宣傳','summary'=>'鼓勵大學生以有趣但清楚的名字參加創作活動。','items'=>array(array('id'=>'name','label'=>'中文名稱'),array('id'=>'hook','label'=>'開場提問')));
   elseif(isset($props['candidates'])){$data=json_decode($payload['input'][1]['content'],true);$candidates=array();foreach(array('把想法說出來','一個念頭的旅行','從一句話開始') as $i=>$title){$items=array();foreach($data['creativeGoal']['items'] as $def)$items[]=array('id'=>$def['id'],'label'=>$def['label'],'content'=>$title.' '.($i+1));$candidates[]=array('items'=>$items,'rationale'=>'明確的創作邀請。','goalText'=>'本版以清楚語句邀請同學參與。','changeSummary'=>'初次候選，整理已討論的活動邀請。');}$out=array('candidates'=>$candidates);}
   else {$data=json_decode($payload['input'][1]['content'],true);$items=array();foreach($data['selectedVersions'] as $v)$items[]=array('versionId'=>$v['id'],'fit'=>'符合清楚的目標。','strength'=>'容易理解。','tradeoff'=>'意象較少。','suggestion'=>'可再加一個具體詞。');$out=array('items'=>$items,'summary'=>'直接與意象各有取捨，請依你想邀請的讀者選擇。');}
+  if(isset($props['choices']))$out['choices']=array();
   return (object)array('status'=>'completed','model'=>'fixture-model-20261021','output'=>array((object)array('type'=>'message','content'=>array((object)array('type'=>'output_text','text'=>jsonEncode($out))))));
  });
  if(!extension_loaded('pdo_sqlite')){echo "SKIP: PHP PDO SQLite unavailable\n";exit(0);}

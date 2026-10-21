@@ -97,6 +97,28 @@ class CocreationApp {
         foreach($this->itemKeys() as $key)unset($project[$key]);unset($project['activeItem'],$project['module'],$project['sharedContextChanged']);$project['projectLifecycle']='in_progress';return $this->saveRaw($project);
     }
     private function message($role,$text,$kind,$extra=array()) { return array_merge(array('id'=>newId(),'role'=>$role,'text'=>$text,'kind'=>$kind,'at'=>nowIso()),$extra); }
+    private function choiceContext($project) {
+        return array('itemId'=>$project['activeItemId'],'officialVersionId'=>$project['officialVersionId'],'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description']);
+    }
+    private function questionMetadata($project,$result) {
+        $extra=array('question'=>$result['question'],'choices'=>$result['choices']);
+        if($result['choices']!==array())$extra['choiceContext']=$this->choiceContext($project);
+        return $extra;
+    }
+    private function resolveChoiceAnswer($project,$input) {
+        if(!array_key_exists('choiceAnswer',$input))return array();
+        $answer=$input['choiceAnswer'];$questionId=field($answer,'questionMessageId');$choiceId=field($answer,'choiceId');
+        ensure(is_array($answer)&&count($answer)===2&&is_string($questionId)&&preg_match('/^[a-f0-9]{32}$/D',$questionId)&&is_string($choiceId)&&preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/D',$choiceId),'CHOICE_INVALID','回答選項格式不正確，請重新讀取問題或改用文字回答。');
+        $question=end($project['messages']);
+        ensure(is_array($question)&&field($question,'id')===$questionId&&field($question,'role')==='assistant'&&in_array(field($question,'kind'),array('discussion','clarification'),true),'CHOICE_STALE','這個問題已不是目前可回答的問題。請查看最新對話；文字草稿仍保留。',409);
+        $context=field($question,'choiceContext');$expected=$this->choiceContext($project);
+        ensure(is_array($context)&&count($context)===count($expected),'CHOICE_STALE','這個問題缺少目前內容的綁定，請查看最新對話或用文字回答。',409);
+        foreach($expected as $key=>$value)ensure(array_key_exists($key,$context)&&$context[$key]===$value,'CHOICE_STALE','創作內容或目標脈絡已改變，舊問題的選項已停用；請繼續用文字討論。',409);
+        try{$choices=validateDialogueChoices(field($question,'choices'),field($question,'question'));}catch(AppError $e){throw new AppError('CHOICE_STALE','這個問題沒有可用的回答選項，請用文字回答。',409);}
+        $selected=null;foreach($choices as $choice)if($choice['id']===$choiceId)$selected=$choice;
+        ensure($selected!==null&&field($input,'text')===$selected['value'],'CHOICE_INVALID','送出的答案與問題選項不一致，未呼叫 AI；請重新選擇或用文字回答。');
+        return array('choiceAnswer'=>array('questionMessageId'=>$questionId,'choiceId'=>$choiceId,'label'=>$selected['label'],'value'=>$selected['value']));
+    }
     private function studentTurns($project) { return count(array_filter($project['messages'],function($m){return $m['role']==='student'&&$m['kind']==='discussion';})); }
     private function version($project,$id) { validId($id);foreach($project['versions'] as $version)if($version['id']===$id)return $version;throw new AppError('VERSION_NOT_FOUND','找不到此作品的版本。',404); }
     private function goalRequired($project) { ensure($project['brief']!==null&&$project['goalApprovedAt']!==null&&in_array($project['phase'],array('ready','work'),true),'GOAL_APPROVAL_REQUIRED','請先整理並確認目前創作目標；新對話後需重新確認，已有版本會完整保留。',409); }
@@ -186,15 +208,15 @@ class CocreationApp {
         ensure($action==='restore_version'||count($p['messages'])<400,'DIALOGUE_LIMIT','此作品對話已達上限，請匯出完整紀錄後開啟新作品。',409);
         if($action==='discuss') {
             ensure($this->studentTurns($p)<60,'DIALOGUE_LIMIT','此作品已有60輪討論，請匯出後開啟新作品。',409);
-            $text=userTextValue(field($input,'text'),4000,'你的想法');
+            $text=userTextValue(field($input,'text'),4000,'你的想法');$answerMetadata=$this->resolveChoiceAnswer($p,$input);
             if($p['officialVersionId']!==null){
                 // Promotion is a working baseline, never an implicit finalization.
                 // Legacy discussions may have cleared approval: editing an existing
                 // official bundle still works, without inventing new goal approval.
                 ensure(count($p['versions'])<60,'VERSION_LIMIT','此項目已達60個版本，請匯出保存後延續新項目；本次未呼叫AI。',409);
                 $official=$this->version($p,$p['officialVersionId']);$result=$module->refine($p,$official,$text,$model);$provenance=$this->provenance($connection,$adapter,$requestedAt);
-                $p['messages'][]=$this->message('student',$text,'discussion',array('basedOnVersionId'=>$official['id']));
-                $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array('basedOnVersionId'=>$official['id'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']));
+                $p['messages'][]=$this->message('student',$text,'discussion',array_merge(array('basedOnVersionId'=>$official['id']),$answerMetadata));
+                $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array_merge(array('basedOnVersionId'=>$official['id'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result)));
                 if($result['outcome']==='revision'){
                     $id=$this->appendVersion($p,$result['items'],$result['rationale'],'revision',$official['id'],$message['id'],$provenance,'minor',$result);
                     $p['versions'][count($p['versions'])-1]['revisionInstruction']=$text;$message['versionIds']=array($id);$message['text'].=' 已新增可審閱的完整修訂版，尚未取代正式版；請查看右側差異，再決定是否採用。';$p['phase']='work';
@@ -202,8 +224,8 @@ class CocreationApp {
                 }
                 $p['messages'][]=$message;return $this->save($p);
             }
-            $reply=$module->discuss($p,$text,$model);
-            $p['messages'][]=$this->message('student',$text,'discussion');$p['messages'][]=$this->message('assistant',$reply,'discussion',array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));
+            $result=$module->discuss($p,$text,$model);
+            $p['messages'][]=$this->message('student',$text,'discussion',$answerMetadata);$p['messages'][]=$this->message('assistant',$result['reply'],'discussion',array_merge(array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result)));
             $p['phase']='discussion';$p['goalApprovedAt']=null;$p['summaryRevision']=null;return $this->save($p);
         }
         if($action==='summarize') {

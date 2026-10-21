@@ -124,3 +124,13 @@ compare 只接受目前項目 2–5 個不同且未封存的版本。模型取�
 標題類項目的 main#workspace 使用 item-workspace，第一個子元素是唯一的 #official-section，第二個是原本 .workspace-layout（對話與工作欄）。renderVersions 僅渲染候選與封存版本；正式版的 version-{id} anchor、比較勾選及操作仍只有一份。桌面與行動樣式不改 DOM 順序。
 
 .official-content 是可鍵盤聚焦、具名稱的捲動 region，並有可見焦點；列印取消高度／overflow 限制。說明使用 details。閱讀位置與展開狀態僅暫存在目前頁面的 Map，以專案／項目／正式版 ID 隔離，不寫入版本或設定；重新渲染保留，採用不同版本預設從開頭開始。AI 成員選單仍位於對話面板標題下，沒有移動或複製。
+
+## 結構化單選問答
+
+TitleModule.discuss 回傳 reply（仍含完整可讀問題）、question、choices；refine 的 clarification 同樣保存這三者，revision 必須 question 空字串且 choices 空陣列。嚴格 schema 保留 choices 欄位，空陣列代表沒有選項；非空時只允許 2–6 個 {id,label,value}，不支援多選。ID 最長 64 個 ASCII 英數／-／_、label 最多 120 UTF-8 bytes、value 最多 1,000 bytes，ID 與值不得重複，秘密樣式不得進入選項。模型仍只呼叫一次，沒有為產生按鈕增加推論。
+
+assistant 訊息含非空 choices 時，同時保存不可變 choiceContext：itemId、officialVersionId、sharedContextRevision、itemTitle、itemDescription。舊紀錄不回填這些欄位，也不從 prose 推測選項。此綁定不使用全域 project revision 作為題目壽命：切換成員或離開再回到未改動項目不會使題目失效；每次送出的請求仍需符合當前 revision／item／設定代次。正式版、共同脈絡或項目名稱／說明改變後，舊選項不可再送出。
+
+點選透過既有 discuss 路由傳送完整 value 與 choiceAnswer {questionMessageId,choiceId}。伺服器只接受最後一則 assistant discussion／clarification，逐一比對五個綁定，再從儲存選項解析答案；不接受客戶端自訂 label／value，input.text 必須與已保存的 value 完全相同。失效問題回 CHOICE_STALE，畸形或不相符答案回 CHOICE_INVALID，均在模型呼叫前拒絕。使用者訊息保存解析後的 label／value 與來源問題 ID；後續模型脈絡包含原題、選項與回答連結，不改寫歷史模型來源。
+
+按鈕以 textContent 渲染，名稱與實際送出的答案不同時兩者都可見；只有目前可作答的單題啟用。忙碌、唯讀、上次結果未知、設定未就緒或舊脈絡皆停用，事件處理時再次檢查，沿用 requestId 重放防護。按選項不借用或清空文字輸入草稿，沒有自動送出或新增逐次同意視窗。示範使用固定腳本與同一畫面，不與實際 API 混用。初次討論容量預留也包含選項、來源答案及脈絡綁定的最壞 JSON 跳脫體積。

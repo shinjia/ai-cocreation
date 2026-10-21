@@ -53,6 +53,19 @@ export function validItems(items) {
 export function canSummarize(project) { return canCreate(project) && project.messages.filter(m => m.role === 'student' && (!m.kind || m.kind==='discussion')).length >= 3; }
 export function canGenerate(project) { return !!(canCreate(project) && project.goalApprovedAt && ['ready','work'].includes(project.phase)); }
 export function canSnapshot(project) { return !!(canCreate(project) && (project.goalApprovedAt || project.versions?.some(v=>v.id===project.officialVersionId))); }
+// Only structured, saved questions become buttons. Never infer answers from prose.
+export function discussionChoices(message) {
+  const bytes=value=>new TextEncoder().encode(value).length,choices=message?.choices;
+  if(message?.role!=='assistant' || !['discussion','clarification'].includes(message.kind) || typeof message.question!=='string' || !message.question.trim() || bytes(message.question)>600 || !Array.isArray(choices) || choices.length<2 || choices.length>6)return [];
+  if(!choices.every(choice=>choice && typeof choice.id==='string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(choice.id) && typeof choice.label==='string' && choice.label.trim() && bytes(choice.label)<=120 && typeof choice.value==='string' && choice.value.trim() && bytes(choice.value)<=1000))return [];
+  if(choices.some(choice=>[choice.id,choice.label,choice.value].some(value=>value.includes('\0') || /\bsk-[a-zA-Z0-9_-]{16,}\b/.test(value))))return [];
+  if(new Set(choices.map(choice=>choice.id)).size!==choices.length || new Set(choices.map(choice=>choice.value)).size!==choices.length)return [];
+  return choices;
+}
+export function currentChoiceQuestion(project,message) {
+  const context=message?.choiceContext,last=project?.messages?.at(-1);
+  return !!(message?.id && last?.id===message.id && discussionChoices(message).length && context && typeof project.activeItemId==='string' && context.itemId===project.activeItemId && context.officialVersionId===project.officialVersionId && Number.isInteger(project.sharedContextRevision) && context.sharedContextRevision===project.sharedContextRevision && typeof context.itemTitle==='string' && context.itemTitle===project.activeItem?.title && typeof context.itemDescription==='string' && context.itemDescription===project.activeItem?.description);
+}
 export function newestPendingRevision(project) {
   if(!project?.officialVersionId)return null;
   const adopted=new Set((project.messages || []).filter(m=>['promotion','promote'].includes(m.kind)).flatMap(m=>m.versionIds || []));
@@ -380,14 +393,32 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const payload={approvedMemberId:member.id,approvedProvider:member.provider,approvedModel:member.model,approvedSettingsRevision:state.settingsRevision};if(member.provider==='openai')payload.approvedKeyRevision=state.keyRevision;
     await mutate('test_connection',payload);
   }
-  async function sendDiscussion() {
-    const d=draft(),text=d.chat.trim();if(!text)return;
+  async function submitDiscussion(text,{choiceAnswer=null,clearDraft=false}={}) {
+    const d=draft();if(!text)return;
     if(new TextEncoder().encode(text).length>4000){flash('這段想法超過 4,000 位元組，請分成較短的段落再送出。草稿仍保留。');return;}
     const officialVersionId=project.officialVersionId || null;let revisionVersionId=null;
-    if(await mutate('discuss',{id:project.id,revision:project.revision,text,officialVersionId},result=>{
+    const payload={id:project.id,revision:project.revision,text,officialVersionId};if(choiceAnswer)payload.choiceAnswer=choiceAnswer;
+    if(await mutate('discuss',payload,result=>{
       revisionVersionId=result.revisionVersionId || null;
       return revisionVersionId?'新的修改版已保存，請閱讀完整內容與差異，再決定是否採用。正式版尚未變更。':officialVersionId?'討論已保存；這次沒有新增修改版，正式內容維持不變。':'討論已保存。';
-    })){d.chat='';render();if(revisionVersionId)document.getElementById('revision-review')?.scrollIntoView({behavior:'smooth',block:'start'});}
+    })){if(clearDraft)d.chat='';render();if(revisionVersionId)document.getElementById('revision-review')?.scrollIntoView({behavior:'smooth',block:'start'});}
+  }
+  async function sendDiscussion() {
+    await submitDiscussion(draft().chat.trim(),{clearDraft:true});
+  }
+  function choiceDisabledReason(message) {
+    if(busy)return '正在處理上一個操作，請稍候。輸入中的草稿會保留。';
+    if(uncertain)return '請先檢查上次操作的結果，再回應選項。輸入中的草稿會保留。';
+    if(!canCreate(project))return '目前項目為唯讀，這些選項僅供查看。';
+    if(!currentChoiceQuestion(project,message))return '這題已不是目前可回應的問題，選項僅供紀錄查看。';
+    return aiSetupReason(state,demo);
+  }
+  async function answerChoice(projectId,messageId,choiceId) {
+    const message=project?.messages?.at(-1);
+    if(project?.id!==projectId || message?.id!==messageId || choiceDisabledReason(message))return;
+    const choice=discussionChoices(message).find(option=>option.id===choiceId);if(!choice)return;
+    // Do not write into the composer, even temporarily: a choice is a separate explicit reply.
+    await submitDiscussion(choice.value,{choiceAnswer:{questionMessageId:message.id,choiceId:choice.id}});
   }
   async function summarizeGoal() {
     await mutate('summarize',{id:project.id,revision:project.revision},'目標整理完成，請先閱讀再確認。');
@@ -594,6 +625,23 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       const role=message.role==='student'?'你':message.role==='system'?'共創紀錄':demo?'腳本示範':'AI 共創夥伴';
       append(card,append(el('div','chat-meta'),el('span','chat-role',role),el('time','',formatDate(message.at),{datetime:message.at})),el('p','chat-text',message.text));
       if(message.role==='assistant')card.append(el('p','model-provenance',provenanceLabel(message.provenance)));
+      const choices=discussionChoices(message);
+      if(choices.length){
+        const disabledReason=choiceDisabledReason(message),projectId=project.id,hintId=`choice-hint-${message.id}`;
+        const group=el('div','discussion-choices',null,{role:'group','aria-label':message.question,'aria-describedby':hintId});
+        group.append(el('p','choice-question',message.question));
+        choices.forEach(choice=>{
+          const answer=button('',()=>answerChoice(projectId,message.id,choice.id),'choice-answer',!!disabledReason);
+          answer.setAttribute('data-choice-id',choice.id);answer.setAttribute('aria-describedby',hintId);
+          answer.append(el('span','choice-label',choice.label));
+          if(choice.label!==choice.value)answer.append(el('span','choice-value',choice.value));
+          group.append(answer);
+        });
+        group.append(el('p','choice-hint',disabledReason || `按一下即送出單一選項，由目前成員「${activeMember(state)?.nickname || ''}」回應；輸入中的草稿會保留，也可以自行打字回答。`,{id:hintId}));card.append(group);
+      }
+      if(message.role==='student' && message.choiceAnswer?.questionMessageId && project.messages.some(m=>m.id===message.choiceAnswer.questionMessageId)){
+        const link=el('a','choice-history-link','查看回應的問題',{href:`#message-${encodeURIComponent(message.choiceAnswer.questionMessageId)}`});card.append(link);
+      }
       if(message.versionIds?.length || message.comparisonId) {
         const links=el('div','chat-links');
         message.versionIds?.forEach(id=>{const v=project.versions.find(v=>v.id===id);if(v)links.append(button(`查看 ${versionLabel(v)}`,()=>document.getElementById(`version-${id}`)?.scrollIntoView({behavior:'smooth',block:'center'}),'small'));});

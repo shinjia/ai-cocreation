@@ -58,13 +58,19 @@
 - 可用模型查詢及連線檢查只讀取模型資訊，不做推論、不下載模型。成功不代表已驗證 Responses／結構化輸出、創作品質或足夠硬體效能。
 - 不自動改供應者、不自動重試、不在錯誤時暗中使用示範答案。
 
+## 直接按選項回答
+
+「和 AI 慢慢聊」會將 AI 明確提供的單選答案顯示為問題下的按鈕；未提供選項的回覆與舊紀錄不補造按鈕。每題 2–6 個答案，仍可自行輸入文字。點擊會直接以目前選取的 AI 成員送出該答案，沿用設定中的同意，不再跳確認視窗；若按鈕名稱與完整答案不同，兩者都顯示。
+
+只啟用目前最後一題，舊題、脈絡改變、唯讀或處理中會停用。選答案不清除輸入中的草稿，對話保留答案與來源問題連結、當次 AI 來源；選項不代表已修改或採用作品。示範頁的選項是明確標示的固定腳本，不是真實 AI。
+
 ## 安裝與文件
 
 先讀 [開始使用](開始使用.txt)，完整步驟見 [瀏覽器安裝](docs/INSTALLATION.md)。
 
 原始碼儲存庫：[shinjia/ai-cocreation](https://github.com/shinjia/ai-cocreation)。本版原始碼延續修補01（POST JSON `body.action`）與修補02（正式版持續修訂），加入主／小版本、候選封存、逐版目標比較及 AI 成員設定。公開原始碼不代表已公開部署服務。GitHub 的「Download ZIP」解壓後，請將資料夾改名為 `ai-cocreation-series-php74`，即可沿用文件中的本機網址；也可保留其他名稱並調整網址。
 
-**既有安裝更新：** 先停止寫入並備份程式與私有資料，將更新的原始碼合併覆蓋到原程式根目錄。不要先刪除舊資料夾，不要重新安裝，不要覆蓋 `config.local.php` 或私有資料夾，也不要清除原瀏覽器 Cookie／Session。原有 Vn 對應主版本 Vn，保留 ID、內容與來源，不回填不存在的討論紀錄。舊 AI 設定轉成「原有設定」成員，但使用同意預設未勾選，需首次明確同意。前端快取標籤為 `20261021-version6`；更新後重新整理，仍是舊畫面時再強制重新整理。原始碼不包含你的設定、資料庫、工作階段或金鑰。
+**既有安裝更新：** 先停止寫入並備份程式與私有資料，將更新的原始碼合併覆蓋到原程式根目錄。不要先刪除舊資料夾，不要重新安裝，不要覆蓋 `config.local.php` 或私有資料夾，也不要清除原瀏覽器 Cookie／Session。原有 Vn 對應主版本 Vn，保留 ID、內容與來源，不回填不存在的討論紀錄。舊 AI 設定轉成「原有設定」成員，但使用同意預設未勾選，需首次明確同意。前端快取標籤為 `20261021-version7`；更新後重新整理，仍是舊畫面時再強制重新整理。原始碼不包含你的設定、資料庫、工作階段或金鑰。
 
 [安全邊界](docs/SECURITY.md) · [使用指南](docs/USER-GUIDE.md) · [架構](docs/ARCHITECTURE.md) · [測試與限制](docs/TEST-REPORT.md)
 
@@ -87,8 +93,9 @@ php tests/revision.php
 php tests/versioning.php
 php tests/members.php
 php tests/response-contract.php
+php tests/choices.php
 ```
 
-各項已執行檢查及結果以 [測試報告](docs/TEST-REPORT.md) 為準。以上 PHP 原生 fixture，包括 `versioning.php`、`members.php` 與 `response-contract.php`，因環境沒有 PHP 而**未執行**；詞法檢查、來源契約及模擬測試不等於 PHP／瀏覽器／真實模型驗收。尚未設定 GitHub Actions，推送本身不代表 CI 或實際模型驗證通過。
+各項已執行檢查及結果以 [測試報告](docs/TEST-REPORT.md) 為準。以上 PHP 原生 fixture，包括 `versioning.php`、`members.php` 、`response-contract.php` 與 `choices.php`，因環境沒有 PHP 而**未執行**；詞法檢查、來源契約及模擬測試不等於 PHP／瀏覽器／真實模型驗收。尚未設定 GitHub Actions，推送本身不代表 CI 或實際模型驗證通過。
 
 提交前請再次檢查暫存清單；`.gitignore` 不是秘密掃描器。不可提交 `config.local.php`、`.env`、資料庫、私有資料、Session、Key 檔案、個人作品匯出或包含這些資料的備份壓縮檔。

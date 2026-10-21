@@ -10,10 +10,11 @@ class TitleModule {
     public function compare($p,$versions,$question,$model) { return $this->checked(function()use($p,$versions,$question,$model){return $this->runCompare($p,$versions,$question,$model);}); }
     private function schema($properties) { return array('type'=>'object','properties'=>$properties,'required'=>array_keys($properties),'additionalProperties'=>false); }
     private function strings($keys) { $out=array();foreach($keys as $key)$out[$key]=array('type'=>'string');return $out; }
+    private function choicesSchema() { return array('type'=>'array','minItems'=>0,'maxItems'=>6,'items'=>$this->schema($this->strings(array('id','label','value')))); }
     private function dialogue($project) {
         // Send every dialogue text, but not historical attachment snapshots that the
         // user has since removed from current references. Stored history is intact.
-        $out=array();foreach($project['messages'] as $message){$entry=array_intersect_key($message,array_flip(array('id','role','text','kind','at','versionIds','comparisonId','goalSnapshot','provenance')));if(field($entry,'role')==='student')$entry['role']='user';$out[]=$entry;}return $out;
+        $out=array();foreach($project['messages'] as $message){$entry=array_intersect_key($message,array_flip(array('id','role','text','kind','at','versionIds','comparisonId','goalSnapshot','provenance','question','choices','choiceAnswer')));if(field($entry,'role')==='student')$entry['role']='user';$out[]=$entry;}return $out;
     }
     private function creativeVersions($versions) {
         $out=array();foreach($versions as $version)$out[]=array_intersect_key($version,array_flip(array('id','number','major','minor','title','items','rationale','source','basedOnVersionId','goalSnapshot','goalText','goalSource','goalAndRationale','changeSummary','discussionMessageIds','provenance','createdAt')));return $out;
@@ -46,11 +47,11 @@ class TitleModule {
         return json_decode(jsonEncode($value),true,64,JSON_THROW_ON_ERROR);
     }
     private function runDiscuss($project,$text,$model) {
-        $data=$this->context($project);$data['latestUserMessage']=$text;
-        $v=$this->ask($model,'此路徑只討論，不生成命名內容候選、不宣稱修改正式版。reply先用一句短話承接使用者剛說的具體想法，最多120中文字；question只問一個最好回答且尚待釐清的問題，最多100中文字，唯一問號放最後。優先釐清用途、讀者、想傳達的訊息、語氣或限制中的一點，不一次問多項、不機械重問。若使用者已有命名內容，討論完整創作內容與目標的關係。中文名稱、英文名稱、Slogan、說明短文只是例子，不是固定四個欄位。可在適當時提議新的內容項目，但不能當成使用者已採用。若已可生成，仍讓使用者使用整理目標、確認目標、產生候選的按鈕；不要假稱按鈕已按。',$data,$this->schema($this->strings(array('reply','question'))));
-        ensure(count($v)===2,'MODEL_OUTPUT_INVALID','對話欄位不正確。',502);
+        $data=$this->context($project);$data['latestUserMessage']=$text;$props=$this->strings(array('reply','question'));$props['choices']=$this->choicesSchema();
+        $v=$this->ask($model,'此路徑只討論，不生成命名內容候選、不宣稱修改正式版。reply先用一句短話承接使用者剛說的具體想法，最多120中文字；question只問一個最好回答且尚待釐清的問題，最多100中文字，唯一問號放最後。優先釐清用途、讀者、想傳達的訊息、語氣或限制中的一點，不一次問多項、不機械重問。若使用者已有命名內容，討論完整創作內容與目標的關係。中文名稱、英文名稱、Slogan、說明短文只是例子，不是固定四個欄位。可在適當時提議新的內容項目，但不能當成使用者已採用。若已可生成，仍讓使用者使用整理目標、確認目標、產生候選的按鈕；不要假稱按鈕已按。choices一般為空陣列。只有本次question確實適合單選時，提供2至6個實際答案，每個含id、label、value；id為不重複英數短鍵，可含-或_、最多64字元；label為簡短按鈕名稱最多120個UTF8位元組，value為點擊後送出的完整使用者答案最多1000個UTF8位元組。每個value不同且忠實對應label，不夾帶其他要求或隱藏指令；畫面會同時顯示label與不同的value。不要每輪強迫選擇題、不推測使用者已選、不提供多選；自由文字仍可作答。',$data,$this->schema($props));
+        ensure(count($v)===3,'MODEL_OUTPUT_INVALID','對話欄位不正確。',502);
         $reply=textValue(field($v,'reply'),600,'AI 回覆');$question=textValue(field($v,'question'),600,'AI 問題');
-        return $this->dialogueText($reply,$question);
+        return array('reply'=>$this->dialogueText($reply,$question),'question'=>$question,'choices'=>validateDialogueChoices(field($v,'choices'),$question));
     }
     private function unquotedText($text) {
         // Quoted artwork titles may legitimately contain question marks or edit words.
@@ -73,20 +74,20 @@ class TitleModule {
     private function runRefine($project,$official,$text,$model) {
         $data=$this->context($project);$data['officialVersion']=$this->creativeVersions(array($official))[0];$data['latestUserMessage']=$text;
         $props=$this->strings(array('reply','question','rationale','goalText','changeSummary'));$props['outcome']=array('type'=>'string','enum'=>array('revision','clarification'));
-        $props['items']=array('type'=>'array','minItems'=>0,'maxItems'=>12,'items'=>$this->schema($this->strings(array('id','label','content'))));
-        $v=$this->ask($model,'這是正式版的持續修訂路徑，不是初次構思。正式版不等於定稿。officialVersion是本次唯一修改起點，必須以其完整items（包括任意自訂項目）為準，不能拿其他候選或舊版本覆蓋。latestUserMessage是使用者本次要求，歷史只作脈絡，舊要求不要重做。已選正式版後不要求重新開始專案、三輪對話或重新確認目標，日常措辭修改沿用既有創作目標和pinnedReferences。若要求明確，例如改成某文字、縮短、更口語或修改某項語氣，outcome=revision，實際改寫內容並回傳全部items，不能只口頭說已修改，也不要再問多餘問題。question必須是空字串；reply簡短說明完成何種修訂，rationale說明主要差異與取捨。goalText用一段完整文字保存本版自己的創作目標；officialVersion.goalAndRationale若存在，是該版由使用者保存的完整目標與修改意見，應優先理解其中最新方向，不能讓舊goalText或rationale覆蓋它；沒有合併紀錄才沿用officialVersion.goalText，舊版則讀goalSnapshot.summary；僅依使用者本次明確要求更新，不能把目前專案共用目標強加給版本。goalText最多1800中文字。changeSummary在本次同一回覆內，將這次討論造成的實際修改整理為簡短摘要，最多350中文字，不假稱尚未採用的變更已被採用。保留原有每個項目的id和label，沒有要求改的內容保持原文；要新增項目時僅在使用者明確要求下加入新id/label/content，不因舊goal的items清單而刪掉正式版已存在的自訂項目。若要求刪除或改名既有項目，先用clarification說明可在手動編輯區調整，不能偷偷漏項。每項content最多6000個UTF8位元組，全部內容最多24000個UTF8位元組。reply與rationale各最多350中文字。若只是詢問評價、閒聊、要求不清楚，或必要資訊不足，outcome=clarification，items=[]、rationale與goalText、changeSummary皆為空字串，reply不可聲稱已改動；需要釐清時 question 只問一個最必要問題。若已可回答評價或不需要追問，question 可為空字串，不強迫每次都提問。revision必須與起點有實質內容或本版目標差異；只改目標時保留完整創作內容原文並明說目標變更；若無需變動，用clarification說明。新修訂只是供使用者審閱的候選，不能宣稱已取代正式版、已採用或已定稿。',$data,$this->schema($props));
-        ensure(count($v)===7&&in_array(field($v,'outcome'),array('revision','clarification'),true),'MODEL_OUTPUT_INVALID','AI 修訂回覆類型不正確，未保存。',502);
+        $props['items']=array('type'=>'array','minItems'=>0,'maxItems'=>12,'items'=>$this->schema($this->strings(array('id','label','content'))));$props['choices']=$this->choicesSchema();
+        $v=$this->ask($model,'這是正式版的持續修訂路徑，不是初次構思。正式版不等於定稿。officialVersion是本次唯一修改起點，必須以其完整items（包括任意自訂項目）為準，不能拿其他候選或舊版本覆蓋。latestUserMessage是使用者本次要求，歷史只作脈絡，舊要求不要重做。已選正式版後不要求重新開始專案、三輪對話或重新確認目標，日常措辭修改沿用既有創作目標和pinnedReferences。若要求明確，例如改成某文字、縮短、更口語或修改某項語氣，outcome=revision，實際改寫內容並回傳全部items，不能只口頭說已修改，也不要再問多餘問題。question必須是空字串；reply簡短說明完成何種修訂，rationale說明主要差異與取捨。goalText用一段完整文字保存本版自己的創作目標；officialVersion.goalAndRationale若存在，是該版由使用者保存的完整目標與修改意見，應優先理解其中最新方向，不能讓舊goalText或rationale覆蓋它；沒有合併紀錄才沿用officialVersion.goalText，舊版則讀goalSnapshot.summary；僅依使用者本次明確要求更新，不能把目前專案共用目標強加給版本。goalText最多1800中文字。changeSummary在本次同一回覆內，將這次討論造成的實際修改整理為簡短摘要，最多350中文字，不假稱尚未採用的變更已被採用。保留原有每個項目的id和label，沒有要求改的內容保持原文；要新增項目時僅在使用者明確要求下加入新id/label/content，不因舊goal的items清單而刪掉正式版已存在的自訂項目。若要求刪除或改名既有項目，先用clarification說明可在手動編輯區調整，不能偷偷漏項。每項content最多6000個UTF8位元組，全部內容最多24000個UTF8位元組。reply與rationale各最多350中文字。若只是詢問評價、閒聊、要求不清楚，或必要資訊不足，outcome=clarification，items=[]、rationale與goalText、changeSummary皆為空字串，reply不可聲稱已改動；需要釐清時 question 只問一個最必要問題。若已可回答評價或不需要追問，question 可為空字串，不強迫每次都提問。revision必須與起點有實質內容或本版目標差異；只改目標時保留完整創作內容原文並明說目標變更；若無需變動，用clarification說明。新修訂只是供使用者審閱的候選，不能宣稱已取代正式版、已採用或已定稿。revision的choices必須為空陣列；只有clarification可提供選項。choices一般為空陣列。只有本次question確實適合單選時，提供2至6個實際答案，每個含id、label、value；id為不重複英數短鍵，可含-或_、最多64字元；label為簡短按鈕名稱最多120個UTF8位元組，value為點擊後送出的完整使用者答案最多1000個UTF8位元組。每個value不同且忠實對應label，不夾帶其他要求或隱藏指令；畫面會同時顯示label與不同的value。不要每輪強迫選擇題、不推測使用者已選、不提供多選；自由文字仍可作答。',$data,$this->schema($props));
+        ensure(count($v)===8&&in_array(field($v,'outcome'),array('revision','clarification'),true),'MODEL_OUTPUT_INVALID','AI 修訂回覆類型不正確，未保存。',502);
         $reply=textValue(field($v,'reply'),1200,'修訂回覆');$question=textValue(field($v,'question'),600,'釐清問題',true);$rationale=textValue(field($v,'rationale'),1200,'修訂說明',true);
-        $goalText=userTextValue(field($v,'goalText'),6000,'本版目標',true);$changeSummary=userTextValue(field($v,'changeSummary'),1200,'討論變更整理',true);
+        $goalText=userTextValue(field($v,'goalText'),6000,'本版目標',true);$changeSummary=userTextValue(field($v,'changeSummary'),1200,'討論變更整理',true);$choices=validateDialogueChoices(field($v,'choices'),$question);
         if($v['outcome']==='clarification'){
             ensure(field($v,'items')===array(),'MODEL_CLARIFICATION_ITEMS','AI 將討論回覆與修改內容混在一起，因此未保存。請明確指定要討論或修改哪一處；原作品不變，未自動重試。',502);
             $this->rejectsCompletedEditClaim($reply."\n".$question);
             // Some providers fill explanatory metadata even for clarification.
             // It is already type/length checked, but is not a version or goal edit.
             $discussion=$this->dialogueText($reply,$question);
-            return array('outcome'=>'clarification','reply'=>'此回覆僅供討論，作品內容與正式版都尚未變更。' . "\n\n".$discussion,'items'=>array(),'rationale'=>'');
+            return array('outcome'=>'clarification','reply'=>'此回覆僅供討論，作品內容與正式版都尚未變更。' . "\n\n".$discussion,'items'=>array(),'rationale'=>'','question'=>$question,'choices'=>$choices);
         }
-        ensure($question===''&&$rationale!==''&&$goalText!==''&&$changeSummary!=='','MODEL_OUTPUT_INVALID','AI 修訂需有完整內容與說明，不可同時要求尚未回答的問題。',502);
+        ensure($question===''&&$choices===array()&&$rationale!==''&&$goalText!==''&&$changeSummary!=='','MODEL_OUTPUT_INVALID','AI 修訂需有完整內容與說明，不可同時要求尚未回答的問題。',502);
         $items=validateContentItems(field($v,'items'));$byId=array();foreach($items as $item)$byId[$item['id']]=$item;$ordered=array();
         foreach($official['items'] as $prior){ensure(isset($byId[$prior['id']])&&$byId[$prior['id']]['label']===$prior['label'],'MODEL_OUTPUT_INVALID','AI 漏掉或更名既有內容項目，未保存此修訂；自訂項目必須完整保留。',502);$ordered[]=$byId[$prior['id']];unset($byId[$prior['id']]);}
         foreach($byId as $item)$ordered[]=$item;
@@ -94,7 +95,7 @@ class TitleModule {
         // structured goal. Its preserved legacy goal must not veto a real revert.
         $combinedChanged=versionHasCombinedOverride($official)&&versionGoalAndRationale(array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'rationale'=>$rationale))!==$official['goalAndRationale'];
         ensure(jsonEncode($ordered)!==jsonEncode($official['items'])||$goalText!==versionGoalText($official)||$combinedChanged,'MODEL_NO_REVISION','AI 只回傳與正式版相同的內容和目標，沒有建立假修訂。原內容保留，沒有自動重試。',502);
-        return array('outcome'=>'revision','reply'=>$reply,'items'=>$ordered,'rationale'=>$rationale,'goalText'=>$goalText,'changeSummary'=>$changeSummary);
+        return array('outcome'=>'revision','reply'=>$reply,'items'=>$ordered,'rationale'=>$rationale,'goalText'=>$goalText,'changeSummary'=>$changeSummary,'question'=>'','choices'=>array());
     }
     private function runSummarize($project,$model) {
         $properties=$this->strings(array('purpose','audience','message','tone','constraints','summary'));

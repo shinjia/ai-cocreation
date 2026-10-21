@@ -1,19 +1,25 @@
 # 測試報告
 
-日期：2026-10-21。範圍：兩層版本、各版目標／變更、比較與 AI 成員設定，以及本輪單欄編輯、採用後項目更名、通用創作者文案與回覆驗證修正。這是本機原始碼與模擬／來源檢查，不是已部署服務驗收。未讀取或設定真實 API Key，未呼叫真實 OpenAI／Ollama，未公開部署。
+日期：2026-10-21。範圍：兩層版本、各版目標／變更、比較與 AI 成員設定，以及本輪單欄編輯、採用後項目更名、通用創作者文案、正式版置頂、結構化選項按鈕與回覆驗證修正。這是本機原始碼與模擬／來源檢查，不是已部署服務驗收。未讀取或設定真實 API Key，未呼叫真實 OpenAI／Ollama，未公開部署。
 
 ## 本次實際通過
 
-- **111 項 Node 自動測試，0 失敗、0 跳過。**
-  - 36 項後端來源契約：local-only／Host／Origin／CSRF、Key 到期、請求重放、供應者目的地、固定引用、容量預留、整數主／小版號、舊資料不捏造歷史、封存獨立於版本、逐版目標比較、一次呼叫內產生目標與變更摘要、成員六欄 allowlist、選擇與保存代次、明確清除選擇、dispatch 來源快照及 metadata-only 清單，另涵蓋合併文字優先與相容欄位、採用後項目更名、回覆 JSON 型別防護及 rejected／unknown 契約。
-  - 70 項前端／DOM／fetch 與固定腳本回歸：直接執行實際 renderer、DOM 事件及 fetch adapter 的 fixture，涵蓋新增專案、正式版反覆修訂／採用、V5.9 → V5.10、全部內容的大／小版保存、個別版本目標與手動意見、封存還原、正式與候選 2–5 版比較、目前共用目標失效時仍可比較、就地停用原因及錯誤、設定一次同意、enabled-only 成員、不可自動換人、明確讀取真實清單的介面／失敗顯示、歷史稱呼不被改名重標、設定衝突保留草稿、Unicode 邊界、Key 傳送前清空與匯出排除；新引用排除封存版本，已固定引用保持可讀。最新實際 renderer／DOM 事件測試另覆蓋單一目標與意見欄、舊文字完整合併及去重、12,000 UTF-8 bytes 邊界、重複另存不疊加標籤、合併文字傳輸，以及採用才同步項目卡片／目前項目名稱、專案名稱不變與候選不提早更名。另有 4 項正式版置頂回歸：導覽後／對話前的單一 DOM 順序、完整內容與 anchor 不重複、空狀態、待審／定稿／封存狀態，以及切換／比較／取消後保留閱讀位置。CSS 檢查涵蓋行動樣式、鍵盤焦點和列印取消裁切，不等同真實瀏覽器視覺驗收。
+- **125 項 Node 自動測試，0 失敗、0 跳過。**
+  - 40 項後端來源契約：local-only／Host／Origin／CSRF、Key 到期、請求重放、供應者目的地、固定引用、容量預留、整數主／小版號、舊資料不捏造歷史、封存獨立於版本、逐版目標比較、一次呼叫內產生目標與變更摘要、成員六欄 allowlist、選擇與保存代次、明確清除選擇、dispatch 來源快照及 metadata-only 清單，另涵蓋合併文字優先與相容欄位、採用後項目更名、回覆 JSON 型別防護及 rejected／unknown 契約。
+  - 80 項前端／DOM／fetch 與固定腳本回歸：直接執行實際 renderer、DOM 事件及 fetch adapter 的 fixture，涵蓋新增專案、正式版反覆修訂／採用、V5.9 → V5.10、全部內容的大／小版保存、個別版本目標與手動意見、封存還原、正式與候選 2–5 版比較、目前共用目標失效時仍可比較、就地停用原因及錯誤、設定一次同意、enabled-only 成員、不可自動換人、明確讀取真實清單的介面／失敗顯示、歷史稱呼不被改名重標、設定衝突保留草稿、Unicode 邊界、Key 傳送前清空與匯出排除；新引用排除封存版本，已固定引用保持可讀。最新實際 renderer／DOM 事件測試另覆蓋單一目標與意見欄、舊文字完整合併及去重、12,000 UTF-8 bytes 邊界、重複另存不疊加標籤、合併文字傳輸，以及採用才同步項目卡片／目前項目名稱、專案名稱不變與候選不提早更名。另有 4 項正式版置頂回歸：導覽後／對話前的單一 DOM 順序、完整內容與 anchor 不重複、空狀態、待審／定稿／封存狀態，以及切換／比較／取消後保留閱讀位置。CSS 檢查涵蓋行動樣式、鍵盤焦點和列印取消裁切，不等同真實瀏覽器視覺驗收。
   - 5 項 HTTP 傳輸回歸：實際 createApiAdapter 攔截 fetch 序列化結果，覆蓋 **29 條 POST 路由**、body.action、CSRF、JSON Content-Type、GET 讀取、錯誤傳遞和完整 metadata 的 256 KiB body 上限。接收端是契約模擬，不是 PHP HTTP 伺服器。
 - **Python SQLite 實際執行 SQL，12 項檢查。** 原 7 項建表／owner 隔離／請求唯一性／非破壞初始化，加上 5 項成員遷移與 compare-and-swap 檢查：先存資料不被遷移覆蓋、正確代次成功、舊代次拒絕、跨 owner 拒絕、較新設定保留。這不是 PHP PDO 驗證。
-- **23 份 PHP 文件通過 Pygments 詞法與括號結構檢查。** 不是 PHP parser、php -l 或 runtime。
+- **24 份 PHP 文件通過 Pygments 詞法與括號結構檢查。** 不是 PHP parser、php -l 或 runtime。
 - JavaScript 語法檢查通過。作品文字／標籤與四種背景色的數值對比至少 4.5:1；這不是整頁視覺或無障礙認證。
 - 原始碼與檔案掃描：無 config.local.php、真實金鑰、私有資料庫、session vault、安裝鎖、runtime log 或 ZIP；範例設定和 .gitignore 保留。
 
 完整可重現測試輸出見 `test-results.txt`。Node 的 DOM 是測試替身；固定腳本產生的內容不是 AI 品質測試。後端來源契約只能證明所檢查程式片段存在，不能代替執行。
+
+## 本輪選項按鈕回歸
+
+新增實際 renderer／DOM／fetch 測試涵蓋初次討論與正式版釐清、無選項及舊紀錄不補造按鈕、單選答案與來源 ID 經原 discuss JSON 傳輸、使用目前成員、草稿保留、歷史問題連結、忙碌／失效／唯讀與結果未知停用、惡意標籤以文字顯示、不同 label／value 皆可見，以及無背景呼叫。後端來源契約另檢查嚴格 schema、選項界線、最新問題與五個脈絡綁定、伺服器解析答案在推論之前、原有 request journal 與模型快照，以及容量預留。這些來源契約不是 PHP 執行。
+
+新增 `tests/choices.php` 使用真實 CocreationApp／TitleModule、in-memory Store 與假 adapter，準備檢查初次與正式版釐清、原文答案／來源鏈、偽造與失效選項、既有 revision／item guard、成員切換、請求重放、自由文字與真正修改版。`tests/response-contract.php` 的兩家真實 adapter 配注入式 transport 另準備空選項、2–6 項、型別、重複、秘密樣式與 UTF-8 邊界測試。兩份 PHP fixture 本次均未執行；未宣稱實際服務支援或品質已通過。
 
 ## 本輪回覆錯誤的診斷界線
 
@@ -47,6 +53,7 @@ API error.operationOutcome 區分明確 rejected 與 unknown。已驗證拒收�
 - `tests/revision.php`：真實應用與模組的正式版修訂、釐清、完整自訂欄位、採用再修訂、重放、容量與版本上限。
 - `tests/versioning.php`：真實 CocreationApp／TitleModule 搭配 in-memory Store 與注入式假模型；涵蓋舊版遷移、版號碰撞、主／小保存、各版目標、目標單獨修訂、封存還原、2–5 比較與無效回覆原子性、固定引用，以及成員設定／呼叫來源一致性。無 PDO、網路或金鑰。
 - `tests/members.php`：名單驗證、metadata 注入式回應、無假清單、Store 遷移／owner 隔離／代次及選擇；部分需 PDO SQLite。
+- `tests/choices.php`：結構化問答的真實應用／模組流程，使用記憶體 Store 和假 adapter，不使用 PDO、網路、Key 或正式資料；本次未執行。
 - `tests/response-contract.php`：真實 OpenAI／Ollama adapter 與 TitleModule 搭配建構時注入的假 transport，準備檢查釐清 metadata、引述／結尾標點、空追問、真修訂、完整自訂欄位、錯誤型別／JSON／UTF-8／長度、假修改宣稱及 rejected／unknown。無真實 Key、網路、PDO 或正式設定；**本次未執行，不是兩家實際服務驗證**。
 
 這些 fixture 是供開發者在具備 PHP 的目標環境執行，不是要求一般使用者以 CLI 安裝。一般安裝及驗收仍透過網頁。現階段可供目標本機驗收，不能宣稱已通過 PHP／XAMPP／實際模型整合或可公開上線。

@@ -102,7 +102,7 @@ test('inference storage budgets bound all copied references and six-byte JSON es
 
 test('official discussion branches into true revisions before initial-goal reset and never promotes automatically',async()=>{
  const app=await read('app/app.php');
- const branch=app.split("if($p['officialVersionId']!==null){")[1].split('$reply=$module->discuss')[0];
+ const branch=app.split("if($p['officialVersionId']!==null){")[1].split('$result=$module->discuss')[0];
  assert.ok(branch);assert.match(branch,/\$official=\$this->version\(\$p,\$p\['officialVersionId'\]\)/);assert.match(branch,/module->refine/);
  for(const marker of ["'revision'","'basedOnVersionId'","'revisionInstruction'","'revisionVersionId'","'clarification'"])assert.ok(branch.includes(marker),marker);
  assert.match(branch,/appendVersion\(\$p,\$result\['items'\],\$result\['rationale'\],'revision',\$official\['id'\]/);
@@ -162,7 +162,7 @@ test('comparison uses each selected version goal and changes, never current shar
 test('new per-version goals and discussion summaries are generated in the existing call and manual notes preserved',async()=>{
  const [app,mod,v]=await Promise.all(['app/app.php','app/modules/titles.php','app/versioning.php'].map(read));
  const refine=mod.split('private function runRefine')[1].split('private function runSummarize')[0];assert.equal((refine.match(/\$this->ask\(/g)||[]).length,1);
- assert.match(refine,/count\(\$v\)===7/);assert.match(refine,/\|\|\$goalText!==versionGoalText\(\$official\)/);
+ assert.match(refine,/count\(\$v\)===8/);assert.match(refine,/\|\|\$goalText!==versionGoalText\(\$official\)/);
  const generate=mod.split('private function runGenerate')[1].split('private function runCompare')[0];assert.equal((generate.match(/\$this->ask\(/g)||[]).length,1);assert.match(generate,/count\(\$candidate\)===4/);
  for(const key of ['goalText','goalSource','changeSummary','discussionMessageIds']){assert.ok(app.includes(key));assert.ok(mod.includes(key));}
  assert.match(app,/field\(\$input,'goalText',\$goalDefault\)/);assert.match(app,/'goalSnapshot'=>array\('summary'=>\$goalText\)/);
@@ -253,4 +253,49 @@ test('promotion atomically renames the active creative item only and preserves p
  assert.match(promote,/'previousItemTitle'=>\$previousItemTitle,'itemTitle'=>\$itemTitle/);assert.match(promote,/return \$this->save\(\$p\)/);assert.doesNotMatch(promote,/\$p\['title'\]=|\$p\['description'\]=/);
  assert.match(validation,/function officialItemTitle/);assert.match(validation,/中文名稱.*中文標題.*主標題/);assert.match(validation,/array_slice\(\$chars,0,59\)/);
  const other=app.split("if($action==='promote')")[0];assert.doesNotMatch(other,/officialItemTitle\(/);
+});
+
+test('dialogue choices use strict optional single-choice schema rather than parsing or inventing buttons',async()=>{
+ const [mod,validation]=await Promise.all(['app/modules/titles.php','app/validation.php'].map(read));
+ assert.match(mod,/private function choicesSchema\(\)/);assert.match(mod,/'minItems'=>0,'maxItems'=>6/);assert.match(mod,/strings\(array\('id','label','value'\)\)/);
+ const discuss=mod.split('private function runDiscuss')[1].split('private function unquotedText')[0];
+ const refine=mod.split('private function runRefine')[1].split('private function runSummarize')[0];
+ for(const route of [discuss,refine]){assert.match(route,/\$props\['choices'\]=\$this->choicesSchema\(\)/);assert.match(route,/validateDialogueChoices/);assert.match(route,/不要每輪強迫選擇題/);assert.equal((route.match(/\$this->ask\(/g)||[]).length,1);}
+ assert.match(refine,/ensure\(\$question===''&&\$choices===array\(\)/);assert.match(refine,/'question'=>'','choices'=>array\(\)/);
+ const helper=validation.split('function validateDialogueChoices')[1].split('function validateBrief')[0];
+ assert.match(helper,/count\(\$choices\)===0\|\|\(count\(\$choices\)>=2&&count\(\$choices\)<=6\)/);
+ assert.match(helper,/array_keys\(\$choices\)===range/);assert.match(helper,/count\(\$choice\)===3/);
+ assert.match(helper,/userTextValue\(\$id,64/);assert.match(helper,/'label'\),120/);assert.match(helper,/'value'\),1000/);
+ assert.match(helper,/!in_array\(\$id,\$ids,true\)&&!in_array\(\$value,\$values,true\)/);
+});
+test('choice answer is resolved from only the latest bound question before any provider call',async()=>{
+ const app=await read('app/app.php'),resolver=app.split('private function resolveChoiceAnswer')[1].split('private function studentTurns')[0];
+ assert.match(resolver,/end\(\$project\['messages'\]\)/);assert.match(resolver,/field\(\$question,'role'\)==='assistant'/);assert.match(resolver,/array\('discussion','clarification'\)/);
+ assert.match(resolver,/count\(\$answer\)===2/);assert.match(resolver,/field\(\$input,'text'\)===\$selected\['value'\]/);
+ assert.match(resolver,/\$context\[\$key\]===\$value/);assert.match(resolver,/CHOICE_INVALID/);assert.match(resolver,/CHOICE_STALE/);
+ assert.doesNotMatch(resolver,/generate\(|refine\(|discuss\(/);
+ const binding=app.split('private function choiceContext')[1].split('private function questionMetadata')[0];
+ for(const key of ['itemId','officialVersionId','sharedContextRevision','itemTitle','itemDescription'])assert.ok(binding.includes("'"+key+"'"));
+ assert.doesNotMatch(binding,/provenance|memberId|settingsRevision|\['revision'\]/,'switching an enabled member or leaving/reopening an unchanged item does not expire the question');
+ const route=app.split("if($action==='discuss') {")[1].split("if($action==='summarize')")[0];
+ assert.ok(route.indexOf('resolveChoiceAnswer($p,$input)')<route.indexOf('$module->refine'));assert.ok(route.indexOf('resolveChoiceAnswer($p,$input)')<route.indexOf('$module->discuss'));
+ assert.match(route,/'discussion',\$answerMetadata/);assert.match(route,/array_merge\(array\('basedOnVersionId'=>\$official\['id'\]\),\$answerMetadata\)/);
+ assert.equal((route.match(/questionMetadata\(\$p,\$result\)/g)||[]).length,2);
+});
+test('choice history preserves server-resolved source linkage and outbound question without relabeling model origin',async()=>{
+ const [app,mod]=await Promise.all(['app/app.php','app/modules/titles.php'].map(read));
+ const resolver=app.split('private function resolveChoiceAnswer')[1].split('private function studentTurns')[0];
+ assert.match(resolver,/'choiceAnswer'=>array\('questionMessageId'=>\$questionId,'choiceId'=>\$choiceId,'label'=>\$selected\['label'\],'value'=>\$selected\['value'\]\)/);
+ assert.match(mod,/'provenance','question','choices','choiceAnswer'/);assert.match(mod,/latestUserMessage/);
+ assert.match(app,/\$connection=\$this->connection\(\);\$this->checkApproval/);assert.match(app,/requestStart/);assert.match(app,/if\(\$previous!==null\)return/);
+ assert.doesNotMatch(resolver,/\['provenance'\]|approvedMemberId/,'choice source model is not used to select the next model');
+});
+test('initial discussion storage budget includes escaped six-option question, selected answer and context binding',async()=>{
+ const source=await read('app/validation.php'),size=x=>Buffer.byteLength(JSON.stringify(x));
+ const options=Array.from({length:6},(_,i)=>({id:'i'+i+'x'.repeat(61),label:'\u0001'.repeat(120),value:String(i)+'\u0001'.repeat(999)}));
+ const choiceContext={itemId:'a'.repeat(32),officialVersionId:null,sharedContextRevision:99,itemTitle:'\u0001'.repeat(240),itemDescription:'\u0001'.repeat(4000)};
+ const references=[{content:'x'.repeat(50000)}];
+ const saved=[{text:'\u0001'.repeat(4000),choiceAnswer:{questionMessageId:'b'.repeat(32),choiceId:options[0].id,label:options[0].label,value:options[0].value}},{text:'\u0001'.repeat(1200),question:'\u0001'.repeat(600),choices:options,choiceContext,referencesSnapshot:references}];
+ const match=source.match(/if\(\$action==='discuss'\)return \$references\+(\d+);/);assert.ok(match);
+ assert.ok(size(references)+Number(match[1])>size(saved)+5000,'preflight reserves structured options and bindings before inference');
 });

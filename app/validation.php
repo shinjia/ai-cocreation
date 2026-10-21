@@ -31,6 +31,20 @@ function userTextValue($value,$max,$name,$empty=false) {
     ensure(!preg_match('/\bsk-[a-zA-Z0-9_-]{16,}\b/',$text),'SECRET_IN_TEXT','請勿在對話或作品欄位貼入 API Key；請只使用 API 設定中的密碼欄。');
     return $text;
 }
+function validateDialogueChoices($choices,$question) {
+    ensure(is_array($choices)&&($choices===array()||array_keys($choices)===range(0,count($choices)-1)),'CHOICES_INVALID','回答選項必須是清單。');
+    ensure(count($choices)===0||(count($choices)>=2&&count($choices)<=6),'CHOICES_INVALID','選擇題需提供2至6個單選答案；一般討論可不提供選項。');
+    ensure($choices===array()||(is_string($question)&&trim($question)!==''),'CHOICES_INVALID','回答選項必須對應明確問題。');
+    $out=array();$ids=array();$values=array();
+    foreach($choices as $choice){
+        ensure(is_array($choice)&&count($choice)===3,'CHOICES_INVALID','回答選項需有 id、label 和 value。');$id=field($choice,'id');
+        ensure(is_string($id)&&preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/D',$id),'CHOICES_INVALID','回答選項識別碼格式不正確。');userTextValue($id,64,'回答選項識別碼');
+        $label=userTextValue(field($choice,'label'),120,'回答選項名稱');$value=userTextValue(field($choice,'value'),1000,'回答選項內容');
+        ensure(!in_array($id,$ids,true)&&!in_array($value,$values,true),'CHOICES_INVALID','回答選項識別碼與答案不可重複。');
+        $ids[]=$id;$values[]=$value;$out[]=array('id'=>$id,'label'=>$label,'value'=>$value);
+    }
+    return $out;
+}
 function validateBrief($value) {
     ensure(is_array($value)&&count($value)===7,'MODEL_OUTPUT_INVALID','創作目標欄位不正確。',502);$out=array();
     foreach(array('purpose','audience','message','tone','constraints','summary') as $key)$out[$key]=textValue(field($value,$key),$key==='summary'?3000:1200,'創作目標');
@@ -87,7 +101,7 @@ function inferenceGrowthBudget($project,$action) {
     $references=strlen(jsonEncode($project['references']));$brief=strlen(jsonEncode($project['brief']));
     $context=strlen(jsonEncode(array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision'])));
     if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+450000; // Revision + assistant, full bundle and instruction twice.
-    if($action==='discuss')return $references+50000;
+    if($action==='discuss')return $references+150000; // Question options, resolved answer and context binding can be escaped too.
     if($action==='summarize')return $references+150000; // New brief is stored twice.
     if($action==='generate')return 6*$references+5*$brief+5*$context+1700000;
     if($action==='compare'){$goals=array();foreach(field($project,'versions',array()) as $v)$goals[]=strlen(jsonEncode(versionComparisonSnapshot($v)));rsort($goals,SORT_NUMERIC);return 2*$references+$brief+array_sum(array_slice($goals,0,5))+180000;} // Each selected historical goal is saved separately.

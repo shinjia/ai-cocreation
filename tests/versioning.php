@@ -169,6 +169,7 @@ class VersioningFixtureAdapter {
             if($this->mode==='extra')$items[]=$items[0];
             $out=array('items'=>$items,'summary'=>'請依各版自己的目標與取捨選擇，並非指定唯一冠軍。');
         }
+        if(isset($props['choices']))$out['choices']=array();
         return json_decode(jsonEncode($out),false,128,JSON_THROW_ON_ERROR);
     }
 }

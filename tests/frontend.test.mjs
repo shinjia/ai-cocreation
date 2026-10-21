@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {memberRosterError,enabledMembers,activeMember,aiSetupReason,formatDate,createApiAdapter,createTitleApp,createRequestId,canGenerate,canSummarize,canCreate,canSnapshot,newestPendingRevision,revisionChanges,versionSourceLabel,versionLabel,versionCoordinates,nextVersionCoordinates,isArchivedVersion,comparisonDisabledReason,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,officialItemTitle,snapshotMetadataError,comparisonUsesSnapshots,COMPARISON_SNAPSHOT_NOTE,validComparison,validItems,versionItems,provenanceLabel,exportProject} from '../public/app.js';
+import {discussionChoices,currentChoiceQuestion,memberRosterError,enabledMembers,activeMember,aiSetupReason,formatDate,createApiAdapter,createTitleApp,createRequestId,canGenerate,canSummarize,canCreate,canSnapshot,newestPendingRevision,revisionChanges,versionSourceLabel,versionLabel,versionCoordinates,nextVersionCoordinates,isArchivedVersion,comparisonDisabledReason,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,officialItemTitle,snapshotMetadataError,comparisonUsesSnapshots,COMPARISON_SNAPSHOT_NOTE,validComparison,validItems,versionItems,provenanceLabel,exportProject} from '../public/app.js';
 import {createDemoAdapter} from '../public/demo.js';
 const item=(id='name',label='中文名稱',content='讓日常，被看見')=>({id,label,content});
 async function call(api,action,p,extra={}){return (await api.request(action,{id:p.id,itemId:p.activeItemId,revision:p.revision,...extra})).project;}
@@ -82,7 +82,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version6"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version6"/);assert.match(html,/demo\.js\?v=20261021-version6/);assert.match(demo,/app\.js\?v=20261021-version6/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version7"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version7"/);assert.match(html,/demo\.js\?v=20261021-version7/);assert.match(demo,/app\.js\?v=20261021-version7/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -808,4 +808,143 @@ test('top official status distinguishes pending changes and finalized or archive
   p=await call(source,'finalize',p);await app.reload();assert.equal(doc.getElementById('official-status').textContent,'已定稿');assert.equal(fixtureButton(doc,'請 AI 繼續修改').disabled,true);
   p=await call(source,'reopen',p);await app.reload();assert.match(doc.getElementById('official-status').textContent,/討論中/);p=await call(source,'archive_item',p);await app.reload();assert.equal(doc.getElementById('official-status').textContent,'已封存 · 唯讀');assert.deepEqual(context.project.versions.find(v=>v.id===original.id),original);assert.equal(root.querySelectorAll('.official-card').length,1);
  });
+});
+
+// Choice tests exercise the production renderer, event handlers and JSON fetch boundary.
+async function withChoiceFixture(run,{refinement=false,decorateProject=null}={}){
+ const originals={document:globalThis.document,addEventListener:globalThis.addEventListener,setTimeout:globalThis.setTimeout,fetch:globalThis.fetch,location:globalThis.location};
+ const {doc,root}=fixtureDocument();globalThis.document=doc;globalThis.addEventListener=()=>{};globalThis.location={href:'http://localhost/ai-cocreation-series-php74/public/'};
+ globalThis.setTimeout=(handler,delay,...args)=>{const timer=originals.setTimeout(handler,delay,...args);timer.unref?.();return timer;};
+ const source=createDemoAdapter({seed:refinement}),calls=[];
+ let p=refinement?(await source.request('project',{id:(await source.request('state')).projects[0].id})).project:(await source.request('new',{title:'選項回覆測試',description:'保存每一次選擇與文字草稿'})).project;
+ p=await call(source,'discuss',p,{text:refinement?'想修改，但還沒決定內容。':'我想替社區影展命名。',consent:true,officialVersionId:p.officialVersionId});
+ let savedProject=p,beforeDiscuss=null;
+ globalThis.fetch=async(url,options)=>{
+  const action=new URL(url).searchParams.get('action');let payload={};
+  if(options.method==='POST'){
+   payload=JSON.parse(options.body);assert.equal(payload.action,action);assert.equal(options.headers['X-CSRF-Token'],'choice-csrf');
+   if(action==='discuss'){assert.equal(payload.itemId,savedProject.activeItemId);assert.match(payload.requestId,/^[a-f0-9]{32}$/);}
+  }else if(action==='project')payload={id:new URL(url).searchParams.get('id')};
+  calls.push({action,payload});
+  if(action==='discuss' && beforeDiscuss)await beforeDiscuss(payload);
+  try{
+   const data=await source.request(action,payload);
+   if(data.project){savedProject=data.project;if(decorateProject)decorateProject(data.project);}
+   return {ok:true,status:200,json:async()=>action==='state'||data.csrf?{...data,csrf:'choice-csrf',keyPresent:true,keyRevision:9}:data};
+  }catch(error){return {ok:false,status:error.status || 400,json:async()=>({error:{message:error.message,operationOutcome:'rejected'}})};}
+ };
+ try{
+  const app=await createTitleApp({root,adapter:createApiAdapter(),demo:false});
+  await run({doc,root,source,app,calls,get project(){return savedProject;},beforeDiscuss(callback){beforeDiscuss=callback;}});
+ }finally{Object.assign(globalThis,originals);}
+}
+function choiceButtons(doc,messageId=null){return (messageId?doc.getElementById(`message-${messageId}`):doc.body).querySelectorAll('.choice-answer');}
+
+test('only bounded structured discussion questions expose choices, with strict persisted context',()=>{
+ const message={id:'q',role:'assistant',kind:'discussion',question:'希望先看哪個方向？',choices:[{id:'a',label:'方向甲',value:'我想先看方向甲。'},{id:'b',label:'方向乙',value:'我想先看方向乙。'}],choiceContext:{itemId:'item',officialVersionId:null,sharedContextRevision:0,itemTitle:'名稱',itemDescription:''}};
+ const project={activeItemId:'item',activeItem:{title:'名稱',description:''},officialVersionId:null,sharedContextRevision:0,messages:[message]};
+ assert.equal(discussionChoices(message).length,2);assert.equal(currentChoiceQuestion(project,message),true);
+ for(const key of ['id','label','value']){const secret=structuredClone(message);secret.choices[0][key]='sk-'+'exampleONLYnotARealCredential';assert.equal(discussionChoices(secret).length,0,`secret-shaped ${key} is not rendered or submitted`);const nul=structuredClone(message);nul.choices[0][key]='invalid\0text';assert.equal(discussionChoices(nul).length,0,`NUL in ${key}`);}
+ for(const change of [{role:'student'},{kind:'revision'},{kind:'generated'},{kind:undefined},{question:''},{question:'字'.repeat(201)},{choices:[]},{choices:[message.choices[0]]},{choices:Array(7).fill(message.choices[0])},{choices:[message.choices[0],message.choices[0]]},{choices:[message.choices[0],{...message.choices[1],value:message.choices[0].value}]},{choices:[message.choices[0],{...message.choices[1],label:'字'.repeat(41)}]},{choices:[message.choices[0],{...message.choices[1],value:'字'.repeat(334)}]},{choices:[message.choices[0],{...message.choices[1],id:'invalid id'}]}])assert.equal(discussionChoices({...message,...change}).length,0,JSON.stringify(change));
+ for(const change of [{activeItemId:'other'},{officialVersionId:'new'},{sharedContextRevision:1},{sharedContextRevision:'0'},{activeItem:{title:'改名',description:''}},{activeItem:{title:'名稱',description:'改說明'}},{messages:[message,{id:'later',role:'system'}]}])assert.equal(currentChoiceQuestion({...project,...change},message),false,JSON.stringify(change));
+ for(const missing of ['choiceContext','itemTitle','itemDescription']){const legacy=structuredClone(message);if(missing==='choiceContext')delete legacy.choiceContext;else delete legacy.choiceContext[missing];assert.equal(currentChoiceQuestion({...project,messages:[legacy]},legacy),false);}
+});
+
+test('choice click uses one bound fetch call, preserves exact typed draft throughout busy and retains linked normal history',async()=>{
+ await withChoiceFixture(async context=>{
+  const {doc,root,app,calls}=context,question=structuredClone(context.project.messages.at(-1));
+  assert.equal(choiceButtons(doc).length,3);assert.ok(choiceButtons(doc).every(b=>!b.disabled));assert.deepEqual(calls.map(c=>c.action),['state','project']);
+  assert.match(doc.getElementById(`choice-hint-${question.id}`).textContent,/目前成員「小光（固定腳本）」.*草稿會保留/);
+  const first=choiceButtons(doc,question.id)[0],draftText='  我的想法還沒打完\n請保留所有空白。  ';
+  assert.equal(first.querySelector('.choice-label').textContent,question.choices[0].label);assert.equal(first.querySelector('.choice-value').textContent,question.choices[0].value);
+  await fixtureFill(doc,'chat-input',draftText);
+  let release;context.beforeDiscuss(()=>new Promise(resolve=>{release=resolve;}));
+  const operation=first.dispatchEvent('click');void first.dispatchEvent('click');await settle();
+  assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.equal(doc.getElementById('chat-input').value,draftText);assert.ok(choiceButtons(doc).every(b=>b.disabled));assert.equal(doc.body.querySelector('dialog'),null);
+  const request=calls.find(c=>c.action==='discuss').payload;
+  assert.equal(request.text,question.choices[0].value);assert.deepEqual(request.choiceAnswer,{questionMessageId:question.id,choiceId:question.choices[0].id});assert.equal(request.revision,context.project.revision);assert.equal(request.officialVersionId,null);assert.equal(request.consent,true);assert.equal(request.approvedMemberId,'11111111111111111111111111111111');assert.equal(request.approvedProvider,'ollama');assert.equal(request.approvedSettingsRevision,0);
+  release();await operation;await settle();
+  assert.equal(doc.getElementById('chat-input').value,draftText);assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.ok(choiceButtons(doc,question.id).every(b=>b.disabled));assert.equal(choiceButtons(doc,context.project.messages.at(-1).id).length,2);
+  const student=context.project.messages.at(-2);assert.equal(student.role,'student');assert.equal(student.text,question.choices[0].value);assert.deepEqual(student.choiceAnswer,{questionMessageId:question.id,choiceId:question.choices[0].id,label:question.choices[0].label,value:question.choices[0].value});
+  assert.equal(doc.getElementById(`message-${student.id}`).querySelector('.choice-history-link').getAttribute('href'),`#message-${question.id}`);assert.ok(root.textContent.includes('固定腳本 · 非 AI'));
+  await first.dispatchEvent('click');assert.equal(calls.filter(c=>c.action==='discuss').length,1,'detached stale button cannot submit');
+  await app.reload();assert.equal(doc.getElementById('chat-input').value,draftText);assert.ok(choiceButtons(doc,question.id).every(b=>b.disabled));assert.equal(calls.filter(c=>c.action==='discuss').length,1,'reload does not auto-answer');
+ });
+});
+
+test('current member, not original question author, handles explicit choice after a switch',async()=>{
+ await withChoiceFixture(async context=>{
+  const {source,app,doc,calls}=context,originalQuestion=structuredClone(context.project.messages.at(-1));
+  const settings=await source.request('state'),second={id:'22222222222222222222222222222222',nickname:'新的雲端成員',enabled:true,provider:'openai',model:'choice-model',ollamaUrl:'http://127.0.0.1:11434'};
+  await source.request('save_members',{members:[...settings.members,second],activeMemberId:settings.activeMemberId,usageConsent:true,expectedSettingsRevision:settings.settingsRevision});await app.reload();
+  await fixtureFill(doc,'chat-input','切換後仍要保留這段草稿');await fixtureSelect(doc,'discussion-member',second.id);
+  assert.equal(calls.filter(c=>c.action==='discuss').length,0);assert.equal(doc.getElementById('chat-input').value,'切換後仍要保留這段草稿');assert.match(doc.getElementById(`choice-hint-${originalQuestion.id}`).textContent,/目前成員「新的雲端成員」/);
+  assert.match(doc.getElementById(`message-${originalQuestion.id}`).querySelector('.model-provenance').textContent,/小光/);
+  await choiceButtons(doc,originalQuestion.id)[1].dispatchEvent('click');await settle();
+  const request=calls.filter(c=>c.action==='discuss')[0].payload;assert.equal(request.approvedMemberId,second.id);assert.equal(request.approvedProvider,'openai');assert.equal(request.approvedModel,'choice-model');assert.equal(request.approvedSettingsRevision,2);assert.equal(request.approvedKeyRevision,9);assert.equal(doc.getElementById('chat-input').value,'切換後仍要保留這段草稿');
+  assert.equal(context.project.messages.at(-1).provenance.memberId,second.id);assert.equal(context.project.messages.find(m=>m.id===originalQuestion.id).provenance.memberId,settings.activeMemberId);assert.equal(doc.body.querySelector('dialog'),null);
+ });
+});
+
+test('refinement clarification choices produce a reviewable minor revision without replacing official or draft',async()=>{
+ await withChoiceFixture(async context=>{
+  const {doc,calls}=context,question=structuredClone(context.project.messages.at(-1)),official=structuredClone(context.project.versions.find(v=>v.id===context.project.officialVersionId)),before=context.project.versions.length;
+  assert.equal(question.kind,'clarification');assert.equal(question.choiceContext.officialVersionId,official.id);assert.equal(choiceButtons(doc).length,2);assert.equal(calls.filter(c=>c.action==='discuss').length,0);
+  await fixtureFill(doc,'chat-input','這段是我尚未送出的另一個修改方向。');await choiceButtons(doc,question.id)[0].dispatchEvent('click');await settle();
+  assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.equal(calls.find(c=>c.action==='discuss').payload.officialVersionId,official.id);assert.equal(context.project.officialVersionId,official.id);assert.equal(context.project.versions.length,before+1);
+  const next=context.project.versions.at(-1);assert.equal(next.source,'revision');assert.equal(next.basedOnVersionId,official.id);assert.equal(next.items[0].content,'一起，看見日常');assert.deepEqual(next.items.slice(1),official.items.slice(1));assert.deepEqual(context.project.versions.find(v=>v.id===official.id),official);assert.equal(next.provenance.provider,'scripted');assert.ok(doc.getElementById('revision-review'));assert.equal(doc.getElementById('chat-input').value,'這段是我尚未送出的另一個修改方向。');assert.ok(choiceButtons(doc,question.id).every(b=>b.disabled));assert.equal(doc.body.querySelector('dialog'),null);
+ },{refinement:true});
+});
+
+test('legacy prose and empty choices invent no buttons; legacy structured choices without binding are nonactionable',async()=>{
+ for(const variant of ['prose','empty','missing-question','missing-context','missing-title','missing-description']){
+  await withChoiceFixture(async({doc,calls,project})=>{
+   const buttons=choiceButtons(doc),expected=variant.startsWith('missing-') && variant!=='missing-question'?3:0;assert.equal(buttons.length,expected,variant);
+   assert.ok(buttons.every(b=>b.disabled));for(const button of buttons)await button.dispatchEvent('click');assert.equal(calls.filter(c=>c.action==='discuss').length,0);assert.ok(doc.getElementById(`message-${project.messages.at(-1).id}`).textContent.length);
+  },{decorateProject:project=>{const q=project.messages.at(-1);if(variant==='prose'){delete q.choices;delete q.question;q.text='請選擇：A. 社區居民 B. 影像創作者';}else if(variant==='empty')q.choices=[];else if(variant==='missing-question')delete q.question;else if(variant==='missing-context')delete q.choiceContext;else if(variant==='missing-title')delete q.choiceContext.itemTitle;else delete q.choiceContext.itemDescription;}});
+ }
+});
+
+test('historical choice labels, questions and different answer values render as text, never HTML',async()=>{
+ const label='<img src=x onerror=alert(1)>',value='<script>alert("answer")</script>',question='<svg onload=alert(2)> 請選擇';
+ await withChoiceFixture(async({doc,root,calls})=>{
+  const buttons=choiceButtons(doc);assert.equal(buttons[0].querySelector('.choice-label').textContent,label);assert.equal(buttons[0].querySelector('.choice-value').textContent,value);assert.equal(buttons[1].querySelector('.choice-value'),null,'identical label and value are not duplicated');assert.equal(root.querySelector('.choice-question').textContent,question);assert.equal(root.querySelector('img'),null);assert.equal(root.querySelector('script'),null);assert.equal(root.querySelector('svg'),null);assert.equal(calls.filter(c=>c.action==='discuss').length,0);
+ },{decorateProject:project=>{const q=project.messages.at(-1);q.question=question;q.choices=[{id:'xss-label',label,value},{id:'same',label:'完整相同文字',value:'完整相同文字'}];}});
+});
+
+test('only the actual last question in matching active context can submit, including readonly and setup guards',async()=>{
+ for(const variant of ['later-system','later-user','other-item','new-official','shared-edit','item-title-edit','item-description-edit','finalized','project-finalized','archived']){
+  await withChoiceFixture(async({doc,calls})=>{const buttons=choiceButtons(doc);assert.equal(buttons.length,3,variant);assert.ok(buttons.every(b=>b.disabled),variant);for(const button of buttons)await button.dispatchEvent('click');assert.equal(calls.filter(c=>c.action==='discuss').length,0,variant);},
+   {decorateProject:project=>{const q=project.messages.at(-1);if(variant==='later-system'||variant==='later-user')project.messages.push({id:'later',role:variant==='later-system'?'system':'student',kind:'discussion',text:'已有後續紀錄',at:q.at});else if(variant==='other-item')q.choiceContext.itemId='another-item';else if(variant==='new-official')q.choiceContext.officialVersionId='old-official';else if(variant==='shared-edit')project.sharedContextRevision++;else if(variant==='item-title-edit')project.activeItem.title+='改名';else if(variant==='item-description-edit')project.activeItem.description+='改說明';else if(variant==='finalized')project.lifecycle='finalized';else if(variant==='project-finalized')project.projectLifecycle='finalized';else project.activeItem.archived=true;}});
+ }
+ await withChoiceFixture(async({doc,source,app,calls})=>{const settings=await source.request('state');await source.request('save_members',{members:settings.members,activeMemberId:null,usageConsent:true,expectedSettingsRevision:settings.settingsRevision});await app.reload();assert.ok(choiceButtons(doc).every(b=>b.disabled));assert.match(doc.body.querySelector('.choice-hint').textContent,/尚未選擇/);await choiceButtons(doc)[0].dispatchEvent('click');assert.equal(calls.filter(c=>c.action==='discuss').length,0);});
+});
+
+test('uncertain choice outcome locks repeat clicks and keeps typed draft without auto-retry',async()=>{
+ await withChoiceFixture(async context=>{
+  const {doc,calls}=context;await fixtureFill(doc,'chat-input','網路中斷也要保留草稿');context.beforeDiscuss(()=>{throw new Error('simulated network loss');});
+  const original=choiceButtons(doc)[0];await original.dispatchEvent('click');await settle();assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.equal(doc.getElementById('chat-input').value,'網路中斷也要保留草稿');assert.ok(choiceButtons(doc).every(b=>b.disabled));assert.match(doc.body.querySelector('.choice-hint').textContent,/先檢查上次操作/);
+  await original.dispatchEvent('click');await choiceButtons(doc)[1].dispatchEvent('click');assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.equal(doc.body.querySelector('dialog'),null);
+ });
+});
+
+test('stale revision rejection refreshes latest discussion, keeps draft and never resends old choice',async()=>{
+ await withChoiceFixture(async context=>{
+  const {source,doc,calls}=context,oldQuestion=structuredClone(context.project.messages.at(-1));await fixtureFill(doc,'chat-input','發生衝突時仍保留這段');
+  await call(source,'discuss',context.project,{text:'另一個分頁已經回答了。',consent:true,officialVersionId:null});
+  await choiceButtons(doc,oldQuestion.id)[0].dispatchEvent('click');await settle();assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.equal(doc.getElementById('chat-input').value,'發生衝突時仍保留這段');assert.ok(choiceButtons(doc,oldQuestion.id).every(b=>b.disabled));assert.equal(context.project.messages.some(m=>m.choiceAnswer?.questionMessageId===oldQuestion.id),false);assert.match(doc.body.textContent,/已載入伺服器最新版本/);
+ });
+});
+
+test('demo refuses tampered and stale choice references without changing history, while typed answers still work',async()=>{
+ const api=createDemoAdapter({seed:false});let p=(await api.request('new',{title:'驗證選項'})).project;p=await call(api,'discuss',p,{text:'開始',consent:true});const q=structuredClone(p.messages.at(-1)),saved=structuredClone(p);
+ for(const choiceAnswer of [null,[],q.id,{questionMessageId:q.id},{choiceId:q.choices[0].id},{questionMessageId:q.id,choiceId:4},{questionMessageId:q.id,choiceId:q.choices[0].id,extra:'not allowed'}]){
+  await assert.rejects(call(api,'discuss',p,{consent:true,officialVersionId:null,text:q.choices[0].value,choiceAnswer}),error=>error.status===400);assert.deepEqual((await api.request('project',{id:p.id})).project,saved);
+ }
+ for(const extra of [{choiceAnswer:{questionMessageId:q.id,choiceId:'missing'},text:q.choices[0].value},{choiceAnswer:{questionMessageId:'missing',choiceId:q.choices[0].id},text:q.choices[0].value},{choiceAnswer:{questionMessageId:q.id,choiceId:q.choices[0].id},text:'偷偷換掉送出文字'},{choiceAnswer:{questionMessageId:q.id,choiceId:q.choices[0].id},text:q.choices[0].value,officialVersionId:'stale'}]){
+  await assert.rejects(call(api,'discuss',p,{consent:true,officialVersionId:null,...extra}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);
+ }
+ p=await call(api,'discuss',p,{consent:true,officialVersionId:null,text:q.choices[0].value,choiceAnswer:{questionMessageId:q.id,choiceId:q.choices[0].id}});assert.equal(p.messages.at(-2).choiceAnswer.value,q.choices[0].value);
+ await assert.rejects(call(api,'discuss',p,{consent:true,officialVersionId:null,text:q.choices[0].value,choiceAnswer:{questionMessageId:q.id,choiceId:q.choices[0].id}}));
+ p=await call(api,'discuss',p,{consent:true,text:'我想自己輸入不同的答案。'});assert.equal(p.messages.at(-2).text,'我想自己輸入不同的答案。');assert.equal(p.messages.at(-2).choiceAnswer,undefined);assert.equal(p.versions.length,0);
 });
