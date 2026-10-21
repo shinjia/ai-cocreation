@@ -103,10 +103,10 @@ test('poster approval requires exact ordered style/text/layout and integer curre
 
 test('growth reservation counts explicitly selected historical pools before any paid inference',()=>{
   const budget=section(validation,'function inferenceGrowthBudget(','function webpageDirectionConfirmation(');
-  has(budget,"if($type==='illustrated'||$type==='poster')", "array('compare','fuse')", "field($input,'versionIds',array())", "array(field($input,'baseVersionId',field($project,'officialVersionId')))", "foreach($project['references'] as $ref)$pool[$ref['id']]=$ref", "in_array($version['id'],$selected,true)", "field($version,'referencesSnapshot',array())", "if(!isset($pool[$ref['id']]))$pool[$ref['id']]=$ref", '$references=strlen(jsonEncode(array_values($pool)))');
+  has(budget,"if($type==='illustrated'||$type==='poster'||$type==='webpage')", "array('compare','fuse')", "field($input,'versionIds',array())", "array(field($input,'baseVersionId',field($project,'officialVersionId')))", "foreach($project['references'] as $ref)$pool[$ref['id']]=$ref", "in_array($version['id'],$selected,true)", "field($version,'referencesSnapshot',array())", "if(!isset($pool[$ref['id']]))$pool[$ref['id']]=$ref", '$references=strlen(jsonEncode(array_values($pool)))');
   ordered(budget,"field($version,'referencesSnapshot',array())",'$references=strlen(jsonEncode(array_values($pool)))',"if($action==='fuse')",'return 2*$references');
   const execute=section(app,'private function execute(');
-  ordered(execute,'$this->reserveStorage($p,inferenceGrowthBudget($p,$action,$input))',"if($action==='discuss') {",'$module->refine(');
+  ordered(execute,'$this->reserveStorage($p,inferenceGrowthBudget($budgetProject,$action,$input))',"if($action==='discuss') {",'$module->refine(');
   has(native,'selected historical pins increase comparison budget by both persisted copies','selected historical pins increase refinement budget before inference','historical reference storage reservation rejects near-full project before inference');
 });
 

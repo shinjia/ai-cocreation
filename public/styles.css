@@ -90,6 +90,16 @@
 .webpage-preview .webpage-faq summary{cursor:pointer;font-weight:700;white-space:pre-wrap;color:var(--wp-ink)}
 .webpage-preview .webpage-faq .webpage-entry-body{margin:1rem 0 0}
 .webpage-preview .webpage-action{display:inline-block;background:var(--wp-accent);color:var(--wp-accent-ink);padding:.75rem 1.25rem;border:2px solid var(--wp-accent);border-radius:.5rem;font-weight:700;line-height:1.5;text-decoration:underline;white-space:pre-wrap;max-width:100%}
+.webpage-preview .webpage-image{margin:1rem 0;min-width:0}
+.webpage-preview .artifact-image-preview{margin:0;border:1px solid var(--wp-border);border-radius:.75rem;padding:1rem;background:var(--wp-panel);color:var(--wp-ink)}
+.webpage-preview .image-preview-frame{text-align:center;max-width:100%;overflow:hidden}
+.webpage-preview .image-preview-image{display:block;max-width:100%;height:auto;margin:0 auto}
+.webpage-preview .image-preview-caption{color:var(--wp-muted);background:var(--wp-panel);white-space:pre-wrap}
+.webpage-preview .image-preview-origin{color:var(--wp-muted)}
+.webpage-preview .image-preview-title{color:var(--wp-ink);margin:.75rem 0 .25rem;white-space:pre-wrap}
+.webpage-preview .image-preview-caption p{margin:.25rem 0}
+.webpage-preview .webpage-image-caption{margin:.75rem 0;color:var(--wp-ink);white-space:pre-wrap}
+.webpage-preview .webpage-image-missing,.webpage-preview .image-preview-status{color:var(--wp-ink);white-space:pre-wrap}
 .webpage-preview a:focus-visible,.webpage-preview summary:focus-visible,.webpage-preview .webpage-section:focus{outline:3px solid var(--wp-ink);outline-offset:4px}
 @media(max-width:36rem){.webpage-preview{padding:1rem}.webpage-preview .webpage-nav{flex-direction:column;gap:.65rem}.webpage-preview .webpage-section{padding-block:1.5rem}.webpage-preview .webpage-cards{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.webpage-preview,.webpage-preview *{scroll-behavior:auto}}

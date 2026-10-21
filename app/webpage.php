@@ -12,15 +12,18 @@ function validateWebpageArtifact($value) {
     foreach($value['sections'] as $section){
         artifactObject($section,array('id','type','eyebrow','heading','body','entries','actionLabel','actionTarget'),'網頁區塊');
         $id=artifactStableId($section['id'],'網頁區塊識別碼');ensure(!in_array($id,$ids,true),'ARTIFACT_INVALID','網頁區塊識別碼不可重複。');$ids[]=$id;
-        $type=$section['type'];ensure(in_array($type,array('hero','text','cards','faq','cta'),true),'ARTIFACT_INVALID','網頁區塊只支援 hero、text、cards、faq 或 cta。');
+        $type=$section['type'];ensure(in_array($type,array('hero','text','cards','faq','cta','image'),true),'ARTIFACT_INVALID','網頁區塊只支援 hero、text、cards、faq、cta 或 image。');
         $eyebrow=artifactText($section['eyebrow'],240,'網頁區塊引言');
         $heading=artifactText($section['heading'],600,'網頁區塊標題',false);
         $body=artifactText($section['body'],12000,'網頁區塊內文');
-        $hasEntries=$type==='cards'||$type==='faq';artifactList($section['entries'],$hasEntries?1:0,$hasEntries?12:0,'網頁卡片或問答');
+        $hasEntries=$type==='cards'||$type==='faq';
+        if($type==='image')artifactList($section['entries'],1,1,'網頁固定圖片（只支援一個固定引用）');
+        else artifactList($section['entries'],$hasEntries?1:0,$hasEntries?12:0,'網頁卡片或問答');
         $entries=array();$entryIds=array();
         foreach($section['entries'] as $entry){
             artifactObject($entry,array('id','title','body'),'網頁卡片或問答');
             $entryId=artifactStableId($entry['id'],'網頁卡片或問答識別碼');
+            if($type==='image')ensure(preg_match('/^[a-f0-9]{32}$/D',$entryId)===1,'ARTIFACT_INVALID','網頁圖片引用識別碼必須是32個小寫十六進位字元。');
             ensure(!in_array($entryId,$entryIds,true),'ARTIFACT_INVALID','同一區塊的卡片或問答識別碼不可重複。');$entryIds[]=$entryId;
             $entries[]=array('id'=>$entryId,'title'=>artifactText($entry['title'],600,'網頁卡片或問題標題',false),'body'=>artifactText($entry['body'],6000,'網頁卡片或回答內文'));
         }
@@ -54,12 +57,21 @@ function webpageContentFingerprint($value) {
     $artifact=validateWebpageArtifact($value);$ids=array_column($artifact['sections'],'id');$sections=array();
     foreach($artifact['sections'] as $section){
         unset($section['id']);$entries=array();
-        foreach($section['entries'] as $entry){unset($entry['id']);$entries[]=$entry;}
+        foreach($section['entries'] as $entry){if($section['type']!=='image')unset($entry['id']);$entries[]=$entry;}
         $section['entries']=$entries;
         $section['actionTarget']=$section['actionTarget']===''?'':'section_'.array_search($section['actionTarget'],$ids,true);
         $sections[]=$section;
     }
     return webpageCompactJson(array('kind'=>'webpage','title'=>$artifact['title'],'theme'=>$artifact['theme'],'navigation'=>$artifact['navigation'],'sections'=>$sections));
+}
+// A pin is content, not an incidental entry ID. The caller may normalize
+// aliases only after resolving their exact saved image identity.
+function webpageImageReferenceIds($value) {
+    $artifact=validateWebpageArtifact($value);$ids=array();
+    foreach($artifact['sections'] as $section)if($section['type']==='image'){
+        $id=$section['entries'][0]['id'];if(!in_array($id,$ids,true))$ids[]=$id;
+    }
+    return $ids;
 }
 function webpageSchema() {
     $text=array('type'=>'string');
@@ -67,7 +79,7 @@ function webpageSchema() {
     // Byte lengths, ID uniqueness, type-specific counts/actions and target
     // resolution are authoritative in validateWebpageArtifact after raw shape
     // validation. No optional provider union/conditional schema is required.
-    $section=artifactSchemaObject(array('id'=>$text,'type'=>array('type'=>'string','enum'=>array('hero','text','cards','faq','cta')),
+    $section=artifactSchemaObject(array('id'=>$text,'type'=>array('type'=>'string','enum'=>array('hero','text','cards','faq','cta','image')),
         'eyebrow'=>$text,'heading'=>$text,'body'=>$text,'entries'=>array('type'=>'array','minItems'=>0,'maxItems'=>12,'items'=>$entry),'actionLabel'=>$text,'actionTarget'=>$text));
     return artifactSchemaObject(array('kind'=>array('type'=>'string','enum'=>array('webpage')),'title'=>$text,'theme'=>array('type'=>'string','enum'=>array('paper','midnight','meadow')),
         'navigation'=>array('type'=>'boolean'),'sections'=>array('type'=>'array','minItems'=>1,'maxItems'=>20,'items'=>$section)));

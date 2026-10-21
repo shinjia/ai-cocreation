@@ -1,15 +1,15 @@
-# 第五階段：受限互動視覺程式測試與交付範圍
+# 第六階段：網頁固定圖片引用測試與交付範圍
 
-日期：2026-10-21。第五階段保留前十一類功能，啟用互動視覺（interactive），十二類均可使用。新增受限幾何主程式、可選動畫／游標互動、明確選用參數、完整快照、原生 Canvas 預覽及可信任 p5.js 主程式匯出；不是任意 p5.js／JavaScript 執行器。圖片仍只提供外部上傳／私人保存／實際分析，圖文／海報是既有圖片原生排版，沒有 AI 像素生成／修改／融合，圖片生成模型仍待決定。固定模型、不可變歷史、固定引用及本機安全邊界不變；「共聊」不在範圍。
+日期：2026-10-21。第六階段保留十二類既有功能及受限互動視覺，新增網頁固定圖片區、手動圖片／替代文字／圖說、同專案直接或經圖文／海報固定版本取得的實際用圖，以及驗證後自含圖片 HTML。模型只收中繼資料，不接像素；圖片生成模型與雙模型配置仍待明確決定，沒有 AI 像素生成／修改／融合。「共聊」不在範圍。
 
-本報告對應第五階段 131 份檔案的本機發布來源，包含互動視覺來源與測試；不沿用前一階段的 121 檔／666 Node 統計。遠端 commit、下載內容與本機來源仍須另行核對，原始碼交付不等於部署或 CI 通過。
+本報告對應第六階段 139 份本機發布來源；遠端 commit、下載內容與本機來源仍須另行核對，不代表部署或 CI 通過。第五階段凍結版本的 131 檔、745 Node、63 PHP 詞法／15 JS 語法統計僅屬先前歷史，不得當成本次結果。
 
 ## 已實際執行與發布清單
 
-- **Node 聚合回歸 745／745 項通過。** 涵蓋全部既有回歸及互動視覺相關純函式、production 工作區與來源契約；逐項結果見同版 [test-results.txt](test-results.txt)，不是 PHP 或真實瀏覽器實測。
+- **Node 聚合回歸 830／830 項通過，0 項略過。** 包括保留的全部回歸及新增網頁圖片純函式、production 工作區、模型與後端來源契約。逐項結果須與同版 [test-results.txt](test-results.txt) 核對；不是 PHP 或真實瀏覽器實測。
 - **Python SQLite 實際執行 SQL：86 項檢查通過。** 原有檢查 12 項，加媒體檢查 74 項；不是 PHP PDO 整合測試。
-- **15 份 public JavaScript 檔案通過 node --check。** 只代表語法檢查，不是瀏覽器 runtime。
-- **63 份發布 PHP 來源納入 Pygments 詞法／括號結構檢查。** 這不是 PHP parser、php -l 或原生 PHP 執行驗收。
+- **16 份 public JavaScript 檔案通過 node --check。** 只代表語法檢查，不是瀏覽器 runtime。
+- **66 份發布 PHP 來源納入 Pygments 詞法／括號結構檢查。** 這不是 PHP parser、php -l 或原生 PHP 執行驗收。
 
 - Node 直接執行前端純函式、真實 PNG／JPEG 位元組 fixture 的標頭解析、production renderer／事件處理與請求 adapter；DOM、canvas／decoder 及 fetch 使用測試替身。這不是瀏覽器真正解碼／顯示、PHP HTTP server 或供應者實測。
 - Python SQLite 實際執行 SQL，含原資料表檢查及從媒體儲存程式取出的 DDL；不是 PHP PDO 整合測試。
@@ -17,7 +17,7 @@
 - JavaScript node --check 只檢查語法，不代表瀏覽器 API、下載或視覺驗收。
 - 前一網頁階段的獨立 HTML 範例曾經 Python lxml／HTMLParser 檢查無 script、外部資源、form、iframe，頁內連結皆有目標、FAQ 與 ID／CSP 結構有效；它是當時範例的結構檢查，不是本次圖片、瀏覽器、鍵盤或 CSP 實測。
 
-完整執行輸出以 [test-results.txt](test-results.txt) 為準。下文區分 Node／SQL／詞法檢查的涵蓋範圍與仍未執行的原生 PHP fixtures，不把來源檢查當作執行 PHP。
+完整執行輸出須核對 [test-results.txt](test-results.txt) 頂端階段標示；第五階段凍結輸出不能證明本輪新增程式已通過。下文區分 Node／SQL／詞法檢查的涵蓋範圍與仍未執行的原生 PHP fixtures，不把來源檢查當作執行 PHP。
 
 ### Node 與來源契約涵蓋範圍
 
@@ -42,7 +42,7 @@
 
 ### 保留的網頁涵蓋範圍
 
-- 原生資料：精確 root／section／entry 欄位、真正 boolean 導覽、完整密集陣列、穩定且範圍唯一的 ID、三種主題及五種區塊；cards／faq 各 1–12 條目、全頁 1–20 區塊。UTF-8、不可空標題、秘密字串、原空白與換行保留、固定序列化順序及 60,000-byte 正規 JSON 精確邊界與超出拒收。
+- 原生資料：精確 root／section／entry 欄位、真正 boolean 導覽、完整密集陣列、穩定且範圍唯一的 ID、三種主題及原有五種文字區塊；cards／faq 各 1–12 條目、全頁 1–20 區塊。UTF-8、不可空標題、秘密字串、原空白與換行保留、固定序列化順序及 60,000-byte 正規 JSON 精確邊界與超出拒收。
 - 頁內操作：hero／cta 按鈕文字及目標成對、cta 必須有按鈕、目標只准本頁有效區塊；其他區塊不能帶 action。多個預覽使用獨立 DOM ID；FAQ 以 details／summary 呈現，惡意標記與 URL-looking 文字不轉成可執行元素或外部連結。
 - 完整編輯：設定與區塊欄位明確套用／放棄、卡片／問答新增刪除及重排、區塊結構操作保護、仍被引用目標不可直接移除、20 步草稿復原。作者文字使用可保留換行的 textarea；未套用欄位跨區塊／busy／同頁重畫保留，切換來源後過期編輯事件不能修改新來源或別的項目；超限原子拒收而不截短，不把頁面草稿當持久版本。
 - 匯出來源與模板：HTML 固定響應式 CSS、完整文字跳脫、charset 後的早期 CSP、無 JS／外部資源／表單、原生頁內連結與 FAQ；JSON／TXT 完整保存原生資料。這些是產生內容及 fake DOM／來源契約檢查，不是實際瀏覽器 CSP、下載、版面或安全認證；沒有驗證或實作檔案匯入 UI。
@@ -50,6 +50,16 @@
 - 共用整合：三個獨立方向勾選與最新 summaryRevision 綁定，勾選無 fetch／模型／版本寫入，全部確認後才明確傳送 confirm_generate；新方向失效重設、舊事件與錯誤 revision 拒收。執行 production renderer／回呼／fetch adapter，但接收端為攔截式替身，不是 PHP HTTP server。
 - 完整歷史與來源：候選／正式版反覆修訂、手動完整主／小版、逐版目標、獨立比較／融合、同專案固定引用、採用與定稿、固定模型來源及 JSON／HTML／TXT 匯出。原作品與正式版不被隱含覆寫，AI 只讀已保存來源，頁面草稿不隨同送出。
 - PHP 模組來源契約：三部分 brief 對應、完整生成／修訂／釐清／融合、原始 JSON schema、引用固定快照、完整來源與本版目標優先、ID-only 假修訂／假融合防護。來源檢查不執行 PHP，也不保證模型設計品質或語意遵循率。
+
+### 本次網頁固定圖片新增涵蓋範圍
+
+- 原生資料與相容性：新增 image 區塊但保持舊 root／section／entry 形狀，恰一個固定 pin、非空替代文字、可空圖說、無 action；圖片 ID 不接受網址、assetId 或新造條目 ID。UTF-8／秘密字串、60,000-byte 邊界、完整投影與舊純文字資料／匯出保持。
+- 原生編輯器與 production 工作區：新增圖片須明確選 pin、不預選第一張；替代文字／圖說與來源 metadata 分離，套用、放棄、20 步草稿復原、未套用欄位跨重畫保留、完整主／小版及過期事件保護。使用暫態 availableImageReferences 與來源自身歷史 pin，缺漏／衝突不擅自換圖。
+- 固定來源契約：直接圖片 pin 或明確釘選 illustrated／poster 確切保存版本的實際用圖，不取最新正式版、未用引用或未釘選項目。完整 used-image referencesSnapshot、viaReferences、來源沿用及 compare／fuse 聯集；跨 owner／project、錯快照／型別、資產不符、同 ID 衝突與 256 引用上限 fail closed。後端 Node 檢查讀 PHP 來源，不執行 PHP／PDO。
+- 模型契約：固定文字模型及 allowlist 中繼資料，pixelsProvided=false／imagePixelsProvided=false，不傳 raw／base64／data URL／asset descriptor 或圖片 transport。完整保存版修訂、各版目標、釐清不存假版、同圖別名／ID-only 假變動與明顯像素宣稱拒收；來源檢查不是實際 provider 遵循率。
+- 私人預覽：只用該保存版 referencesSnapshot，正式版自動，其餘候選／歷史／引用／比較與草稿明確載入；精確 project／item／version 讀取、stale 保護與 Blob 清理。測試使用 DOM／fetch 替身，不是真實瀏覽器或 PHP HTTP server。
+- 共用非同步 PNG 匯出：實際 Node Blob／crypto 與 production helper，PNG 簽章、完整區塊／CRC、尺寸、MIME／長度、SHA-256；每圖 4 MiB，每次出現計入 20 MiB，即使讀取去重亦不可少算。重複／衝突／缺漏引用、錯 snapshot.id、錯 hash／CRC／PNG、缺 crypto、讀取失敗與各 await 期間失效均停止，不下載部分成品。
+- HTML／metadata 匯出：固定 CSS、安全文字及早期 CSP，含圖僅 img-src data:、無 script／外部請求／form；純文字 HTML 仍沿原有禁止圖片流程。含圖 JSON／TXT 有 metadata-only／非完整備份警語，不含 PNG 或來源快照。固定腳本仍只有五種純文字區塊，沒有私人圖片示範。這些檢查不等於瀏覽器實際下載、CSP 執行或目視驗收。
 
 ### 保留的圖片涵蓋範圍
 
@@ -64,7 +74,7 @@
 - 真實像素模型來源契約：最多 5 個不同資產、合計 12 MiB raw PNG、hash／descriptor 核對、原始位元組只在記憶體轉 OpenAI input_image 或 Ollama images；編碼前 headroom 不修改 memory_limit。圖片討論傳來源＋固定圖片引用，比較只傳所選版本；provenance 保存 item／version／asset／hash，請求後清空避免圖像沿用。原生 provider fixture 未執行，沒有呼叫真實視覺模型。
 - 匯出／備份：專案 JSON 有圖片 metadata-only 警語，不混入 PNG/base64；個別下載與私人預覽使用已保存確切版本，不取代原始檔備份。這些測試不驗證完整離線備份還原、Session 恢復或外部圖片工具相容性。
 
-### 本次圖文／海報新增涵蓋範圍
+### 保留的圖文／海報涵蓋範圍
 
 - 原生資料：illustrated／poster 精確欄位、真正型別／密集陣列、固定主題、區塊型別、圖文排列／對齊及海報畫幅；圖文 1–24、海報 2–16 區塊及必要標題／內容結構。穩定唯一 ID、32 位小寫引用 ID、原文／空白／換行、UTF-8／秘密字串及 60,000-byte 正規 JSON 邊界。完整 artifact 為權威，投影不是摘要。
 - 編輯與 production 工作區：設定／區塊明確套用及放棄，新增／移除／上下重排，未套用欄位跨區塊／同頁重畫保留及結構操作阻擋，完整主／小版另存；過期回呼、忙碌／唯讀狀態與來源切換保護。同一固定引用 ID 快照衝突時阻擋編輯器及保存，不任選來源；沒有宣稱未實作的復原堆疊或持久草稿。
@@ -76,7 +86,7 @@
 - 模型來源契約：固定文字模型、單一完整候選、metadata allowlist 與 pixelsProvided=false，不傳 raw／base64／URL／附件。完整已保存來源修訂、各版目標比較、明確融合、釐清原件驗證後捨棄，ID-only／同圖別名假修訂及照抄來源假融合防護；新版本不自動採用。明顯看圖假宣稱有有界字樣拒收，但不是語意真實性保證，沒有真實 API 遵循率證據。
 - 發布邊界：composition 與 interactive 均在正式本機版啟用，兩者離線固定腳本明確不支援，不以假素材／結果冒充實作。既有來源、版本及 SQLite 回歸保留。
 
-### 互動視覺新增與回歸範圍
+### 保留的互動視覺回歸範圍
 
 - 嚴格原生資料：完整 JSON／document 投影、矩形／橢圓／直線、穩定 ID、順序、純文字標題與標籤、UTF-8、三位小數、有限數值、額外／缺漏／稀疏欄位、無效型別與外部程式欄位拒收。40 圖層、24 參數、2048 畫布、60 秒及 60,000-byte 邊界；參數唯一目標、上下限、step、目前／前次值對齊。
 - 參數與草稿：初始未選用、不覆蓋圖層字面值；只有自行勾選並套用才啟用值／滑桿。已選參數改值／前次值還原、只對已選參數亂數、定義修改、完整草稿最近 20 步復原、明確套用／放棄、不合法欄位跨同頁重畫保留、未套用欄位阻擋另存與破壞性操作、忙碌／唯讀／過期回呼不改新來源。最大 UTF-8 圖層名稱的新增參數使用安全名稱，不截短原文字。
@@ -97,13 +107,15 @@ Python SQLite 檢查實際執行 SQL：建表、寫入與 owner 隔離、讀取�
 
 ## 已準備但未執行
 
-環境沒有 PHP runtime。`tests/run.php`、`revision.php`、`versioning.php`、`members.php`、`response-contract.php`、`choices.php`、`phase1.php`、`artifacts.php`、`mindmap.php`、`vector.php`、`webpage.php`、`image-artifact.php`、`png-upload.php`、`media-store.php`、`image-vision.php`、`image-actions.php`、`composition.php`、`composition-model.php`、`composition-app.php`、`interactive.php`、`interactive-model.php` 與 `interactive-app.php` 都是待在 PHP 7.4+ 執行的原生 fixtures，不列入通過數。它們使用 in-memory Store／假模型或注入式 transport，不使用真實 Key、不呼叫外部服務。
+環境沒有 PHP runtime。`tests/run.php`、`revision.php`、`versioning.php`、`members.php`、`response-contract.php`、`choices.php`、`phase1.php`、`artifacts.php`、`mindmap.php`、`vector.php`、`webpage.php`、`image-artifact.php`、`png-upload.php`、`media-store.php`、`image-vision.php`、`image-actions.php`、`composition.php`、`composition-model.php`、`composition-app.php`、`interactive.php`、`interactive-model.php`、`interactive-app.php`、`webpage-images.php`、`webpage-image-model.php` 與 `webpage-image-app.php` 都是待在 PHP 7.4+ 執行的原生 fixtures，不列入通過數。它們使用 in-memory Store／假模型或注入式 transport，不使用真實 Key、不呼叫外部服務。
 
 `mindmap.php` 準備檢查真正 PHP helper／module 的拓樸、精確投影、原始 JSON 型別、60,000-byte 邊界與拒絕截斷、初次根與待選限制、選定已入圖節點、其他父節點待選保護、僅本版目標修訂、澄清不存版、融合來源身份及模型呼叫次數。這些是測試程式，不是已執行證據。
 
 `vector.php` 準備檢查真正 PHP helper／module 的六種原生物件、數值型別／幾何／三位小數、原始 JSON schema 整數與上下限、UTF-8／秘密字串、60,000-byte 精確投影邊界及不同 serialize_precision、完整生成／修訂／釐清／融合、本版目標優先及模型呼叫次數。fixture 使用模型替身，未執行，不列入任何通過數。
 
-`webpage.php` 準備檢查真正 PHP helper／module 的五種區塊、三種主題、嚴格欄位／boolean／頁內目標、正規 JSON 與 60,000-byte 邊界、完整生成／修訂／釐清／融合、固定來源與各版目標、三部分方向確認及模型呼叫次數。這些 fixture 未執行，不列入通過數，也沒有真實模型或瀏覽器連線。
+`webpage.php` 準備檢查真正 PHP helper／module 的原有五種文字區塊、三種主題、嚴格欄位／boolean／頁內目標、正規 JSON 與 60,000-byte 邊界、完整生成／修訂／釐清／融合、固定來源與各版目標、三部分方向確認及模型呼叫次數。這些 fixture 未執行，不列入通過數，也沒有真實模型或瀏覽器連線。
+
+`webpage-images.php`、`webpage-image-model.php` 與 `webpage-image-app.php` 準備檢查真正 PHP 圖片區塊、完整 pin 與 viaReferences、同專案確切圖文來源展開、暫態 view 不持久化、metadata-only 模型輸入、歷史來源及拒收時不推論／保存。這三份原生 fixture 未執行，不列入 Node 通過數，也不是 PHP runtime 證據。
 
 圖片相關原生 fixtures 準備檢查真正 PHP metadata helper／PNG zlib 正規化、記憶體限制、同一 PDO 的 BLOB／版本／收據交易、授權讀取、固定引用、同資產 snapshot、原始位元組 provider payload 及分析流程。它們不是本次已執行證據，使用 fixture／注入 transport，不使用真實 Key 或真實 AI。
 
@@ -120,11 +132,11 @@ Python SQLite 檢查實際執行 SQL：建表、寫入與 owner 隔離、讀取�
 - 未完成 Chromium 或其他真實瀏覽器的桌面／行動視覺驗收。fake DOM 事件與 renderer、SVG 輸出或 CSS 契約不代表實機畫面、下載、鍵盤／觸控互動已看過。
 - 未讀取、生成、設定或傳送真實 API Key，未呼叫真實 OpenAI／Ollama，沒有測試模型品質、延遲、費用、結構化輸出遵循率或硬體容量。模型清單可見不等於生成成功。
 - 十二類已啟用；互動視覺為受限幾何、可選動畫／游標互動及參數選用，不支援任意 JS／p5.js 編輯或執行。保留圖文／海報、文字、表格、流程圖／統計圖、心智圖、向量、網頁及圖片上傳／分析。圖片尚無 AI 像素生成／修訂／融合，圖片生成模型仍待決定。「共聊」不在本次開發中。
-- 網頁沒有任意 HTML／CSS／JS、外部圖片／字型／連結、表單、登入、付款、API、部署或檔案匯入 UI。HTML 匯出為固定無腳本靜態檔，JSON 保留可編輯資料，不宣稱 roundtrip 匯入已完成；網頁功能本身未放寬主頁 CSP 或新增 iframe 執行端點；既有圖片功能只新增 img-src blob: 供私人預覽。
+- 網頁只使用明確固定的同專案圖片，沒有任意 HTML／CSS／JS、外部網址圖片／字型／連結、表單、登入、付款、API、部署或檔案匯入 UI。HTML 匯出為固定無腳本靜態檔，JSON 保留可編輯資料，不宣稱 roundtrip 匯入已完成；網頁功能本身未放寬主頁 CSP 或新增 iframe 執行端點；既有圖片功能只新增 img-src blob: 供私人預覽。
 - 沒有公開部署、多人登入、公共 API 資助、KML 整合或心智圖外部雙向同步。沒有設定 GitHub Actions，原始碼推送不等於 CI 通過；亦未驗證圖坊、使用者所稱「形坊」或其他外部工具的匯入相容性，沒有向量 SVG 匯入、path／貝茲曲線或圖片嵌入。
 
 ## 本機人工驗收與安全覆蓋
 
 先使用[固定腳本示範](../public/demo.html)，再依[安裝與驗收](INSTALLATION.md)在自己的 PHP 主機檢查，心智圖、向量圖形、網頁、圖片、圖文、海報與互動視覺具體步驟見[使用指南](USER-GUIDE.md)。實際按 AI 操作可能產生費用，示範與測試替身不代表模型結果。未知結果先讀取現況，不反覆重送；明確格式拒收保留舊資料，但上游仍可能已計費。
 
-同系列更新只合併覆蓋程式，保留 `config.local.php`、原私有資料庫、私有資料及 Cookie／Session，在停止寫入時離線備份整個私有資料夾及設定後再操作，保留仍有效暫存 Key，不重裝、不重設資料庫。媒體只在原 SQLite 增建兩表，圖片 JSON 不含 PNG，不是完整備份。前端快取標籤為 `20261021-version15`；需要時強制重新整理，不清除 Cookie。舊規劃心智圖、向量圖形、網頁、圖片、圖文、海報與互動視覺可使用對應新能力，但不把舊文字或不存在的歷史補造成原生作品。
+同系列更新只合併覆蓋程式，保留 `config.local.php`、原私有資料庫、私有資料及 Cookie／Session，在停止寫入時離線備份整個私有資料夾及設定後再操作，保留仍有效暫存 Key，不重裝、不重設資料庫。媒體只在原 SQLite 增建兩表，圖片 JSON 不含 PNG，不是完整備份。前端快取標籤為 `20261021-version16`；需要時強制重新整理，不清除 Cookie。舊規劃心智圖、向量圖形、網頁、圖片、圖文、海報與互動視覺可使用對應新能力，但不把舊文字或不存在的歷史補造成原生作品。

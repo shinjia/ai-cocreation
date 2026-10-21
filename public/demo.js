@@ -1,9 +1,9 @@
-import {scriptedWebpageArtifact,scriptedWebpageBrief,scriptedWebpageRevision,fuseScriptedWebpages} from './webpage-demo.js?v=20261021-version15';
-import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version15';
-import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version15';
+import {scriptedWebpageArtifact,scriptedWebpageBrief,scriptedWebpageRevision,fuseScriptedWebpages} from './webpage-demo.js?v=20261021-version16';
+import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version16';
+import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version16';
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion,webpageDirectionConfirmationError} from './app.js?v=20261021-version15';
-import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version15';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion,webpageDirectionConfirmationError} from './app.js?v=20261021-version16';
+import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version16';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};

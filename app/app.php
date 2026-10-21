@@ -51,7 +51,7 @@ class CocreationApp {
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
         $compositionWelcome=$type==='poster'?'這張海報要傳達什麼？先確認視覺風格、完整文字內容與圖文排列；可使用同專案明確引用的固定圖片版本，目前不生成或修改圖片像素。':'這份圖文想傳達什麼？可以組合完整段落與同專案明確引用的固定圖片版本，調整排列並保存完整版本；目前不生成或修改圖片像素。';
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='interactive'?'先談要呈現的畫面，再討論可選動畫、想調整的參數與互動；也可以做純靜態作品。預覽只執行受限視覺資料，可匯出 p5.js 主程式，不接受任意程式、外部資源或圖片像素。':(in_array($type,array('illustrated','poster'),true)?$compositionWelcome:($type==='image'?'可以先上傳外部圖片保存版本，再選定版本討論或比較配色、構圖與風格。上傳不呼叫 AI；本階段尚未開放圖片生成或像素修改。':($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽及可展開問答，不含外部圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='interactive'?'先談要呈現的畫面，再討論可選動畫、想調整的參數與互動；也可以做純靜態作品。預覽只執行受限視覺資料，可匯出 p5.js 主程式，不接受任意程式、外部資源或圖片像素。':(in_array($type,array('illustrated','poster'),true)?$compositionWelcome:($type==='image'?'可以先上傳外部圖片保存版本，再選定版本討論或比較配色、構圖與風格。上傳不呼叫 AI；本階段尚未開放圖片生成或像素修改。':($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽、可展開問答及同專案固定圖片引用，不含外部網址圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -63,9 +63,14 @@ class CocreationApp {
         ensure($selected!==null,'ITEM_NOT_FOUND','找不到目前創作項目。',404);$out=$raw;
         foreach($this->itemKeys() as $key)$out[$key]=$selected[$key];$out['module']=$selected['type'];$out['activeItem']=$selected;
         if(isset($selected['sharedContextChanged']))$out['sharedContextChanged']=true;
+        if($out['module']==='webpage'){
+            $out['availableImageReferences']=array();$out['availableImageReferencesError']='';
+            try{foreach($this->compositionReferencePool($out,array(),false) as $ref)if(field($ref['versionSnapshot'],'contentType')==='image')$out['availableImageReferences'][]=$ref;}catch(AppError $error){$out['availableImageReferencesError']=$error->getMessage();}
+        }
         return $out;
     }
     private function normalizeRaw($raw) {
+        unset($raw['availableImageReferences'],$raw['availableImageReferencesError'],$raw['compositionReferencePool']); // View/request-only derived data, never persistent authority.
         if(!array_key_exists('imageAnalysisConsent',$raw))$raw['imageAnalysisConsent']=null;
         if(!array_key_exists('aiBinding',$raw))$raw['aiBinding']=null; // No inferred model for existing projects.
         if($raw['aiBinding']!==null)$raw['aiBinding']=validateProjectAiBinding($raw['aiBinding']);
@@ -119,7 +124,7 @@ class CocreationApp {
     private function save($project) {
         $index=$this->locateItem($project,$project['activeItemId']);foreach($this->itemKeys() as $key)$project['creativeItems'][$index][$key]=$project[$key];
         foreach($project['creativeItems'] as &$item)unset($item['sharedContextChanged']);unset($item);
-        foreach($this->itemKeys() as $key)unset($project[$key]);unset($project['activeItem'],$project['module'],$project['sharedContextChanged']);$project['projectLifecycle']='in_progress';return $this->saveRaw($project);
+        foreach($this->itemKeys() as $key)unset($project[$key]);unset($project['activeItem'],$project['module'],$project['sharedContextChanged'],$project['availableImageReferences'],$project['availableImageReferencesError'],$project['compositionReferencePool']);$project['projectLifecycle']='in_progress';return $this->saveRaw($project);
     }
     private function message($role,$text,$kind,$extra=array()) { return array_merge(array('id'=>newId(),'role'=>$role,'text'=>$text,'kind'=>$kind,'at'=>nowIso()),$extra); }
     private function refinementSelection($project,$input) {
@@ -259,7 +264,10 @@ class CocreationApp {
             $p['finalizations'][]=array('versionId'=>$v['id'],'versionSnapshot'=>$v,'acceptedGoalSnapshot'=>$p['brief'],'sharedContextRevision'=>$p['sharedContextRevision'],'at'=>$p['finalizedAt'],'messageId'=>$message['id']);$p['messages'][]=$message;return $this->save($p);
         }
         $p['lifecycle']='in_progress';
-        if(in_array($action,array('discuss','summarize','generate','confirm_generate','compare','fuse'),true))$this->reserveStorage($p,inferenceGrowthBudget($p,$action,$input));
+        if(in_array($action,array('discuss','summarize','generate','confirm_generate','compare','fuse'),true)){
+            $budgetProject=$p;if($p['module']==='webpage'){$p['compositionReferencePool']=$this->webpageInferenceReferences($p,$action,$input);$budgetProject['references']=$p['compositionReferencePool'];}
+            $this->reserveStorage($p,inferenceGrowthBudget($budgetProject,$action,$input));
+        }
         ensure($action==='restore_version'||count($p['messages'])<400,'DIALOGUE_LIMIT','此作品對話已達上限，請匯出完整紀錄後開啟新作品。',409);
         if($action==='discuss') {
             ensure($this->studentTurns($p)<60,'DIALOGUE_LIMIT','此作品已有60輪討論，請匯出後開啟新作品。',409);

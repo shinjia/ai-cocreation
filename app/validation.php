@@ -108,7 +108,7 @@ function inferenceGrowthBudget($project,$action,$input=array()) {
     $references=strlen(jsonEncode($project['references']));$brief=strlen(jsonEncode($project['brief']));
     $context=strlen(jsonEncode(array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision'])));
     $type=field($project,'module','titles');$long=$type==='article';$hasSource=field($input,'baseVersionId')!==null||field($project,'officialVersionId')!==null;
-    if($type==='illustrated'||$type==='poster'){
+    if($type==='illustrated'||$type==='poster'||$type==='webpage'){
         $selected=in_array($action,array('compare','fuse'),true)?field($input,'versionIds',array()):($action==='discuss'?array(field($input,'baseVersionId',field($project,'officialVersionId'))):array());
         $pool=array();foreach($project['references'] as $ref)$pool[$ref['id']]=$ref;
         if(is_array($selected))foreach($project['versions'] as $version)if(in_array($version['id'],$selected,true))foreach(field($version,'referencesSnapshot',array()) as $ref)if(!isset($pool[$ref['id']]))$pool[$ref['id']]=$ref;

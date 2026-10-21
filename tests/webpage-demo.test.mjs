@@ -243,7 +243,7 @@ test('revision, clarification and fusion are deeply detached from all input prov
 
 test('helper imports shared native validation and has no network, storage, browser execution or persistence path',async()=>{
   const source=await readFile(new URL('../public/webpage-demo.js',import.meta.url),'utf8');
-  assert.match(source,/import \{cloneWebpage\} from '\.\/webpage\.js\?v=20261021-version15'/);
+  assert.match(source,/import \{cloneWebpage\} from '\.\/webpage\.js\?v=20261021-version16'/);
   assert.doesNotMatch(source,/\b(?:fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB)\s*(?:\(|\.)/);
   assert.doesNotMatch(source,/\b(?:function\s+validateWebpage|innerHTML|eval\s*\(|setTimeout\s*\(|setInterval\s*\()/);
   assert.doesNotMatch(source,/data:image|<script\b|<iframe\b|document\./);

@@ -16,7 +16,7 @@ test('webpage uses exact native root, section and entry keys with no code-bearin
   for(const name of ['validateWebpageArtifact','webpageCompactJson','webpageContentFingerprint','webpageSchema','webpageItems'])assert.match(source,new RegExp(`function ${name}\\(`));
   for(const shape of ["array('kind','title','theme','navigation','sections')","array('id','type','eyebrow','heading','body','entries','actionLabel','actionTarget')","array('id','title','body')"])assert.ok(source.includes(shape),shape);
   assert.ok(source.includes("array('paper','midnight','meadow')"));
-  assert.ok(source.includes("array('hero','text','cards','faq','cta')"));
+  assert.ok(source.includes("array('hero','text','cards','faq','cta','image')"));
   assert.ok(source.includes("artifactList($value['sections'],1,20"));
   assert.ok(source.includes("is_bool($value['navigation'])"));
   assert.doesNotMatch(source,/\b(?:eval|exec|shell_exec|unserialize)\s*\(|curl_|file_get_contents|preg_replace/);
@@ -87,7 +87,7 @@ test('content fingerprint ignores only stable IDs and preserves internal target 
 test('webpage module inherits fixed-model lifecycle and correct seven-field three-direction mapping',async()=>{
   const source=await read('app/modules/webpage.php');
   assert.match(source,/class WebpageModule extends TitleModule/);
-  assert.doesNotMatch(source,/function (?:ask|validateSchemaValue|runDiscuss|runSummarize|runCompare)\(/);
+  assert.doesNotMatch(source,/function (?:validateSchemaValue|runDiscuss|runSummarize)\(/);
   assert.ok(source.includes('{"id":"document","label":"網頁來源"}'));
   assert.ok(source.includes("unset($data['versions'])"));
   for(const phrase of ['tone=視覺風格','message=內容結構','constraints=操作功能與限制','purpose=用途','audience=受眾','不要求填完問卷','ready 只表示可以請使用者確認三部分','不會自動連動','沿用專案固定的文字／結構化模型'])assert.ok(source.includes(phrase),phrase);
@@ -107,7 +107,7 @@ test('generation creates exactly one full candidate in one bounded model call af
   assert.ok(source.includes("'minItems'=>1,'maxItems'=>1"));
   assert.ok(source.includes('使用者已確認 creativeGoal 的視覺風格、內容結構、操作功能與限制'));
   assert.ok(source.includes('$this->schema($props),24000'));
-  assert.ok(source.includes("$this->candidateResult($v['candidates'][0],'候選')"));
+  assert.ok(source.includes("$this->candidateResult($v['candidates'][0],'候選',$references)"));
   assert.ok(source.includes('不採用、不定稿、不改正式版、不部署'));
 });
 
@@ -120,7 +120,7 @@ test('refinement preserves full selected source and latest combined goal authori
   assert.ok(source.includes('sourceVersion.goalAndRationale'));
   assert.ok(source.includes('versionHasCombinedOverride($source)'));
   assert.ok(source.includes("$artifactChanged=webpageCompactJson($artifact)!==webpageCompactJson($source['artifact'])"));
-  assert.ok(source.includes("$contentChanged=webpageContentFingerprint($artifact)!==webpageContentFingerprint($source['artifact'])"));
+  assert.ok(source.includes("$contentChanged=$this->contentFingerprint($artifact,$references)!==$this->contentFingerprint($source['artifact'],$references)"));
   assert.ok(source.includes('$contentChanged||$goalText!==versionGoalText($source)||$combinedChanged'));
   assert.ok(source.includes("'items'=>webpageItems($artifact)"));
   assert.ok(source.includes("'reply'=>$revisionReply"));
@@ -150,14 +150,16 @@ test('goal-only revisions require the exact source artifact even when goal or co
 });
 
 test('fusion uses two to five selected native snapshots and own goals and rejects any copied content',async()=>{
-  const source=body(await read('app/modules/webpage.php'),'protected function runFuse(');
+  const source=body(await read('app/modules/webpage.php'),'protected function runFuse(', 'protected function runCompare(');
   assert.equal((source.match(/\$this->ask\(/g)||[]).length,1);
   assert.ok(source.includes('count($versions)>=2&&count($versions)<=5'));
-  assert.ok(source.includes('!in_array($id,$ids,true)'));
-  assert.ok(source.includes("'creativeGoal'=>null,'goalApprovedAt'=>null"));
-  assert.ok(source.includes("'selectedVersions'=>$this->creativeVersions($sources)"));
-  assert.ok(source.includes("$content=webpageContentFingerprint($result['artifact'])"));
-  assert.ok(source.includes("$content!==webpageContentFingerprint($source['artifact'])"));
+  const module=await read('app/modules/webpage.php');
+  assert.ok(source.includes("$this->selectedSources($versions,$references,'fusion')"));
+  assert.ok(module.includes('!in_array($id,$ids,true)'));
+  assert.ok(module.includes("'creativeGoal'=>null,'goalApprovedAt'=>null"));
+  assert.ok(module.includes("'selectedVersions'=>$this->creativeVersions($sources)"));
+  assert.ok(source.includes("$content=$this->contentFingerprint($result['artifact'],$references)"));
+  assert.ok(source.includes("$content!==$this->contentFingerprint($source['artifact'],$references)"));
   assert.ok(source.includes('$this->schema($this->candidateProperties()),24000'));
   assert.ok(source.includes('MODEL_NO_REVISION'));
   assert.doesNotMatch(source,/\$project\['brief'\]/);

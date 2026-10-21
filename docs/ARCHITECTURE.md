@@ -1,6 +1,6 @@
 # AI共創工作室架構與開發契約
 
-本版里程碑：第五階段：受限互動視覺程式。前十一類功能保留，十二類均啟用；互動視覺是有界宣告式幾何資料與原生 Canvas 預覽，不是任意 p5.js 執行器，也不等於 AI 像素生成。
+本版里程碑：第六階段：網頁固定圖片引用。保留全部十二類既有功能，新增網頁固定圖片區、手動選圖及自含圖片 HTML；互動視覺是有界宣告式幾何資料與原生 Canvas 預覽，不是任意 p5.js 執行器，也不等於 AI 像素生成。
 
 ## 模組與目錄
 
@@ -11,11 +11,12 @@
 - `app/artifacts.php`、`app/modules/artifacts.php`：原生表格／圖表驗證、流程圖與 TSV 解析、完整作品生成／修訂／融合；`public/artifacts.js` 提供對應編輯器、安全 SVG 預覽及匯出。
 - `app/mindmap.php`、`app/modules/mindmap.php`：已入圖樹／待選清單驗證、主題起步、選定節點待選修訂與受限融合；`public/mindmap.js` 提供原生 SVG、完整文字列表、草稿編輯及匯出，`public/mindmap-demo.js` 是獨立固定腳本替身。
 - `app/vector.php`、`app/modules/vector.php`：有界原生幾何、精確投影、完整向量候選／修訂／融合；`public/vector.js` 提供安全 SVG、原生物件編輯器與匯出，`public/vector-demo.js` 是虛構固定腳本替身。
-- `app/webpage.php`、`app/modules/webpage.php`：純文字原生單頁結構、固定主題、頁內目標驗證、完整候選／修訂／融合；`public/webpage.js` 提供安全 DOM、完整編輯與獨立 HTML／JSON／TXT 匯出，`public/webpage-demo.js` 是虛構固定腳本替身。
+- `app/webpage.php`、`app/modules/webpage.php`：原生單頁結構、固定主題、頁內目標與固定圖片驗證、完整候選／修訂／融合；`public/webpage.js` 提供安全 DOM、完整編輯與獨立 HTML／JSON／TXT 匯出，`public/webpage-demo.js` 保留五種純文字區塊的虛構固定腳本替身。
 - `app/image.php`、`app/modules/image.php`：嚴格圖片中繼資料與實際圖片討論／比較；`app/image-actions.php` 核對已保存來源、一次性同意、上傳與模型輸入來源。
 - `app/png-upload.php`：有界 PNG 驗證及正規化；`app/media-store.php`：同一 SQLite PDO 的私有 BLOB 與上傳收據；`public/media.php` 為同源 POST 端點。
 - `public/image-upload.js`：本機 PNG／JPEG 檢查、旋轉與縮圖；`public/media.js`：同源上傳／讀取；`public/image.js`：授權 Blob 預覽與純文字中繼資料編輯。
 - `app/composition.php`、`app/modules/composition.php`：圖文／海報完整原生結構、固定文字模型與 metadata-only 契約；`app/composition-actions.php` 驗證同專案固定引用、歷史來源與私人媒體。`public/composition.js` 提供原生編輯／預覽，`public/composition-export.js` 提供有界、逐圖驗證的 HTML 及 metadata-only JSON／文字 TXT 匯出。
+- `public/private-image-export.js`：網頁與圖文／海報共用的有界私人 PNG 驗證及內嵌準備，不自行讀取資產或決定授權。
 - `app/interactive.php`、`app/modules/interactive.php`：受限視覺資料驗證、參數狀態保護、四部分方向與完整固定模型候選／修訂／比較／融合；`public/interactive.js` 提供 Canvas 2D 預覽、原生草稿編輯、參數選用與可信任 p5.js／JSON／TXT 匯出，沒有獨立程式執行端點。
 - `app/content.php`：各類型內容／段落定義及完整內容限制；驗證不默默截斷正文。
 - `app/versioning.php`：主／小版本、舊版讀取、封存、合併目標與比較快照。
@@ -181,35 +182,47 @@ AI 修訂只能以 2–12 個新待選子分支取代目標節點的原待選集
 
 固定腳本使用虛構的五物件晨光書屋，不解析使用者真實主題。只支援逐字作品標題／單一物件填色或外框色修改；改作品標題不改圖內文字，無法辨識或不產生變更的要求只釐清。示範融合只追加畫布／背景相同、同 ID 完整內容一致的圖層；不同來源衝突或與任一來源繪製資料相同則拒絕，不猜測設計取捨。
 
-## 原生網頁契約
+## 原生網頁與固定圖片契約
 
-網頁使用獨立 `WebpageModule`，沿用專案固定文字／結構化模型，不需要圖片模型、網頁執行服務或部署端點。權威 artifact 精確為 `{kind:"webpage",title,theme,navigation,sections}`，沒有 HTML、CSS、JavaScript 或任意屬性欄位。theme 僅接受 `paper`、`midnight`、`meadow`，navigation 為真正 JSON boolean。
+網頁使用獨立 `WebpageModule`，沿用專案固定文字／結構化模型，不新增圖片模型、網頁執行服務或部署端點。權威 artifact 精確為 `{kind:"webpage",title,theme,navigation,sections}`，沒有 HTML、CSS、JavaScript、圖片 URL 或任意屬性欄位。theme 僅接受 `paper`、`midnight`、`meadow`，navigation 為真正 JSON boolean。新增圖片能力不重寫舊版資料形狀。
 
-- sections 有 1–20 筆，順序就是呈現順序；每筆精確包含 `{id,type,eyebrow,heading,body,entries,actionLabel,actionTarget}`。type 僅接受 `hero`、`text`、`cards`、`faq`、`cta`。區塊 ID 全頁唯一、最多 64 個 ASCII 字元，英數開頭，只含英數、底線與連字號。
-- cards／faq 的 entries 必須為 1–12 筆，其他區塊一律為空陣列。每筆精確為 `{id,title,body}`；條目 ID 在同一區塊內唯一，既有內容沿用 ID，新內容新增 ID。
-- hero 可選擇頁內按鈕，cta 必須有按鈕；其他區塊的 actionLabel／actionTarget 必須同時為空。按鈕文字與目標須成對，target 只能是同一完整 artifact 內存在的區塊 ID，不接受 URL、帶 `#` 的片段、DOM 選擇器或其他創作項目。
-- title／heading／條目 title 非空且最多 600 UTF-8 bytes；eyebrow／actionLabel 最多 240、body 最多 12,000、條目 body 最多 6,000 bytes。字串保留空白、換行及標記，只作純文字；原始 JSON 的物件／陣列與布林型別在正規化前核對，不寬鬆轉型。
-- `validateWebpageArtifact()` 建立固定欄位順序，`webpageCompactJson()` 保留完整原生 JSON，U+2028／U+2029 跳脫與前端一致；完整正規 UTF-8 JSON 最多 60,000 bytes。`webpageItems()` 只生成 `document／網頁來源` 的相容文字投影，不能取代原件，不信任客戶端另傳的 items；超限整筆拒收，不截短。
+- sections 有 1–20 筆，順序就是呈現順序；每筆精確包含 `{id,type,eyebrow,heading,body,entries,actionLabel,actionTarget}`。type 為 `hero`、`text`、`cards`、`faq`、`cta` 或 `image`。區塊 ID 全頁唯一、最多 64 個 ASCII 字元，英數開頭，只含英數、底線與連字號。
+- cards／faq 的 entries 為 1–12 筆，image 必須恰好 1 筆，其餘為空。每筆仍精確為 `{id,title,body}`。一般條目 ID 在區塊內唯一；圖片條目的 id 是 32 個小寫十六進位的固定圖片引用 ID，不是 assetId、versionId、網址或新造條目 ID；title 是非空替代文字，body 是可空圖說。
+- hero 可選頁內按鈕，cta 必須有按鈕；其他類型（含 image）的 actionLabel／actionTarget 同時為空。target 只能是同一完整 artifact 存在的區塊 ID，不接受 URL、`#` 片段、DOM selector 或其他項目。
+- title／heading／條目 title 最多 600 UTF-8 bytes，eyebrow／actionLabel 240、body 12,000、條目 body 6,000；圖片替代文字／圖說沿用條目限制。保留空白、換行及標記，只作純文字。原始 JSON 先驗證真正物件／陣列／boolean，額外欄位、無效型別或超限整筆拒收。
+- `validateWebpageArtifact()` 建立固定欄位順序，`webpageCompactJson()` 及 `webpageItems()` 保留完整原生 JSON 和 document 投影；兩者各最多 60,000 bytes，U+2028／U+2029 跳脫與前端一致。投影不能取代原件，不信任客戶端另傳 items，也不截短內容。
 
-### 生成、修訂、引用與完整版本
+### 來源展開、授權與不可變快照
 
-同次對談可以提供三部分待確認方向，但 ready 不代表已同意。逐項確認且明確 `confirm_generate` 才生成恰好一份完整候選。指定版本修訂以完整 artifact 為唯一來源，不接受文章 targetItemIds，也不讀頁面草稿。釐清須原樣回傳來源 artifact，驗證相同後丟棄作品及修訂 metadata，不造假版本；有內容、操作或本版目標實質變更才保存完整小版；只改目標須保留精確原件，不能藉目標或摘要變動夾帶純 ID 改名。
+`compositionReferencePool()` 對 webpage 合併選取來源的 referencesSnapshot 與目前明確引用，再由 `webpageExpandedReferenceGroups()` 展開同專案已釘選的 illustrated／poster 固定版本。只抽取該確切已保存作品 artifact 實際使用的圖片 pin，不抽取未使用引用、不遞迴搜圖、不讀最新正式版，也不遍歷未釘選項目。每個衍生圖片 pin 保存完整 versionSnapshot，另以 `viaReferences` 記錄提供它的圖文／海報引用 ID、項目與版本。
 
-`webpageContentFingerprint()` 保留標題、主題、導覽、完整文字、順序與重複數量；忽略區塊及條目 ID 的純改名，把按鈕目標轉為區塊位置以維持連結語意。融合必須與每一個來源的內容指紋不同，不能只改 ID 假稱整合；這是結構檢查，不代表模型的設計品質已驗證。每版自己的 goalAndRationale 優先於舊目標欄；比較與明確融合分離，融合增加完整主版候選與全部直接來源，不自動採用。
+後端核對 owner 所屬專案、targetItemId／versionId／snapshot.id、保存作品型別與 artifact，再核對 image descriptor、私人 BLOB、長度與 SHA-256；模型 metadata 或合法 ID 不構成存取授權。缺漏、跨 owner／專案、圖文固定內容不符、圖片資產變造或同 ID 不同快照一律拒絕，不替換新版。引用池最多 256 筆，超限不截斷。推論與保存前重新核對，不因前端選單合法就省略。
 
-同專案其他項目僅在使用者明確釘選特定版本後作引用材料，保存完整內容及模型來源，不隨來源改版或正式版更換而同步。即使引用已保存的圖文或海報，網頁模組仍只讀固定文字／原生資料，不取得圖片像素，也不因此新增網頁圖片嵌入、外部資源或生圖能力。修訂、手動主／小版、比較、融合、引用、正式版與定稿都保存完整原生作品，不改已保存來源或專案固定模型。
+API view 的 `availableImageReferences`／`availableImageReferencesError` 是從當前固定引用衍生的暫態選項，不是持久權威；`availableImageReferences`、錯誤欄及 request-only `compositionReferencePool` 在保存前移除。view 整理可不讀 BLOB，實際推論／保存仍重新驗證資產。前端編輯器合併這些選項與所選來源自己的歷史 referencesSnapshot，不在瀏覽器從最新正式版推算圖片。
 
-### 草稿、原生互動與匯出
+新版本 referencesSnapshot 保存「目前全部明確引用＋作品實際使用的完整圖片 pin」，包括仍使用的歷史圖片與衍生來源 viaReferences；未使用祖先不無限累積。比較保留所選來源與目前引用的聯集。移除目前引用不改歷史，已保存預覽／匯出只用該版自己的 referencesSnapshot，不能用當前選單補缺漏。所有來源、舊正式版及定稿保持不可變。
 
-`public/webpage.js` 提供完整頁面編輯：網頁標題／固定主題／導覽開關、區塊文字／順序／增刪、卡片／問答文字及順序。選取區塊不改 artifact；欄位須明確套用到草稿，外層另存才建立版本。未套用欄位依區塊 ID 暫存在 uiState，與已套用草稿分開；同頁切換區塊、busy 重畫或狀態讀取仍保留。須先套用或明確放棄，才允許會丟字的結構操作、復原及外層另存。最多保留 20 步草稿復原，不寫瀏覽器持久儲存，整頁重新整理／關閉會失去未另存內容。
+### 模型、生成、修訂與融合
 
-預覽使用固定 DOM 元素與 app-owned CSS，文字以 textContent 建立，不用 innerHTML 或 iframe 執行任意來源。每個預覽產生獨立 DOM ID，頁內導覽只移動／聚焦該作品區塊；FAQ 是原生 details／summary。固定響應式規則處理窄螢幕，沒有自訂 CSS、外部圖片／字型／連結、表單、登入、付款、API 或自動部署。
+同次對談可提供三部分待確認方向；ready 不等於同意，逐項確認且明確 confirm_generate 才生成一份完整候選。模型的 availableImageReferences／pinnedReferences 採 allowlist，只有固定來源識別、圖片標題、替代文字、來源註記、尺寸／MIME，明示 pixelsProvided=false／imagePixelsProvided=false；不傳 asset descriptor、raw PNG、base64、data URL、讀圖路徑或 transport 附件。私有資產驗證與本機預覽不是把像素送給模型。沒有可用圖片時可做純文字網頁，不編造資產。
 
-明確匯出已保存版本時，HTML 以固定元素序列化並安全跳脫全部使用者文字，head 的 charset 後即放 CSP，再放固定內嵌 CSS；沒有 JavaScript 或資源請求。匯出 CSP 預設拒絕來源，僅允許固定內嵌樣式，並明確禁止腳本、圖片、字型、連線、frame、object、media、worker、base 與表單送出。這是獨立匯出檔的策略，不放寬工作室主頁 CSP，也沒有新增 iframe／程式執行端點，不宣稱為任意程式碼安全沙箱。
+修訂只用完整已保存來源，不接受文章 targetItemIds、不讀草稿。未要求修改的歷史圖片 pin、替代文字與圖說應保留。釐清須精確回傳來源 artifact 後捨棄，不存假版本；有實質內容、功能或本版目標變動才新增小版，只改目標時原件必須完全相同。比較依各版自己的 goalAndRationale，不能憑 metadata 宣稱看見圖片構圖、色彩或圖中文字。明顯看圖／生圖假宣稱有有界說明檢查，不改作品本文，也不保證所有語言與語意真實性。
 
-JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文字檔。匯出不含未另存草稿、不呼叫 AI、不上傳或部署；尚無網頁 HTML／JSON 檔案匯入介面。單件匯出不含完整歷史，專案 JSON 才保存全部版本、比較、模型與引用來源。
+`webpageContentFingerprint()` 忽略一般區塊／條目 ID 的純改名，但保留圖片 pin 語意；module 僅在解析確切圖片身份後正規化同圖別名。順序、重複數量、文字、主題、導覽與頁內目標語意保留。融合須與每個來源指紋不同，不能靠換 ID 或同圖別名冒充整合；新增完整主版候選與全部直接來源，不自動採用。這不是像素融合或模型創意品質驗收。
 
-固定腳本使用虛構街角故事日五區塊網頁，不解析真實需求。只處理明確格式的網頁標題、單一區塊標題／內文、固定主題及導覽開關；其餘只釐清或交由手動編輯。固定融合要求主題及導覽相同、同 ID 區塊完整相容，依來源順序追加，不猜測衝突或丟棄資料；與任一來源內容相同時拒絕假融合。
+### 草稿、私人預覽與無腳本匯出
+
+`public/webpage.js` 可編輯標題／主題／導覽、區塊與條目文字／順序及固定圖片。新增 image 區必須先明確選 pin，不預選第一張；既有區可修改圖片替代文字、圖說與固定來源，套用只改草稿、不改來源圖片。未套用欄位跨同頁切換／busy 重畫／狀態讀取保留，先套用或放棄才能進行破壞性操作與另存。20 步復原只屬目前頁面，沒有持久化草稿。
+
+預覽使用固定 DOM／scoped CSS、textContent、同頁隔離 ID、原生 details／summary；圖片沿用已授權 POST／CSRF 私人讀取及可清理的 Blob URL。只有頂端正式版自動讀圖，其他候選／歷史／引用／比較及編輯草稿都須明確載入。切換、重畫、dispose 與過期回呼不得把舊圖放入新來源。無任意 HTML／CSS／JavaScript、外部網址圖片／字型／連結、表單、登入、付款、API 或自動部署。
+
+含圖 HTML 由 `exportWebpageHtml()` 非同步匯出，共用 `public/private-image-export.js` 的 `preparePrivateImageExport()`；該 helper 不自行 fetch、不決定權限，只接收固定引用及呼叫端已授權的精確版本 Blob reader。先固定保存作品與引用，按每次圖片區出現累加最多 20 MiB raw PNG，每張最多 4 MiB；同一 targetItemId／versionId／assetId 可去重讀取與驗證，但內嵌容量不得去重。重驗 Blob MIME／長度、完整 PNG 簽章／區塊／CRC／尺寸及 SHA-256，禁止作者提供 data URL。所有 await 前後、成功及失敗路徑都檢查 isCurrent；讀取、arrayBuffer、hash 失敗、取消或 stale 一律整筆停止，只在全部成功後建立下載，沒有缺圖成品或自動重試。
+
+輸出只有安全跳脫文字、固定 CSS 及經驗證的 PNG data URL，charset 後先放 CSP，含圖版僅新增 img-src data:；script／connect／frame／object／font／media／worker／base／form 仍禁用。沒有外部請求或腳本，不放寬主工作室 CSP。無圖 HTML 繼續使用原有同步輸出及 img-src none，既有頁內導覽、FAQ 與純文字資料相容。
+
+含圖 JSON 為 `{notice,artifact}`、TXT 為警語及完整原生 JSON，均只含文字、結構與固定引用 ID，不含 PNG 或完整來源快照，不是圖片備份。無圖 JSON／TXT 仍保持原有原生 JSON 格式。匯出只用保存版、不含草稿、不呼叫 AI／上傳／部署；沒有 HTML／JSON 匯入介面。專案 JSON 保存歷史與來源但不含 PNG，完整媒體備份須離線保存私有資料夾。
+
+固定腳本仍是虛構街角故事日的五種純文字區塊，沒有私人圖片流程。只處理指定格式標題、單區塊文字、主題與導覽；固定融合只追加相容區塊，不猜測衝突、不刪資料，也不冒充真實 AI。
 
 ## 外部圖片、私人媒體與實際分析契約
 
@@ -247,7 +260,7 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 `grant_image_analysis` 只在可編輯圖片項目核對固定模型後保存專案層 `{bindingHash,acceptedAt}`，不取 Key、不推論。bindingHash 綁定完整既有 aiBinding；普通 usageConsent 仍必要，不能把圖片上傳當作同意送給模型。確認後使用者明確送出討論／整理方向／比較便執行，不新增逐次確認視窗。模型必須同時支援視覺與所需結構化輸出；模型清單與文字成功都不是此能力的驗收，失敗不換模型、服務或以描述代替像素。
 
-圖片模組的討論／整理方向由選定已保存來源（未指定時依既有正式版規則）與固定圖片引用建立輸入；比較只提供明確所選 2–5 版的圖片，不包含 pinned references 的像素。文字脈絡仍可保留固定引用，因此提示明確區分「文字來源存在」與「本次確實提供像素」。其他模組不因圖片引用而自動傳送圖片像素。圖文／海報的本機預覽與明確 HTML 匯出可讀取固定圖片，但其 AI 排版請求仍只有中繼資料；網頁尚不嵌入圖片。
+圖片模組的討論／整理方向由選定已保存來源（未指定時依既有正式版規則）與固定圖片引用建立輸入；比較只提供明確所選 2–5 版的圖片，不包含 pinned references 的像素。文字脈絡仍可保留固定引用，因此提示明確區分「文字來源存在」與「本次確實提供像素」。其他模組不因圖片引用而自動傳送圖片像素。圖文／海報與網頁的本機預覽及明確 HTML 匯出可讀取固定圖片，但 AI 排版請求仍只有中繼資料，不會傳送圖片像素。
 
 每次最多 5 個不同 asset ID、原始 PNG 合計最多 12 MiB；同資產只傳一次但保留每個版本與標籤對應。所有圖片先依確切已保存 owner／project／item／version 解析，核對 BLOB/hash，沒有 URL 載入。`imageInputSnapshots` 在結果 provenance 保存 itemId、versionId、assetId、sha256、label 與 inputMode=image_bytes，不保存圖片本體；每次請求先清空，模組 ask 消耗一次後清除，包含錯誤路徑，避免下一次沿用圖片。
 
@@ -354,7 +367,7 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 - chart：title 600、xLabel／yLabel 各 120、sourceText 12,000 bytes；完整 artifact JSON 及投影各最多 60,000。流程節點文字 1–240、連線標籤 0–120 bytes；統計標頭／分類名稱各 1–120 bytes。生成／修訂／融合請求 24,000 output tokens，不保證可裝入最大作品；不完整輸出拒收，不截短。
 - mindmap：1–80 個 nodes、0–24 個 proposals；各 label 240、description 2,000 bytes；完整 artifact JSON 與文字投影各最多 60,000。初次 1 個根與 2–12 個待選分支；子分支修訂若有待選變動，目標集合為 2–12 個，仍受全圖總量限制。生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
 - vector：1–100 個 shapes，整數畫布 1–4096；title 600、label 120、text 4,000 bytes，最多 80 個局部頂點。原生 artifact JSON 與精確緊湊投影各最多 60,000 bytes，數值最多三位小數；具體幾何及伺服器序列化差異見上節。生成／修訂／融合請求 24,000 output tokens，不保證產出最大作品。
-- webpage：1–20 區塊，cards／faq 每區 1–12 條目；網頁／區塊／條目標題 600、眉標／按鈕文字 240、區塊內文 12,000、條目內文 6,000 bytes。完整正規 JSON 與投影各最多 60,000 bytes，總量包含欄位結構與跳脫字元；生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
+- webpage：1–20 區塊，cards／faq 每區 1–12 條目，image 恰 1 筆固定引用條目；網頁／區塊／條目標題 600、眉標／按鈕文字 240、區塊內文 12,000、條目內文 6,000 bytes。完整正規 JSON 與投影各最多 60,000 bytes，總量包含欄位結構與跳脫字元；生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
 - illustrated／poster：完整 JSON／投影最多 60,000 bytes；圖文 1–24、海報 2–16 區塊，title 600，圖文 heading／caption 600、body 12,000，海報文字 2,000、圖說 600 bytes；具體結構與含圖 HTML 配額見上節。
 - interactive：1–40 個 layers、0–24 個 parameters；畫布寬高 1–2048、duration 1–60 整數秒；title 600、layer／parameter label 120 bytes。完整原生 JSON 與精確投影各最多 60,000 bytes，數字最多三位小數；參數範圍及目前／前次值須對齊 step，最多 10,000 個間隔。
 - image：title 600、alt 3,000、attribution 2,000 bytes；PNG、傳輸、儲存及分析配額依圖片契約，像素不計入專案 JSON 本體。
@@ -370,4 +383,4 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 
 結構化單選 2–6 答案，ID 最多 64、label 120、value 1,000 bytes；只接受最新 assistant discussion／clarification。choiceContext 綁定項目、正式版、共同脈絡、項目名稱／說明、baseVersionId 及 targetItemIds，心智圖指定來源另綁定 targetNodeId；伺服器解析已保存答案並核對 input.text，失效或篡改於推論前拒絕。按鈕以 textContent 顯示，不清除文字草稿，不從舊 prose 補造選項。
 
-本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version15`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
+本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version16`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
