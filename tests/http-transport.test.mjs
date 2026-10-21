@@ -64,7 +64,7 @@ test('maximum valid whole-bundle metadata survives bounded JSON transport even w
  const source=await readFile(new URL('../public/api.php',import.meta.url),'utf8');
  const cap=Number(source.match(/strlen\(\$raw\)<=(\d+)/)[1]);assert.equal(cap,262144);
  const api=createApiAdapter();await api.request('state');
- const payload={id:'a'.repeat(32),itemId:'b'.repeat(32),revision:7,basedOnVersionId:'c'.repeat(32),versionMode:'minor',goalText:'\u0001'.repeat(6000),rationale:'\u0001'.repeat(2000),items:Array.from({length:12},(_,i)=>({id:String(i).padStart(64,'x'),label:String(i).padStart(120,'\u0001'),content:'\u0001'.repeat(2000)}))};
+ const payload={id:'a'.repeat(32),itemId:'b'.repeat(32),revision:7,basedOnVersionId:'c'.repeat(32),versionMode:'minor',goalAndRationale:'\u0001'.repeat(12000),items:Array.from({length:12},(_,i)=>({id:String(i).padStart(64,'x'),label:String(i).padStart(120,'\u0001'),content:'\u0001'.repeat(2000)}))};
  const result=await api.request('snapshot',payload),bytes=Buffer.byteLength(JSON.stringify(result.accepted));
  assert.ok(bytes>32768);assert.ok(bytes<=cap);assert.deepEqual(result.accepted.items,payload.items);assert.equal(result.accepted.action,'snapshot');
 });

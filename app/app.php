@@ -103,9 +103,10 @@ class CocreationApp {
     private function appendVersion(&$project,$items,$rationale,$source,$basedOn,$messageId,$provenance=null,$mode='major',$metadata=array()) {
         ensure(count($project['versions'])<60,'VERSION_LIMIT','此作品已達60個版本，請匯出保存後建立新作品。',409);
         $base=$basedOn===null?null:$this->version($project,$basedOn);$coordinates=nextVersionCoordinates($project['versions'],$mode,$base);$ordinal=0;foreach($project['versions'] as $old)$ordinal=max($ordinal,$old['number']);
-        $goalText=userTextValue(field($metadata,'goalText',field($project['brief'],'summary','')),6000,'版本目標');$changeSummary=userTextValue(field($metadata,'changeSummary',$rationale),2000,'版本修改整理',true);
+        $goalText=userTextValue(field($metadata,'goalText',field($project['brief'],'summary','')),6000,'版本目標',true);$changeSummary=userTextValue(field($metadata,'changeSummary',$rationale),2000,'版本修改整理',true);
+        $combined=validateCombinedVersionNote(field($metadata,'goalAndRationale',versionGoalAndRationale(array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'rationale'=>$rationale))));
         $links=array($messageId);$last=end($project['messages']);if(is_array($last)&&$last['role']==='student'&&(($source==='revision'&&$last['kind']==='discussion')||($source==='generated'&&$last['kind']==='generation_request')))array_unshift($links,$last['id']);$links=array_values(array_unique($links));
-        $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
+        $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','goalAndRationale'=>$combined,'changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
         $project['versions'][]=$v;return $v['id'];
     }
     public function action($input) {
@@ -225,16 +226,28 @@ class CocreationApp {
             $message['versionIds']=$ids;$p['messages'][]=$message;$p['phase']='work';return $this->save($p);
         }
         if($action==='snapshot') {
-            if($p['officialVersionId']===null)$this->goalRequired($p);$basedOn=field($input,'basedOnVersionId');if($basedOn!==null){$this->version($p,$basedOn);ensure(!versionArchived($p,$basedOn),'VERSION_ARCHIVED','請先還原來源版本，再編輯另存。',409);}$mode=field($input,'versionMode','major');ensure(in_array($mode,array('major','minor'),true),'VERSION_MODE','請選擇整組新版本或指定小修改。');if($mode==='minor')ensure($basedOn!==null,'VERSION_BASE_REQUIRED','請選擇小修改的來源版本。');
-            $items=validateContentItems(field($input,'items'));$rationale=userTextValue(field($input,'rationale',''),2000,'保存說明',true);
-            $goalDefault=$basedOn===null?field($p['brief'],'summary',''):versionGoalText($this->version($p,$basedOn));$goalText=userTextValue(field($input,'goalText',$goalDefault),6000,'這個版本的創作目標');
+            if($p['officialVersionId']===null)$this->goalRequired($p);$basedOn=field($input,'basedOnVersionId');if($basedOn!==null){$this->version($p,$basedOn);ensure(!versionArchived($p,$basedOn),'VERSION_ARCHIVED','請先還原來源版本，再編輯另存。',409);}$mode=field($input,'versionMode','major');ensure(in_array($mode,array('major','minor'),true),'VERSION_MODE','請選擇另存新版本或另存小修改。');if($mode==='minor')ensure($basedOn!==null,'VERSION_BASE_REQUIRED','請選擇小修改的來源版本。');
+            $items=validateContentItems(field($input,'items'));$base=$basedOn===null?null:$this->version($p,$basedOn);
+            $goalDefault=$base===null?field($p['brief'],'summary',''):versionGoalText($base);
+            if(array_key_exists('goalAndRationale',$input)){
+                $combined=validateCombinedVersionNote($input['goalAndRationale']);
+                // Do not pretend a freeform combined note can be split into goals
+                // and comments. Keep legacy fields as compatibility history only.
+                $goalText=$goalDefault;$rationale=$base===null?'':field($base,'rationale','');$changeSummary=$base===null?'':field($base,'changeSummary','');
+                $metadata=array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'goalAndRationale'=>$combined);
+            }else{
+                $rationale=userTextValue(field($input,'rationale',''),2000,'保存說明',true);
+                $goalText=userTextValue(field($input,'goalText',$goalDefault),6000,'這個版本的創作目標');
+                $metadata=array('goalText'=>$goalText,'changeSummary'=>$rationale);
+            }
             $message=$this->message('student','手動保存一個新候選版本，包含本版目標與修改意見，沒有覆寫原版或正式版。','snapshot');
-            $id=$this->appendVersion($p,$items,$rationale,'snapshot',$basedOn,$message['id'],null,$mode,array('goalText'=>$goalText,'changeSummary'=>$rationale));$message['versionIds']=array($id);$p['messages'][]=$message;$p['phase']='work';return $this->save($p);
+            $id=$this->appendVersion($p,$items,$rationale,'snapshot',$basedOn,$message['id'],null,$mode,$metadata);$message['versionIds']=array($id);$p['messages'][]=$message;$p['phase']='work';return $this->save($p);
         }
         if($action==='promote') {
             $v=$this->version($p,field($input,'versionId'));ensure(!versionArchived($p,$v['id']),'VERSION_ARCHIVED','請先還原這個候選版本，再採用為正式版。',409);ensure($p['officialVersionId']!==$v['id'],'ALREADY_OFFICIAL','這個版本已是正式版。',409);
-            $old=$p['officialVersionId'];$p['officialVersionId']=$v['id'];
-            $p['messages'][]=$this->message('student','我選擇 '.versionLabel($v).'「'.$v['title'].'」作為正式版。其他版本完整保留。','promotion',array('versionIds'=>array($v['id']),'previousOfficialVersionId'=>$old));return $this->save($p);
+            $old=$p['officialVersionId'];$p['officialVersionId']=$v['id'];$index=$this->locateItem($p,$p['activeItemId']);
+            $previousItemTitle=$p['creativeItems'][$index]['title'];$itemTitle=officialItemTitle($v['items']);$p['creativeItems'][$index]['title']=$itemTitle;$p['activeItem']['title']=$itemTitle;
+            $p['messages'][]=$this->message('student','我選擇 '.versionLabel($v).'「'.$v['title'].'」作為正式版，創作項目名稱同步更新為「'.$itemTitle.'」。其他版本完整保留。','promotion',array('versionIds'=>array($v['id']),'previousOfficialVersionId'=>$old,'previousItemTitle'=>$previousItemTitle,'itemTitle'=>$itemTitle));return $this->save($p);
         }
         if($action==='archive_version'||$action==='restore_version'){
             $v=$this->version($p,field($input,'versionId'));$archived=versionArchived($p,$v['id']);

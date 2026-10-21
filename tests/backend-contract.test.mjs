@@ -86,8 +86,8 @@ test('inference storage budgets bound all copied references and six-byte JSON es
  const brief=Object.fromEntries(['purpose','audience','message','tone','constraints'].map(k=>[k,'\u0001'.repeat(1200)]));brief.summary='\u0001'.repeat(3000);brief.items=definitions;
  const context={title:'\u0001'.repeat(240),description:'\u0001'.repeat(4000),revision:999};
  const bundle=definitions.map(d=>({...d,content:'\u0001'.repeat(2000)}));
- const version={items:bundle,rationale:'\u0001'.repeat(1200),title:'\u0001'.repeat(60),referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context};
- const historicalGoals=Array.from({length:5},(_,i)=>({versionId:'v'+i,goalSnapshot:brief,goalText:'\u0001'.repeat(6000),changeSummary:'\u0001'.repeat(2000),rationale:'\u0001'.repeat(2000)}));
+ const version={items:bundle,goalText:'\u0001'.repeat(6000),changeSummary:'\u0001'.repeat(1200),goalAndRationale:'\u0001'.repeat(12000),rationale:'\u0001'.repeat(1200),title:'\u0001'.repeat(60),referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context};
+ const historicalGoals=Array.from({length:5},(_,i)=>({versionId:'v'+i,goalSnapshot:brief,goalText:'\u0001'.repeat(6000),goalAndRationale:'\u0001'.repeat(12000),changeSummary:'\u0001'.repeat(2000),rationale:'\u0001'.repeat(2000)}));
  const comparison={referencesSnapshot:refs,goalSnapshot:null,versionGoalSnapshots:historicalGoals,items:Array.from({length:5},()=>Object.fromEntries(['fit','strength','tradeoff','suggestion'].map(k=>[k,'\u0001'.repeat(1000)]))),summary:'\u0001'.repeat(2000)};
  const saved={discuss:[{text:'\u0001'.repeat(4000)},{text:'\u0001'.repeat(1200),referencesSnapshot:refs}],summarize:{brief,message:{goalSnapshot:brief,referencesSnapshot:refs}},generate:{versions:Array.from({length:5},()=>version),message:{referencesSnapshot:refs},instruction:'\u0001'.repeat(2000)},compare:{comparison,message:{referencesSnapshot:refs,text:comparison.summary},question:'\u0001'.repeat(2000)}};
  for(const action of Object.keys(saved)){
@@ -113,10 +113,10 @@ test('official discussion branches into true revisions before initial-goal reset
 test('refinement includes current full official bundle, custom labels, current references and genuine output validation',async()=>{
  const mod=await read('app/modules/titles.php');const branch=mod.split('private function runRefine')[1].split('private function runSummarize')[0];
  assert.match(branch,/\$data\['officialVersion'\]=\$this->creativeVersions\(array\(\$official\)\)\[0\]/);
- assert.match(branch,/latestStudentMessage/);assert.match(branch,/pinnedReferences/);assert.match(branch,/validateContentItems/);
+ assert.match(branch,/latestUserMessage/);assert.match(branch,/pinnedReferences/);assert.match(branch,/validateContentItems/);
  assert.match(branch,/\$byId\[\$prior\['id'\]\]\['label'\]===\$prior\['label'\]/);
  assert.match(branch,/jsonEncode\(\$ordered\)!==jsonEncode\(\$official\['items'\]\)/);assert.match(branch,/MODEL_NO_REVISION/);
- assert.match(branch,/field\(\$v,'items'\)===array\(\)/);assert.match(branch,/尚未修改任何內容/);
+ assert.match(branch,/field\(\$v,'items'\)===array\(\)/);assert.match(branch,/作品內容與正式版都尚未變更/);
 });
 test('existing official allows manual save without falsely restoring approval; initial work still goal gated',async()=>{
  const app=await read('app/app.php');const snapshot=app.split("if($action==='snapshot')")[1].split("if($action==='promote')")[0];
@@ -125,12 +125,12 @@ test('existing official allows manual save without falsely restoring approval; i
 });
 test('revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction',async()=>{
  const source=await read('app/validation.php');
- assert.match(source,/if\(\$action==='discuss'&&field\(\$project,'officialVersionId'\)!==null\)return 2\*\$references\+\$brief\+\$context\+350000/);
+ assert.match(source,/if\(\$action==='discuss'&&field\(\$project,'officialVersionId'\)!==null\)return 2\*\$references\+\$brief\+\$context\+450000/);
  const size=x=>Buffer.byteLength(JSON.stringify(x));const refs=[{versionSnapshot:{content:'x'.repeat(50000)}}],brief={summary:'\u0001'.repeat(9000)},context={title:'\u0001'.repeat(240),description:'\u0001'.repeat(4000)};
  const items=Array.from({length:12},(_,i)=>({id:'i'+i,label:'\u0001'.repeat(120),content:'\u0001'.repeat(2000)}));const instruction='\u0001'.repeat(4000);
  const goalText='\u0001'.repeat(6000),changeSummary='\u0001'.repeat(1200);
- const stored={version:{items,goalText,goalSnapshot:{summary:goalText},changeSummary,title:'\u0001'.repeat(60),rationale:'\u0001'.repeat(1200),revisionInstruction:instruction,referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context},student:{text:instruction},assistant:{text:'\u0001'.repeat(1200),referencesSnapshot:refs}};
- const budget=2*size(refs)+size(brief)+size(context)+350000;assert.ok(budget>size(stored)+5000);assert.ok((2000000-budget+1)+budget>2000000);
+ const stored={version:{items,goalText,goalSnapshot:{summary:goalText},goalAndRationale:'\u0001'.repeat(12000),changeSummary,title:'\u0001'.repeat(60),rationale:'\u0001'.repeat(1200),revisionInstruction:instruction,referencesSnapshot:refs,projectContextSnapshot:context},student:{text:instruction},assistant:{text:'\u0001'.repeat(1200),referencesSnapshot:refs}};
+ const budget=2*size(refs)+size(brief)+size(context)+450000;assert.ok(budget>size(stored)+5000);assert.ok((2000000-budget+1)+budget>2000000);
 });
 
 test('two-level version metadata migrates without changing snapshot identities and allocates from all versions',async()=>{
@@ -202,4 +202,55 @@ test('member editing and switching require revision lease and explicit null sele
  const legacy=app.split("if($action==='save_settings')")[1].split("if($action==='set_key')")[0];
  assert.ok(legacy.indexOf('validateMemberRosterInput(')<legacy.indexOf('setMemberRoster('));
  assert.ok(legacy.indexOf('validateMemberRosterInput(')<legacy.indexOf('setConnection('));
+});
+
+test('AI prompts use general-audience roles without rewriting persisted user-authored history',async()=>{
+ const [mod,app,model,ollama]=await Promise.all(['app/modules/titles.php','app/app.php','app/model.php','app/ollama.php'].map(read));
+ for(const source of [mod,model,ollama])assert.doesNotMatch(source,/學生|同學|校園|教師|課堂|作業系統以外的作業/);
+ assert.match(mod,/任何使用者/);assert.match(mod,/不預設身分/);assert.match(mod,/latestUserMessage/);assert.doesNotMatch(mod,/latestStudentMessage/);
+ assert.match(mod,/if\(field\(\$entry,'role'\)==='student'\)\$entry\['role'\]='user'/);
+ assert.doesNotMatch(app,/\$project\['messages'\].*\['role'\]='user'/); // Legacy storage stays intact.
+});
+test('raw model schema validates JSON arrays versus objects before lossy conversion',async()=>{
+ const mod=await read('app/modules/titles.php');const ask=mod.split('private function ask(')[1].split('private function runDiscuss')[0];
+ assert.ok(ask.indexOf('validateSchemaValue($value,$schema)')<ask.indexOf('return json_decode'));
+ const validate=mod.split('private function validateSchemaValue')[1].split('private function ask')[0];
+ for(const evidence of ['plain($value)','is_array($value)','array_keys($value)===range(0,count($value)-1)','is_string($value)','array_key_exists($key,$values)',"in_array($value,$schema['enum'],true)"])assert.ok(validate.includes(evidence));
+ assert.match(validate,/minItems/);assert.match(validate,/maxItems/);assert.doesNotMatch(validate,/array_is_list|str_contains|\bmatch\s*\(/);
+});
+test('clarification tolerates bounded metadata and punctuation variants without accepting fake revised content',async()=>{
+ const mod=await read('app/modules/titles.php');const branch=mod.split("if($v['outcome']==='clarification'){")[1].split("ensure($question===")[0];
+ assert.match(branch,/field\(\$v,'items'\)===array\(\)/);assert.match(branch,/rejectsCompletedEditClaim/);assert.match(branch,/dialogueText/);
+ assert.doesNotMatch(branch,/\$rationale===''|\$goalText===''|\$changeSummary===''/);assert.match(branch,/'items'=>array\(\),'rationale'=>''/);
+ assert.match(mod,/MODEL_CLARIFICATION_CLAIM/);assert.match(mod,/MODEL_CLARIFICATION_ITEMS/);assert.match(mod,/unquotedText/);assert.match(mod,/preg_match_all\('\/\[\?？\]\+\/u',\$unquoted\)<=1/);
+ assert.doesNotMatch(mod,/preg_match\('\/\[\?？\]\$\/u',\$question\)/);
+});
+test('server distinguishes explicit rejection from genuinely unknown outcomes and never promises no charge',async()=>{
+ const validation=await read('app/validation.php');const outcome=validation.split('function operationOutcome(')[1].split('function userTextValue')[0];
+ assert.match(outcome,/REQUEST_ALREADY_ATTEMPTED'\)return 'unknown'/);assert.match(outcome,/!\(\$error instanceof AppError\)/);
+ for(const code of ['MODEL_OUTPUT_INVALID','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_QUESTION_COUNT','MODEL_NO_REVISION'])assert.ok(outcome.includes(code));
+ assert.doesNotMatch(outcome,/'MODEL_TIMEOUT'|'OLLAMA_CONNECTION'|'MODEL_UNAVAILABLE'/);
+ assert.match(outcome,/'operationOutcome'=>operationOutcome\(\$error\)/);assert.match(outcome,/NOT that a provider charged nothing/);
+});
+
+test('shipped UI installation docs and demo defaults do not frame the tool as coursework',async()=>{
+ const paths=['public/app.js','public/demo.js','public/install.php','app/view.html','public/demo.html','README.md','開始使用.txt','docs/ARCHITECTURE.md','docs/INSTALLATION.md','docs/SECURITY.md','docs/USER-GUIDE.md'];
+ for(const path of paths)assert.doesNotMatch(await read(path),/學生|同學|教師|老師|校園|課堂|課程|作業(?!系統)/,path);
+});
+
+test('combined version notes are immutable snapshots and authoritative in refinement and comparison',async()=>{
+ const [app,versioning,mod]=await Promise.all(['app/app.php','app/versioning.php','app/modules/titles.php'].map(read));
+ assert.match(versioning,/function versionGoalAndRationale/);assert.match(versioning,/if\(is_string\(\$combined\)\)return \$combined/);assert.match(versioning,/in_array\(\$value,\$seen,true\)/);
+ const snapshot=app.split("if($action==='snapshot')")[1].split("if($action==='promote')")[0];
+ assert.match(snapshot,/array_key_exists\('goalAndRationale',\$input\)/);assert.match(snapshot,/validateCombinedVersionNote/);assert.match(versioning,/12000,'本版目標與修改意見'/);assert.match(versioning,/return \$value; \/\/ Keep deliberate whitespace/);assert.match(snapshot,/\$metadata=array\('goalText'=>\$goalText,'changeSummary'=>\$changeSummary,'goalAndRationale'=>\$combined\)/);
+ assert.match(app,/'goalAndRationale'=>\$combined/);assert.match(versioning,/'goalAndRationale'=>field\(\$version,'goalAndRationale'\)/);
+ assert.match(mod,/'goalSource','goalAndRationale','changeSummary'/);assert.match(mod,/officialVersion\.goalAndRationale若存在/);assert.match(mod,/versionHasCombinedOverride\(\$official\)/);assert.match(mod,/\|\|\$combinedChanged/);assert.match(mod,/合併紀錄存在時，舊分欄只是相容歷史/);
+});
+test('promotion atomically renames the active creative item only and preserves prior names in history',async()=>{
+ const [app,validation]=await Promise.all(['app/app.php','app/validation.php'].map(read));
+ const promote=app.split("if($action==='promote')")[1].split("if($action==='archive_version'")[0];
+ assert.match(promote,/officialItemTitle\(\$v\['items'\]\)/);assert.match(promote,/\$p\['creativeItems'\]\[\$index\]\['title'\]=\$itemTitle/);
+ assert.match(promote,/'previousItemTitle'=>\$previousItemTitle,'itemTitle'=>\$itemTitle/);assert.match(promote,/return \$this->save\(\$p\)/);assert.doesNotMatch(promote,/\$p\['title'\]=|\$p\['description'\]=/);
+ assert.match(validation,/function officialItemTitle/);assert.match(validation,/中文名稱.*中文標題.*主標題/);assert.match(validation,/array_slice\(\$chars,0,59\)/);
+ const other=app.split("if($action==='promote')")[0];assert.doesNotMatch(other,/officialItemTitle\(/);
 });

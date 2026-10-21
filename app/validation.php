@@ -18,7 +18,14 @@ function securityHeaders() {
     return array('Cache-Control'=>'no-store, max-age=0','Pragma'=>'no-cache','X-Content-Type-Options'=>'nosniff','X-Frame-Options'=>'DENY','Referrer-Policy'=>'no-referrer','Permissions-Policy'=>'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
     'Content-Security-Policy'=>"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
 }
-function errorResponse($error) { return array('error'=>array('code'=>$error instanceof AppError?$error->errorCode:'INTERNAL_ERROR','message'=>$error instanceof AppError?$error->getMessage():'處理未完成。原有作品保留，請檢查伺服器環境或稍後手動重試。')); }
+function operationOutcome($error) {
+    if(!($error instanceof AppError)||$error->errorCode==='REQUEST_ALREADY_ATTEMPTED')return 'unknown';
+    // Rejected means no valid result was saved, NOT that a provider charged nothing.
+    // Never classify transport errors, generic 5xx or a failed journal write as safe.
+    $rejected=array('MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
+    return $error->status<500||in_array($error->errorCode,$rejected,true)?'rejected':'unknown';
+}
+function errorResponse($error) { return array('error'=>array('code'=>$error instanceof AppError?$error->errorCode:'INTERNAL_ERROR','message'=>$error instanceof AppError?$error->getMessage():'處理未完成。請先檢查最新狀態，再檢查伺服器環境；不要直接重複提交。','operationOutcome'=>operationOutcome($error))); }
 function userTextValue($value,$max,$name,$empty=false) {
     $text=textValue($value,$max,$name,$empty);
     ensure(!preg_match('/\bsk-[a-zA-Z0-9_-]{16,}\b/',$text),'SECRET_IN_TEXT','請勿在對話或作品欄位貼入 API Key；請只使用 API 設定中的密碼欄。');
@@ -64,16 +71,25 @@ function validateContentItems($items,$definitions=null) {
 }
 function bundleDisplayTitle($items) { $chars=preg_split('//u',$items[0]['content'],-1,PREG_SPLIT_NO_EMPTY);return implode('',array_slice($chars,0,60)).(count($chars)>60?'…':''); }
 
+// Adopted artwork names update only the creative item label, never the project.
+// Prefer an explicit main/Chinese title, then a generic title, then first content.
+function officialItemTitle($items) {
+    $preferred=array('中文名稱','中文標題','中文名','主標題','主要名稱','正式名稱');$generic=array('名稱','標題','title','name');$chosen=null;
+    foreach(array($preferred,$generic) as $labels){foreach($items as $item){$label=strtolower(preg_replace('/\s+/u','',trim($item['label'])));if(in_array($label,$labels,true)){$chosen=$item['content'];break;}}if($chosen!==null)break;}
+    if($chosen===null)$chosen=$items[0]['content'];$chosen=trim(preg_replace('/\s+/u',' ',$chosen));
+    $chars=preg_split('//u',$chosen,-1,PREG_SPLIT_NO_EMPTY);return implode('',array_slice($chars,0,59)).(count($chars)>59?'…':'');
+}
+
 // Worst-case stored growth before inference. JSON may escape each input byte into
 // six bytes. Count EVERY reference snapshot copy, including the assistant message.
 // Conservative headroom deliberately rejects near-full projects before spending.
 function inferenceGrowthBudget($project,$action) {
     $references=strlen(jsonEncode($project['references']));$brief=strlen(jsonEncode($project['brief']));
     $context=strlen(jsonEncode(array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision'])));
-    if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+350000; // Revision + assistant, full bundle and instruction twice.
+    if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+450000; // Revision + assistant, full bundle and instruction twice.
     if($action==='discuss')return $references+50000;
     if($action==='summarize')return $references+150000; // New brief is stored twice.
-    if($action==='generate')return 6*$references+5*$brief+5*$context+1400000;
+    if($action==='generate')return 6*$references+5*$brief+5*$context+1700000;
     if($action==='compare'){$goals=array();foreach(field($project,'versions',array()) as $v)$goals[]=strlen(jsonEncode(versionComparisonSnapshot($v)));rsort($goals,SORT_NUMERIC);return 2*$references+$brief+array_sum(array_slice($goals,0,5))+180000;} // Each selected historical goal is saved separately.
     throw new AppError('UNKNOWN_ACTION','未知的容量檢查操作。');
 }

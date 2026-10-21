@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {memberRosterError,enabledMembers,activeMember,aiSetupReason,formatDate,createApiAdapter,createTitleApp,createRequestId,canGenerate,canSummarize,canCreate,canSnapshot,newestPendingRevision,revisionChanges,versionSourceLabel,versionLabel,versionCoordinates,nextVersionCoordinates,isArchivedVersion,comparisonDisabledReason,comparisonQuestionError,versionGoalText,snapshotMetadataError,comparisonUsesSnapshots,COMPARISON_SNAPSHOT_NOTE,validComparison,validItems,versionItems,provenanceLabel,exportProject} from '../public/app.js';
+import {memberRosterError,enabledMembers,activeMember,aiSetupReason,formatDate,createApiAdapter,createTitleApp,createRequestId,canGenerate,canSummarize,canCreate,canSnapshot,newestPendingRevision,revisionChanges,versionSourceLabel,versionLabel,versionCoordinates,nextVersionCoordinates,isArchivedVersion,comparisonDisabledReason,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,officialItemTitle,snapshotMetadataError,comparisonUsesSnapshots,COMPARISON_SNAPSHOT_NOTE,validComparison,validItems,versionItems,provenanceLabel,exportProject} from '../public/app.js';
 import {createDemoAdapter} from '../public/demo.js';
 const item=(id='name',label='中文名稱',content='讓日常，被看見')=>({id,label,content});
 async function call(api,action,p,extra={}){return (await api.request(action,{id:p.id,itemId:p.activeItemId,revision:p.revision,...extra})).project;}
 async function readyProject(api){
- let p=(await api.request('new',{title:'測試專案',description:'校園影展'})).project;
- for(const text of ['海報','同學','日常故事'])p=await call(api,'discuss',p,{text,consent:true});
+ let p=(await api.request('new',{title:'測試專案',description:'社區影展'})).project;
+ for(const text of ['海報','居民與創作者','日常故事'])p=await call(api,'discuss',p,{text,consent:true});
  p=await call(api,'summarize',p,{consent:true});
  return call(api,'approve_goal',p);
 }
@@ -82,7 +82,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version3"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version3"/);assert.match(html,/demo\.js\?v=20261021-version3/);assert.match(demo,/app\.js\?v=20261021-version3/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version4"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version4"/);assert.match(html,/demo\.js\?v=20261021-version4/);assert.match(demo,/app\.js\?v=20261021-version4/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -367,7 +367,7 @@ test('demo comparisons preserve historical goal basis after metadata invalidates
  const versions=structuredClone(p.versions),prior=structuredClone(p.comparisons),official=p.officialVersionId;
  p=await call(api,'edit_project',p,{title:p.title,description:'重新確認前比較舊版本'});assert.equal(p.goalApprovedAt,null);
  p=await call(api,'compare',p,{versionIds:[official,p.versions[0].id],question:'比較朗讀時的節奏',consent:true});const comparison=p.comparisons.at(-1);
- assert.equal(comparison.goalBasis,'version_snapshots');assert.equal(comparison.goalSnapshot,null);assert.deepEqual(comparison.versionGoalSnapshots,comparison.versionIds.map(versionId=>{const v=versions.find(v=>v.id===versionId);return {versionId,goalSnapshot:v.goalSnapshot,goalText:v.goalText,goalSource:v.goalSource,changeSummary:v.changeSummary,rationale:v.rationale,discussionMessageIds:v.discussionMessageIds};}));assert.equal(p.goalApprovedAt,null);assert.equal(p.officialVersionId,official);assert.deepEqual(p.versions,versions);assert.deepEqual(p.comparisons.slice(0,-1),prior);assert.match(p.messages.at(-1).text,/不會替你確認目標/);
+ assert.equal(comparison.goalBasis,'version_snapshots');assert.equal(comparison.goalSnapshot,null);assert.deepEqual(comparison.versionGoalSnapshots,comparison.versionIds.map(versionId=>{const v=versions.find(v=>v.id===versionId);return {versionId,goalSnapshot:v.goalSnapshot,goalText:v.goalText,goalAndRationale:versionGoalAndRationale(v),goalSource:v.goalSource,changeSummary:v.changeSummary,rationale:v.rationale,discussionMessageIds:v.discussionMessageIds};}));assert.equal(p.goalApprovedAt,null);assert.equal(p.officialVersionId,official);assert.deepEqual(p.versions,versions);assert.deepEqual(p.comparisons.slice(0,-1),prior);assert.match(p.messages.at(-1).text,/不會替你確認目標/);
  await assert.rejects(call(api,'generate',p,{consent:true}));await assert.rejects(call(api,'finalize',p));
 });
 
@@ -380,7 +380,7 @@ async function withLiveFixture(run,{invalidateGoal=false}={}){
  let failure=null;
  globalThis.fetch=async(url,options)=>{
   const action=new URL(url).searchParams.get('action');let payload={};
-  if(options.method==='POST'){payload=JSON.parse(options.body);assert.equal(payload.action,action);assert.equal(options.headers['X-CSRF-Token'],'fixture-csrf');if(!['save_members','select_member','list_models','set_key','clear_key'].includes(action))assert.equal(payload.itemId,savedProject.activeItemId);}
+  if(options.method==='POST'){payload=JSON.parse(options.body);assert.equal(payload.action,action);assert.equal(options.headers['X-CSRF-Token'],'fixture-csrf');if(!['save_members','select_member','select_item','list_models','set_key','clear_key'].includes(action))assert.equal(payload.itemId,savedProject.activeItemId);}
   else if(action==='project')payload={id:new URL(url).searchParams.get('id')};
   calls.push({action,payload});
   if(failure && action===failure.action){const f=failure;failure=null;return {ok:false,status:f.status,json:async()=>({error:f.message})};}
@@ -395,15 +395,15 @@ async function fixtureCardClick(doc,id,text){const target=doc.getElementById(`ve
 test('real renderer and fetch boundary save complete major/minor versions with computed labels and selected lineage',async()=>{
  await withLiveFixture(async context=>{
   const {doc,root,calls}=context,original=structuredClone(context.project.versions.find(v=>v.id===context.project.officialVersionId));
-  assert.equal(doc.getElementById('save-snapshot').textContent,'整組另存為新版本 V5');assert.equal(doc.getElementById('save-minor').textContent,'指定小修改 V4.1');assert.equal(doc.getElementById('editor-source').value,original.id);
+  assert.equal(doc.getElementById('save-snapshot').textContent,'另存新版本 V5');assert.equal(doc.getElementById('save-minor').textContent,'另存小修改 V4.1');assert.equal(doc.getElementById('editor-source').value,original.id);
   assert.equal(doc.getElementById('new-item-type'),null);assert.equal(root.querySelectorAll('.add-item-row').length,0);assert.ok(!root.querySelectorAll('button').some(b=>b.textContent==='＋ 新增項目'));assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='＋ 新增創作項目'));
   assert.equal(root.querySelector('.editor-items').querySelectorAll('.editor-item').length,4);assert.match(root.querySelector('.editor-items').textContent,/內容欄位/);assert.match(root.querySelector('.official-card').querySelector('.bundle-item-label').textContent,/作品內容/);
-  await fixtureFill(doc,'editor-title','整組大改的新名稱');await fixtureClick(doc,'整組另存為新版本 V5');const major=structuredClone(context.project.versions.at(-1));assert.equal(versionLabel(major),'V5');assert.equal(major.basedOnVersionId,original.id);assert.deepEqual(major.items.slice(1),original.items.slice(1));assert.equal(major.items[0].id,original.items[0].id);assert.deepEqual(context.project.versions.find(v=>v.id===original.id),original);assert.equal(context.project.officialVersionId,original.id);
-  assert.equal(doc.getElementById('save-snapshot').textContent,'整組另存為新版本 V6');assert.equal(doc.getElementById('save-minor').textContent,'指定小修改 V5.1');
-  await fixtureFill(doc,'editor-title','大改後的小修改');await fixtureClick(doc,'指定小修改 V5.1');const small=structuredClone(context.project.versions.at(-1));assert.equal(versionLabel(small),'V5.1');assert.equal(small.basedOnVersionId,major.id);assert.deepEqual(small.items.slice(1),original.items.slice(1));assert.deepEqual(context.project.versions.find(v=>v.id===major.id),major);
-  let source=doc.getElementById('editor-source');source.value=original.id;await source.dispatchEvent('change');assert.equal(doc.getElementById('save-minor').textContent,'指定小修改 V4.1');assert.equal(doc.getElementById('editor-title').value,original.items[0].content);
+  await fixtureFill(doc,'editor-title','整組大改的新名稱');await fixtureClick(doc,'另存新版本 V5');const major=structuredClone(context.project.versions.at(-1));assert.equal(versionLabel(major),'V5');assert.equal(major.basedOnVersionId,original.id);assert.deepEqual(major.items.slice(1),original.items.slice(1));assert.equal(major.items[0].id,original.items[0].id);assert.deepEqual(context.project.versions.find(v=>v.id===original.id),original);assert.equal(context.project.officialVersionId,original.id);
+  assert.equal(doc.getElementById('save-snapshot').textContent,'另存新版本 V6');assert.equal(doc.getElementById('save-minor').textContent,'另存小修改 V5.1');
+  await fixtureFill(doc,'editor-title','大改後的小修改');await fixtureClick(doc,'另存小修改 V5.1');const small=structuredClone(context.project.versions.at(-1));assert.equal(versionLabel(small),'V5.1');assert.equal(small.basedOnVersionId,major.id);assert.deepEqual(small.items.slice(1),original.items.slice(1));assert.deepEqual(context.project.versions.find(v=>v.id===major.id),major);
+  let source=doc.getElementById('editor-source');source.value=original.id;await source.dispatchEvent('change');assert.equal(doc.getElementById('save-minor').textContent,'另存小修改 V4.1');assert.equal(doc.getElementById('editor-title').value,original.items[0].content);
   await fixtureFill(doc,'editor-title','不可在切換時遺失的草稿');source=doc.getElementById('editor-source');source.value=major.id;void source.dispatchEvent('change');await settle();await fixtureDialogClick(doc,'取消');assert.equal(doc.getElementById('editor-source').value,original.id);assert.equal(doc.getElementById('editor-title').value,'不可在切換時遺失的草稿');
-  await fixtureClick(doc,'指定小修改 V4.1');assert.equal(versionLabel(context.project.versions.at(-1)),'V4.1');assert.equal(context.project.versions.at(-1).basedOnVersionId,original.id);
+  await fixtureClick(doc,'另存小修改 V4.1');assert.equal(versionLabel(context.project.versions.at(-1)),'V4.1');assert.equal(context.project.versions.at(-1).basedOnVersionId,original.id);
   assert.deepEqual(calls.filter(c=>c.action==='snapshot').map(c=>c.payload.versionMode),['major','minor','minor']);calls.filter(c=>c.action==='snapshot').forEach(c=>{assert.equal(c.payload.items.length,4);assert.equal(c.payload.action,'snapshot');assert.ok(c.payload.basedOnVersionId);});
  });
 });
@@ -440,7 +440,7 @@ test('real renderer and fetch boundary compare with null goal approval, handle U
 test('real renderer enforces maximum five selected versions and supports a five-version comparison',async()=>{
  await withLiveFixture(async context=>{
   const {doc,calls}=context;
-  await fixtureClick(doc,'整組另存為新版本 V5');await fixtureClick(doc,'整組另存為新版本 V6');const versions=context.project.versions;
+  await fixtureClick(doc,'另存新版本 V5');await fixtureClick(doc,'另存新版本 V6');const versions=context.project.versions;
   for(const version of versions.slice(0,5))await fixtureVersionSelect(doc,version.id);
   assert.equal(doc.getElementById('compare-versions').disabled,false);await fixtureVersionSelect(doc,versions[5].id);assert.match(doc.getElementById('app-toast').textContent,/最多比較 5/);assert.equal(doc.getElementById(`version-${versions[5].id}`).querySelector('input').checked,false);
   await fixtureClick(doc,'請 AI 提供比較意見 ↗');assert.equal(doc.body.querySelector('dialog'),null);await settle();assert.equal(calls.filter(c=>c.action==='compare').at(-1).payload.versionIds.length,5);assert.equal(context.project.comparisons.at(-1).items.length,5);assert.equal(context.project.comparisons.at(-1).goalBasis,'version_snapshots');
@@ -452,20 +452,20 @@ test('version goals and comments validate independently and preserve explicit le
  assert.match(snapshotMetadataError(''),/請填寫本版目標/);assert.match(snapshotMetadataError('中'.repeat(2001)),/6,000/);assert.match(snapshotMetadataError('有效目標','中'.repeat(667)),/2,000/);assert.equal(snapshotMetadataError('中'.repeat(2000),'中'.repeat(666)),'');
 });
 
-test('real renderer and fetch boundary preserve each version goal/comments and compare the exact saved metadata',async()=>{
+test('one merged metadata input saves immutable exact text, survives repeated edit/save and compares selected snapshots',async()=>{
  await withLiveFixture(async context=>{
   const {doc,root,calls}=context,official=structuredClone(context.project.versions.find(v=>v.id===context.project.officialVersionId)),commonGoal=context.project.brief.summary;
-  assert.equal(doc.getElementById('editor-goal').value,official.goalText);assert.notEqual(official.goalText,commonGoal);assert.ok(doc.getElementById(`version-${official.id}`).textContent.includes('本版目標'));assert.ok(doc.getElementById(`version-${official.id}`).textContent.includes(official.changeSummary));
-  await fixtureFill(doc,'editor-goal','');assert.equal(doc.getElementById('save-snapshot').disabled,true);assert.equal(doc.getElementById('save-minor').disabled,true);assert.match(doc.getElementById('draft-status').textContent,/請填寫本版目標/);
-  await fixtureFill(doc,'editor-goal','中'.repeat(2001));assert.match(doc.getElementById('draft-status').textContent,/6,000/);assert.equal(doc.getElementById('save-minor').disabled,true);
-  const newGoal='本版改以第一次參加影展的家長為觀眾，名稱要更容易朗讀。',comment='保留原本的整組作品，只修改本版目標與自己的意見。'+ '意'.repeat(450);
-  await fixtureFill(doc,'editor-goal',newGoal);await fixtureFill(doc,'editor-rationale','中'.repeat(667));assert.match(doc.getElementById('draft-status').textContent,/2,000/);assert.equal(doc.getElementById('save-minor').disabled,true);
-  await fixtureFill(doc,'editor-rationale',comment);assert.equal(doc.getElementById('save-minor').disabled,false);await fixtureClick(doc,'指定小修改 V4.1');const minor=structuredClone(context.project.versions.at(-1));
-  assert.equal(minor.goalText,newGoal);assert.equal(minor.goalSource,'user');assert.deepEqual(minor.goalSnapshot,{summary:newGoal});assert.equal(minor.rationale,comment);assert.equal(minor.changeSummary,comment);assert.deepEqual(minor.items,official.items);assert.equal(context.project.officialVersionId,official.id);assert.deepEqual(context.project.versions.find(v=>v.id===official.id),official);assert.equal(context.project.brief.summary,commonGoal);
-  const body=calls.filter(c=>c.action==='snapshot').at(-1).payload;assert.equal(body.goalText,newGoal);assert.equal(body.rationale,comment);assert.equal(body.versionMode,'minor');assert.ok(doc.getElementById(`version-${minor.id}`).textContent.includes(newGoal));assert.ok(doc.getElementById(`version-${minor.id}`).textContent.includes(comment));
+  assert.equal(doc.getElementById('editor-goal').value,versionGoalAndRationale(official));assert.equal(doc.getElementById('editor-rationale'),null);assert.equal(root.querySelector('.editor-panel').querySelectorAll('.editor-note').length,1);assert.match(root.querySelector('.editor-panel').textContent,/04 選擇與微調/);assert.doesNotMatch(root.querySelector('.editor-panel').textContent,/04 加入你的判斷/);assert.ok(root.querySelectorAll('label').some(label=>label.textContent==='本版目標與修改意見' && label.getAttribute('for')==='editor-goal'));
+  await fixtureFill(doc,'editor-goal','');assert.equal(doc.getElementById('save-snapshot').disabled,true);assert.equal(doc.getElementById('save-minor').disabled,true);assert.match(doc.getElementById('draft-status').textContent,/請填寫本版目標與修改意見/);
+  await fixtureFill(doc,'editor-goal','中'.repeat(4001));assert.match(doc.getElementById('draft-status').textContent,/12,000/);assert.equal(doc.getElementById('save-minor').disabled,true);
+  const combined='  本版改以第一次參加影展的觀眾為對象，名稱要更容易朗讀。\n\n修改意見：保留原本整組作品，使用自己的完整說明。'+ '意'.repeat(450)+'  \n';
+  await fixtureFill(doc,'editor-goal',combined);assert.equal(doc.getElementById('save-minor').disabled,false);await fixtureClick(doc,'另存小修改 V4.1');const minor=structuredClone(context.project.versions.at(-1));
+  assert.equal(minor.goalAndRationale,combined);assert.equal(minor.goalText,official.goalText);assert.equal(minor.rationale,official.rationale);assert.equal(minor.changeSummary,official.changeSummary);assert.deepEqual(minor.items,official.items);assert.equal(context.project.officialVersionId,official.id);assert.deepEqual(context.project.versions.find(v=>v.id===official.id),official);assert.equal(context.project.brief.summary,commonGoal);
+  const body=calls.filter(c=>c.action==='snapshot').at(-1).payload;assert.equal(body.goalAndRationale,combined);assert.equal(body.goalText,undefined);assert.equal(body.rationale,undefined);assert.equal(body.versionMode,'minor');assert.ok(doc.getElementById(`version-${minor.id}`).textContent.includes(combined));
+  await fixtureSelect(doc,'editor-source',minor.id);assert.equal(doc.getElementById('editor-goal').value,combined);await fixtureClick(doc,'另存小修改 V4.2');const repeated=structuredClone(context.project.versions.at(-1));assert.equal(repeated.goalAndRationale,combined);await fixtureSelect(doc,'editor-source',repeated.id);assert.equal(doc.getElementById('editor-goal').value,combined);assert.deepEqual(context.project.versions.find(v=>v.id===minor.id),minor);
   await fixtureVersionSelect(doc,official.id);await fixtureVersionSelect(doc,minor.id);await fixtureClick(doc,'請 AI 提供比較意見 ↗');assert.equal(doc.body.querySelector('dialog'),null);await settle();
-  const comparison=structuredClone(context.project.comparisons.at(-1));assert.equal(comparison.goalBasis,'version_snapshots');assert.equal(comparison.goalSnapshot,null);assert.deepEqual(comparison.versionGoalSnapshots.map(v=>v.goalText),[official.goalText,newGoal]);assert.equal(comparison.versionGoalSnapshots[1].rationale,comment);assert.ok(doc.getElementById('comparison-section').textContent.includes(newGoal));assert.ok(doc.getElementById('comparison-section').textContent.includes(official.goalText));
-  await fixtureFill(doc,'editor-goal','後續另一個版本的目標');await fixtureFill(doc,'editor-rationale','另一輪修正意見');await fixtureClick(doc,'整組另存為新版本 V5');assert.deepEqual(context.project.comparisons.at(-1),comparison);assert.deepEqual(context.project.versions.find(v=>v.id===minor.id),minor);assert.ok(root.querySelectorAll('.history-row').some(row=>row.textContent.includes(newGoal)));
+  const comparison=structuredClone(context.project.comparisons.at(-1));assert.equal(comparison.goalBasis,'version_snapshots');assert.equal(comparison.goalSnapshot,null);assert.deepEqual(comparison.versionGoalSnapshots.map(v=>v.goalAndRationale),[versionGoalAndRationale(official),combined]);assert.ok(doc.getElementById('comparison-section').textContent.includes(combined));assert.ok(doc.getElementById('comparison-section').textContent.includes(versionGoalAndRationale(official)));
+  await fixtureFill(doc,'editor-goal','後續另一個版本的目標與另一輪修正意見');await fixtureClick(doc,'另存新版本 V5');assert.deepEqual(context.project.comparisons.at(-1),comparison);assert.deepEqual(context.project.versions.find(v=>v.id===minor.id),minor);assert.ok(root.querySelectorAll('.history-row').some(row=>row.textContent.includes(combined)));
  });
 });
 
@@ -483,10 +483,10 @@ test('legacy renderer labels old goal/rationale and never substitutes common goa
  const originals={document:globalThis.document,addEventListener:globalThis.addEventListener,setTimeout:globalThis.setTimeout};const {doc,root}=fixtureDocument();globalThis.document=doc;globalThis.addEventListener=()=>{};globalThis.setTimeout=(handler,delay,...args)=>{const timer=originals.setTimeout(handler,delay,...args);timer.unref?.();return timer;};
  try{
   const api=createDemoAdapter(),state=await api.request('state'),p=(await api.request('project',{id:state.projects[0].id})).project;const official=p.versions.find(v=>v.id===p.officialVersionId);
-  p.versions.forEach(version=>{delete version.goalText;delete version.goalSource;delete version.changeSummary;delete version.discussionMessageIds;});official.goalSnapshot=null;
+  p.versions.forEach(version=>{delete version.goalAndRationale;delete version.goalText;delete version.goalSource;delete version.changeSummary;delete version.discussionMessageIds;});official.goalSnapshot=null;
   const adapter={async request(action){if(action==='state')return state;if(action==='project')return {project:p};throw new Error('Legacy read-only fixture must not send any mutation');}};
-  await createTitleApp({root,adapter,demo:true});assert.equal(doc.getElementById('editor-goal').value,'');assert.equal(doc.getElementById('save-snapshot').disabled,true);assert.match(doc.getElementById('draft-status').textContent,/請填寫本版目標/);assert.match(doc.body.querySelector('.official-card').textContent,/此版本未保存目標文字/);assert.match(doc.body.querySelector('.official-card').textContent,/尚無獨立變更摘要/);assert.ok(doc.body.querySelector('.official-card').textContent.includes(official.rationale));
-  const candidate=p.versions[0];await fixtureCardClick(doc,candidate.id,'編輯');assert.equal(doc.getElementById('editor-goal').value,candidate.goalSnapshot.summary);assert.notEqual(doc.getElementById('editor-goal').value,p.brief.summary);assert.match(doc.getElementById(`version-${candidate.id}`).textContent,/舊版保存的目標/);assert.equal(doc.getElementById('save-minor').disabled,false);
+  await createTitleApp({root,adapter,demo:true});assert.equal(doc.getElementById('editor-goal').value,`修改意見：\n${official.rationale}`);assert.equal(doc.getElementById('save-snapshot').disabled,false);assert.match(doc.body.querySelector('.official-card').textContent,/舊版保存的目標、變更摘要與修改意見合併呈現/);assert.ok(doc.body.querySelector('.official-card').textContent.includes(official.rationale));assert.ok(!doc.getElementById('editor-goal').value.includes(p.brief.summary));
+  const candidate=p.versions[0];await fixtureCardClick(doc,candidate.id,'編輯');assert.equal(doc.getElementById('editor-goal').value,versionGoalAndRationale(candidate));assert.ok(doc.getElementById('editor-goal').value.includes(candidate.goalSnapshot.summary));assert.notEqual(doc.getElementById('editor-goal').value,p.brief.summary);assert.match(doc.getElementById(`version-${candidate.id}`).textContent,/舊版保存的目標/);assert.equal(doc.getElementById('save-minor').disabled,false);
  }finally{Object.assign(globalThis,originals);}
 });
 
@@ -506,19 +506,23 @@ test('AI member helpers never fall back to another enabled member and provenance
  const provenance={provider:'openai',requestedModel:'model-a',actualModel:'model-a',memberId:'a',memberNickname:'當時的小光'};assert.match(provenanceLabel(provenance),/^當時的小光 · OpenAI · model-a/);members[0].nickname='後來的名稱';assert.match(provenanceLabel(provenance),/^當時的小光/);assert.equal(provenanceLabel({provider:'openai',requestedModel:'old-model',actualModel:'old-model'}),'OpenAI · old-model');
 });
 
-async function withMemberFixture(run,{usageConsent=true,provider='ollama',keyPresent=false,modelResponse=null}={}){
+async function withMemberFixture(run,{usageConsent=true,provider='ollama',secondProvider='ollama',keyPresent=false,modelResponse=null}={}){
  const originals={document:globalThis.document,addEventListener:globalThis.addEventListener,setTimeout:globalThis.setTimeout,fetch:globalThis.fetch,location:globalThis.location};const {doc,root}=fixtureDocument();globalThis.document=doc;globalThis.addEventListener=()=>{};globalThis.location={href:'http://localhost/ai-cocreation-series-php74/public/'};globalThis.setTimeout=(handler,delay,...args)=>{const timer=originals.setTimeout(handler,delay,...args);timer.unref?.();return timer;};
  const source=createDemoAdapter(),initial=await source.request('state'),first=initial.members[0].id,second='22222222222222222222222222222222',disabled='33333333333333333333333333333333';
- await source.request('save_members',{members:[{...initial.members[0],nickname:'小光',provider,model:'fixture-first'},{id:second,nickname:'阿哲',enabled:true,provider:'ollama',model:'fixture-second',ollamaUrl:'http://127.0.0.1:11434'},{id:disabled,nickname:'尚未上班',enabled:false,provider:'openai',model:'fixture-disabled',ollamaUrl:'http://127.0.0.1:11434'}],activeMemberId:first,usageConsent,expectedSettingsRevision:initial.settingsRevision});
- let project=(await source.request('project',{id:initial.projects[0].id})).project,modelResult=modelResponse,hold=null,release=null,key=keyPresent;const calls=[];
+ await source.request('save_members',{members:[{...initial.members[0],nickname:'小光',provider,model:'fixture-first'},{id:second,nickname:'阿哲',enabled:true,provider:secondProvider,model:'fixture-second',ollamaUrl:'http://127.0.0.1:11434'},{id:disabled,nickname:'尚未上班',enabled:false,provider:'openai',model:'fixture-disabled',ollamaUrl:'http://127.0.0.1:11434'}],activeMemberId:first,usageConsent,expectedSettingsRevision:initial.settingsRevision});
+ let project=(await source.request('project',{id:initial.projects[0].id})).project,modelResult=modelResponse,hold=null,release=null,key=keyPresent,keyRevision=keyPresent?7:0,discussionFailure=null;const calls=[];
  globalThis.fetch=async(url,options)=>{
   const action=new URL(url).searchParams.get('action');let payload={};if(options.method==='POST'){payload=JSON.parse(options.body);assert.equal(payload.action,action);assert.equal(options.headers['X-CSRF-Token'],'member-fixture-csrf');}else if(action==='project')payload={id:new URL(url).searchParams.get('id')};calls.push({action,payload});
   if(action==='discuss' && hold)await hold;
+  if(action==='discuss' && discussionFailure){
+   if(discussionFailure.network)throw new TypeError('fixture network interruption');
+   return {ok:false,status:discussionFailure.status || 502,json:async()=>{if(discussionFailure.malformed)throw new SyntaxError('fixture invalid JSON');return discussionFailure.body;}};
+  }
   if(action==='list_models')return modelResult?.error?{ok:false,status:400,json:async()=>({error:modelResult.error})}:{ok:true,status:200,json:async()=>({...modelResult,provider:payload.provider})};
-  if(action==='set_key'){assert.equal(doc.getElementById('api-key')?.value || '','');key=true;return {ok:true,status:200,json:async()=>({...await source.request('state'),keyPresent:true,keyRevision:1})};}
-  try{const result=await source.request(action,payload);if(result.project)project=result.project;return {ok:true,status:200,json:async()=>action==='state'?{...result,keyPresent:key,csrf:'member-fixture-csrf'}:result.csrf?{...result,csrf:'member-fixture-csrf'}:result};}catch(error){return {ok:false,status:error.status || 400,json:async()=>({error:error.message})};}
+  if(action==='set_key'){assert.equal(doc.getElementById('api-key')?.value || '','');key=true;keyRevision=1;return {ok:true,status:200,json:async()=>({...await source.request('state'),keyPresent:true,keyRevision})};}
+  try{const result=await source.request(action,payload);if(result.project)project=result.project;return {ok:true,status:200,json:async()=>action==='state' || result.csrf?{...result,keyPresent:key,keyRevision,csrf:'member-fixture-csrf'}:result};}catch(error){return {ok:false,status:error.status || 400,json:async()=>({error:error.message})};}
  };
- try{const app=await createTitleApp({root,adapter:createApiAdapter(),demo:false});await run({doc,root,calls,source,app,first,second,disabled,get project(){return project;},get state(){return source.request('state');},setModelResponse(value){modelResult=value;},holdDiscussion(){hold=new Promise(resolve=>{release=resolve;});},releaseDiscussion(){hold=null;release?.();}});}finally{release?.();Object.assign(globalThis,originals);}
+ try{const app=await createTitleApp({root,adapter:createApiAdapter(),demo:false});await run({doc,root,calls,source,app,first,second,disabled,get project(){return project;},get state(){return source.request('state');},setModelResponse(value){modelResult=value;},setDiscussionFailure(value){discussionFailure=value;},holdDiscussion(){hold=new Promise(resolve=>{release=resolve;});},releaseDiscussion(){hold=null;release?.();}});}finally{release?.();Object.assign(globalThis,originals);}
 }
 async function fixtureCheck(doc,id,checked){const input=doc.getElementById(id);assert.ok(input,`checkbox exists: ${id}`);input.checked=checked;await input.dispatchEvent('change');}
 async function fixtureSelect(doc,id,value){const select=doc.getElementById(id);assert.ok(select,`select exists: ${id}`);select.value=value;await select.dispatchEvent('change');await settle();}
@@ -610,11 +614,146 @@ test('reference picker excludes archived versions and empty sources while retain
   p=await call(source,'select_item',p,{itemId:targetId});p=await call(source,'attach_reference',p,{targetItemId:sourceId,versionId:archived.id});const pinned=structuredClone(p.activeItem.references);
   p=await call(source,'select_item',p,{itemId:sourceId});p=await call(source,'archive_version',p,{versionId:archived.id});
   p=await call(source,'create_item',p,{type:'titles',title:'只有封存版本的來源',description:'不應出現在來源選單'});const excludedId=p.activeItemId;
-  for(const text of ['海報','同學','日常故事'])p=await call(source,'discuss',p,{text,consent:true});p=await call(source,'summarize',p,{consent:true});p=await call(source,'approve_goal',p);
+  for(const text of ['海報','居民與創作者','日常故事'])p=await call(source,'discuss',p,{text,consent:true});p=await call(source,'summarize',p,{consent:true});p=await call(source,'approve_goal',p);
   p=await call(source,'snapshot',p,{items:[item()],goalText:'只有封存版本的測試',rationale:'測試來源資格'});p=await call(source,'archive_version',p,{versionId:p.versions[0].id});
   p=await call(source,'select_item',p,{itemId:targetId});await app.reload();assert.deepEqual(context.project.activeItem.references,pinned);const originalCards=root.querySelectorAll('.reference-card').map(card=>card.textContent);assert.ok(originalCards.some(text=>text.includes(archived.title)));
   await fixtureClick(doc,'＋ 加入引用');assert.deepEqual(doc.getElementById('reference-source').querySelectorAll('option').map(option=>option.value),[sourceId]);assert.ok(!doc.getElementById('reference-source').textContent.includes('只有封存版本的來源'));assert.ok(!doc.getElementById('reference-source').querySelectorAll('option').some(option=>option.value===excludedId));
   assert.deepEqual(doc.getElementById('reference-version').querySelectorAll('option').map(option=>option.value),p.creativeItems.find(candidate=>candidate.id===sourceId).versions.filter(version=>version.id!==archived.id).map(version=>version.id));assert.match(doc.body.querySelector('dialog').textContent,/既有固定引用不受封存影響/);await fixtureDialogClick(doc,'取消');assert.deepEqual(root.querySelectorAll('.reference-card').map(card=>card.textContent),originalCards);assert.deepEqual(context.project.activeItem.references,pinned);assert.ok(!calls.some(request=>request.action==='attach_reference'));
   await assert.rejects(call(source,'attach_reference',p,{targetItemId:sourceId,versionId:archived.id}),/來源版本已封存/);
  });
+});
+
+test('member selector is in the composer directly before its label, after the complete history',async()=>{
+ await withMemberFixture(async({doc,root,calls})=>{
+  const panel=root.querySelector('.dialogue-panel'),history=doc.getElementById('conversation'),composer=root.querySelector('.chat-composer'),selector=root.querySelector('.quick-switch');
+  assert.equal(selector.parentNode,composer);assert.equal(composer.children[0],selector);
+  assert.equal(composer.children[1].tagName,'LABEL');assert.equal(composer.children[1].getAttribute('for'),'chat-input');assert.equal(composer.children[1].textContent,'針對正式版繼續修改或討論');
+  assert.ok(panel.children.indexOf(history)<panel.children.indexOf(composer));assert.equal(history.querySelector('.quick-switch'),null);assert.equal(root.querySelectorAll('#discussion-member').length,1);
+  assert.ok(history.querySelectorAll('.chat-entry').length>3);assert.match(selector.textContent,/下一次操作使用這位 AI 成員/);assert.deepEqual(calls.map(c=>c.action),['state','project']);
+ });
+});
+
+test('UI defaults and seeded demo use general-audience creative examples, without altering legacy role storage',async()=>{
+ const inappropriate=/學生|作業|課程|校園|學校|老師|教師|同學|教學|教室/;
+ for(const path of ['../public/app.js','../public/demo.js','../public/styles.css'])assert.doesNotMatch(await readFile(new URL(path,import.meta.url),'utf8'),inappropriate);
+ const source=createDemoAdapter(),state=await source.request('state'),project=(await source.request('project',{id:state.projects[0].id})).project;
+ assert.match(project.title,/社區影像展/);assert.match(project.brief.audience,/居民與創作者/);assert.doesNotMatch(JSON.stringify(project),inappropriate);assert.ok(project.messages.some(message=>message.role==='student'));
+ let created=await readyProject(source);created=await call(source,'generate',created,{consent:true});assert.doesNotMatch(JSON.stringify(created.brief)+JSON.stringify(created.versions),inappropriate);
+ await withMemberFixture(async({doc,root})=>{
+  assert.doesNotMatch(root.textContent,inappropriate);await fixtureClick(doc,'＋ 新的共創');assert.match(doc.getElementById('project-name').getAttribute('placeholder'),/社區影像展/);await fixtureDialogClick(doc,'取消');
+ });
+});
+
+test('existing user-authored school content stays intact while its stored student role displays as you',async()=>{
+ const originals={document:globalThis.document,addEventListener:globalThis.addEventListener,setTimeout:globalThis.setTimeout};const {doc,root}=fixtureDocument();globalThis.document=doc;globalThis.addEventListener=()=>{};globalThis.setTimeout=(handler,delay,...args)=>{const timer=originals.setTimeout(handler,delay,...args);timer.unref?.();return timer;};
+ try{
+  const source=createDemoAdapter(),state=await source.request('state'),project=(await source.request('project',{id:state.projects[0].id})).project;
+  project.title='使用者原有的校園專案';project.description='這是我自行保存的課程資料，不應自動改名。';const message=project.messages.find(message=>message.role==='student');message.text='學生自己寫的原始文字仍需完整保留。';
+  const original=structuredClone(project),adapter={async request(action){if(action==='state')return state;if(action==='project')return {project};throw new Error('Read-only preservation fixture');}};
+  await createTitleApp({root,adapter,demo:true});assert.deepEqual(project,original);assert.match(root.textContent,/使用者原有的校園專案/);assert.match(root.textContent,/學生自己寫的原始文字/);assert.equal(doc.getElementById(`message-${message.id}`).querySelector('.chat-role').textContent,'你');assert.deepEqual(exportProject(project).project.messages,original.messages);
+ }finally{Object.assign(globalThis,originals);}
+});
+
+test('actual renderer and fetch requests switch Ollama to OpenAI and back with exact approved snapshots and preserved context',async()=>{
+ await withMemberFixture(async context=>{
+  const {doc,root,calls,first,second}=context,original=structuredClone(context.project),history=root.querySelectorAll('.chat-entry').map(node=>node.textContent);
+  await fixtureFill(doc,'chat-input','請把第一項內容改為「跨供應者的第一輪」');await fixtureFill(doc,'editor-title','尚未保存的整組草稿');await fixtureFill(doc,'editor-goal','尚未保存的本版目標與修改意見');
+  await fixtureSelect(doc,'discussion-member',second);
+  assert.deepEqual(context.project,original);assert.deepEqual(root.querySelectorAll('.chat-entry').map(node=>node.textContent),history);assert.equal(doc.getElementById('chat-input').value,'請把第一項內容改為「跨供應者的第一輪」');assert.equal(doc.getElementById('editor-title').value,'尚未保存的整組草稿');assert.equal(doc.getElementById('editor-goal').value,'尚未保存的本版目標與修改意見');assert.equal(doc.getElementById('editor-rationale'),null);
+  assert.deepEqual(calls.filter(c=>c.action==='select_member').map(c=>c.payload),[{memberId:second,expectedSettingsRevision:1,action:'select_member'}]);assert.ok(!calls.some(c=>['discuss','summarize','generate','compare','list_models'].includes(c.action)));
+  await fixtureClick(doc,'送出想法 ↗');assert.equal(doc.body.querySelector('dialog'),null);let paid=calls.filter(c=>c.action==='discuss'),body=paid[0].payload;
+  assert.equal(body.approvedMemberId,second);assert.equal(body.approvedProvider,'openai');assert.equal(body.approvedModel,'fixture-second');assert.equal(body.approvedSettingsRevision,2);assert.equal(body.approvedKeyRevision,7);assert.equal(body.id,original.id);assert.equal(body.itemId,original.activeItemId);assert.equal(body.revision,original.revision);assert.equal(body.officialVersionId,original.officialVersionId);assert.match(body.requestId,/^[a-f0-9]{32}$/);
+  assert.deepEqual(context.project.versions.slice(0,original.versions.length),original.versions);assert.deepEqual(context.project.messages.slice(0,original.messages.length),original.messages);const firstReply=structuredClone(context.project.messages.at(-1));assert.equal(firstReply.provenance.memberId,second);assert.equal(firstReply.provenance.memberNickname,'阿哲');
+  const beforeSecond=structuredClone(context.project);await fixtureSelect(doc,'discussion-member',first);assert.deepEqual(context.project,beforeSecond);assert.equal(doc.getElementById('editor-title').value,'尚未保存的整組草稿');
+  await fixtureFill(doc,'chat-input','請把第一項內容改為「跨供應者的第二輪」');await fixtureClick(doc,'送出想法 ↗');paid=calls.filter(c=>c.action==='discuss');body=paid[1].payload;
+  assert.equal(body.approvedMemberId,first);assert.equal(body.approvedProvider,'ollama');assert.equal(body.approvedModel,'fixture-first');assert.equal(body.approvedSettingsRevision,3);assert.equal(body.approvedKeyRevision,undefined);assert.equal(body.revision,beforeSecond.revision);assert.equal(body.officialVersionId,original.officialVersionId);assert.notEqual(body.requestId,paid[0].payload.requestId);
+  assert.deepEqual(context.project.messages.find(message=>message.id===firstReply.id),firstReply);assert.deepEqual(context.project.versions.slice(0,beforeSecond.versions.length),beforeSecond.versions);assert.equal(context.project.versions.at(-1).basedOnVersionId,original.officialVersionId);assert.equal(context.project.officialVersionId,original.officialVersionId);assert.equal(doc.getElementById('discussion-member').value,first);assert.equal(calls.filter(c=>c.action==='select_member').at(-1).payload.expectedSettingsRevision,2);
+ },{secondProvider:'openai',keyPresent:true});
+});
+
+test('known invalid model output is rejected, not an unknown operation, and allows a deliberate member change without losing drafts',async()=>{
+ await withMemberFixture(async context=>{
+  const {doc,root,calls,second}=context,original=structuredClone(context.project),text='這段修改要求需保留，讓我自行決定下一步';
+  context.setDiscussionFailure({status:502,body:{error:{code:'MODEL_OUTPUT_INVALID',message:'AI 釐清回覆不得假裝修改作品，且每次只能問一個問題。本次未保存結果；模型端可能已產生費用。',operationOutcome:'rejected'}}});
+  await fixtureFill(doc,'chat-input',text);await fixtureFill(doc,'editor-title','拒絕回覆時仍保留的草稿');await fixtureClick(doc,'送出想法 ↗');
+  assert.match(root.querySelector('.error').textContent,/AI 釐清回覆不得假裝修改作品/);assert.match(root.querySelector('.error').textContent,/可能已產生費用/);assert.equal(root.querySelector('.uncertain'),null);assert.equal(doc.getElementById('discussion-member').disabled,false);assert.equal(doc.getElementById('send-chat').disabled,false);assert.equal(doc.getElementById('chat-input').value,text);assert.equal(doc.getElementById('editor-title').value,'拒絕回覆時仍保留的草稿');assert.deepEqual(context.project,original);assert.equal(calls.filter(c=>c.action==='discuss').length,1);
+  await fixtureSelect(doc,'discussion-member',second);assert.equal(doc.getElementById('chat-input').value,text);assert.deepEqual(context.project,original);assert.equal(calls.filter(c=>c.action==='discuss').length,1);context.setDiscussionFailure(null);
+  await fixtureFill(doc,'chat-input','請把第一項內容改為「自行選擇另一位成員後再送出」');await fixtureClick(doc,'送出想法 ↗');const requests=calls.filter(c=>c.action==='discuss');assert.equal(requests.length,2);assert.equal(requests[1].payload.approvedMemberId,second);assert.equal(requests[1].payload.approvedProvider,'openai');assert.equal(requests[1].payload.approvedSettingsRevision,2);assert.notEqual(requests[1].payload.requestId,requests[0].payload.requestId);assert.deepEqual(context.project.versions.slice(0,original.versions.length),original.versions);
+ },{secondProvider:'openai',keyPresent:true});
+});
+
+test('timeouts, network loss, malformed JSON and old unclassified 5xx remain uncertain without automatic retry',async()=>{
+ const failures=[
+  {status:502,body:{error:{code:'MODEL_TIMEOUT',message:'模型逾時，結果未知。',operationOutcome:'unknown'}}},
+  {status:503,body:{error:'舊版伺服器暫時無法回應。'}},
+  {status:502,body:{error:{code:'MODEL_OUTPUT_INVALID',message:'舊版伺服器沒有結果標記。'}}},
+  {network:true},
+  {status:504,malformed:true},
+  {status:503,body:null}
+ ];
+ for(const failure of failures)await withMemberFixture(async context=>{
+  const {doc,root,calls}=context,original=structuredClone(context.project);context.setDiscussionFailure(failure);
+  await fixtureFill(doc,'chat-input','結果未知時保留原稿');await fixtureClick(doc,'送出想法 ↗');assert.ok(root.querySelector('.uncertain'));assert.match(root.textContent,/上次操作結果尚未確認/);assert.equal(doc.getElementById('discussion-member').disabled,true);assert.equal(doc.getElementById('send-chat').disabled,true);assert.equal(fixtureButton(doc,'重試同一請求').disabled,true);assert.equal(doc.getElementById('chat-input').value,'結果未知時保留原稿');assert.equal(calls.filter(c=>c.action==='discuss').length,1);assert.deepEqual(context.project,original);
+ });
+});
+
+test('checking an unknown result and receiving explicit rejection on the same request clears only the uncertainty',async()=>{
+ await withMemberFixture(async context=>{
+  const {doc,root,calls,first}=context,original=structuredClone(context.project);context.setDiscussionFailure({network:true});await fixtureFill(doc,'chat-input','檢查後仍需保留的原始要求');await fixtureClick(doc,'送出想法 ↗');const request=structuredClone(calls.find(c=>c.action==='discuss').payload);
+  await fixtureClick(doc,'檢查最新狀態');assert.ok(root.querySelector('.uncertain'));assert.equal(fixtureButton(doc,'重試同一請求').disabled,false);assert.equal(calls.filter(c=>c.action==='discuss').length,1);
+  context.setDiscussionFailure({status:502,body:{error:{code:'MODEL_OUTPUT_INVALID',message:'已確認這次回覆未保存。',operationOutcome:'rejected'}}});await fixtureClick(doc,'重試同一請求');
+  assert.equal(calls.filter(c=>c.action==='discuss').length,2);assert.deepEqual(calls.filter(c=>c.action==='discuss')[1].payload,request);assert.equal(request.approvedMemberId,first);assert.equal(root.querySelector('.uncertain'),null);assert.match(root.querySelector('.error').textContent,/已確認這次回覆未保存/);assert.equal(doc.getElementById('discussion-member').disabled,false);assert.equal(doc.getElementById('chat-input').value,'檢查後仍需保留的原始要求');assert.deepEqual(context.project,original);
+ });
+});
+
+test('combined version metadata prefers stored text verbatim and joins unique legacy values without loss',()=>{
+ const legacy={goalText:'保留原本目標\n與第二行',goalSnapshot:{summary:'不得替換成這段'},changeSummary:'這是不同的討論變更',rationale:'這是另外保存的修改意見'},original=structuredClone(legacy);
+ assert.equal(versionGoalAndRationale(legacy),'本版目標：\n保留原本目標\n與第二行\n\n討論與變更摘要：\n這是不同的討論變更\n\n修改意見：\n這是另外保存的修改意見');assert.deepEqual(legacy,original);
+ assert.equal(versionGoalAndRationale({goalText:'相同文字',changeSummary:'相同文字',rationale:'相同文字'}),'本版目標：\n相同文字');
+ assert.equal(versionGoalAndRationale({goalSnapshot:{summary:'舊摘要'},changeSummary:'同一份意見',rationale:'同一份意見'}),'本版目標：\n舊摘要\n\n討論與變更摘要：\n同一份意見');
+ assert.equal(versionGoalAndRationale({goalText:'',goalSnapshot:{summary:'不應補回'},rationale:'保留意見'}),'修改意見：\n保留意見');
+ for(const value of ['','  已經合併的原文\n保留換行與空白  '])assert.equal(versionGoalAndRationale({...legacy,goalAndRationale:value}),value);
+ const long={goalText:'目'.repeat(2000),changeSummary:'變'.repeat(666),rationale:'意'.repeat(666)},joined=versionGoalAndRationale(long);Object.values(long).forEach(value=>assert.ok(joined.includes(value)));assert.equal(combinedMetadataError(joined),'');
+ assert.match(combinedMetadataError(' '),/請填寫本版目標與修改意見/);assert.equal(combinedMetadataError('中'.repeat(4000)),'');assert.match(combinedMetadataError('中'.repeat(4001)),/12,000/);assert.match(combinedMetadataError(null),/請填寫/);
+});
+
+test('explicit empty stored combined metadata does not fall back to old text or common goal',async()=>{
+ const originals={document:globalThis.document,addEventListener:globalThis.addEventListener,setTimeout:globalThis.setTimeout};const {doc,root}=fixtureDocument();globalThis.document=doc;globalThis.addEventListener=()=>{};globalThis.setTimeout=(handler,delay,...args)=>{const timer=originals.setTimeout(handler,delay,...args);timer.unref?.();return timer;};
+ try{
+  const source=createDemoAdapter(),state=await source.request('state'),project=(await source.request('project',{id:state.projects[0].id})).project,official=project.versions.find(v=>v.id===project.officialVersionId);official.goalAndRationale='';const original=structuredClone(project);
+  await createTitleApp({root,demo:true,adapter:{async request(action){if(action==='state')return state;if(action==='project')return {project};throw new Error('Read-only fixture');}}});
+  assert.equal(doc.getElementById('editor-goal').value,'');assert.equal(doc.getElementById('editor-rationale'),null);assert.equal(doc.getElementById('save-snapshot').disabled,true);assert.equal(doc.getElementById('save-minor').disabled,true);assert.match(doc.getElementById('draft-status').textContent,/請填寫本版目標與修改意見/);assert.deepEqual(project,original);
+ }finally{Object.assign(globalThis,originals);}
+});
+
+test('adopted item names prefer explicit main labels, then generic names, without altering full content',()=>{
+ const fields=[item('en','英文名稱','English First'),item('generic','Name','Generic Name'),item('zh','中文 名稱','  採用的中文\n 名稱  '),item('other','主標題','另一個主標題')],original=structuredClone(fields);
+ assert.equal(officialItemTitle(fields),'採用的中文 名稱');assert.deepEqual(fields,original);assert.equal(officialItemTitle(fields.slice(0,2)),'Generic Name');assert.equal(officialItemTitle([item('x','副標題','無明確主名稱時的第一項')]),'無明確主名稱時的第一項');assert.equal(officialItemTitle([item('x',' TITLE ','Generic Title')]),'Generic Title');assert.equal(officialItemTitle([]),'');
+ const long='😀'.repeat(70),result=officialItemTitle([item('x','主標題',long)]);assert.equal(result,'😀'.repeat(59)+'…');assert.equal(new TextEncoder().encode(result).length,239);assert.equal(officialItemTitle([item('x','中文名','字'.repeat(59))]),'字'.repeat(59));
+});
+
+test('explicit promotion immediately renames only its creative item; pending changes and switching preserve names and history',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,initial=structuredClone(context.project),itemId=initial.activeItemId,projectTitle=initial.title,initialItemName=initial.activeItem.title,other=structuredClone(initial.creativeItems[1]);
+  const selectedName=()=>root.querySelectorAll('.creative-item-tab').find(node=>node.getAttribute('aria-pressed')==='true').querySelector('strong').textContent;
+  assert.equal(selectedName(),initialItemName);await fixtureClick(doc,'再產生一組候選 ↗');assert.equal(context.project.activeItem.title,initialItemName);assert.equal(selectedName(),initialItemName);
+  await fixtureFill(doc,'editor-title','正式採用後才更新的名稱');await fixtureClick(doc,doc.getElementById('save-minor').textContent);const candidate=structuredClone(context.project.versions.at(-1));assert.equal(context.project.activeItem.title,initialItemName);assert.equal(context.project.title,projectTitle);
+  await fixtureCardClick(doc,candidate.id,'設為正式版');assert.match(doc.body.querySelector('dialog').textContent,/創作項目會同步更名為「正式採用後才更新的名稱」，專案名稱不變/);await fixtureDialogClick(doc,'取消');assert.equal(context.project.activeItem.title,initialItemName);assert.equal(calls.filter(call=>call.action==='promote').length,0);
+  await fixtureCardClick(doc,candidate.id,'設為正式版');await fixtureDialogClick(doc,'設為正式版');assert.equal(context.project.activeItem.title,'正式採用後才更新的名稱');assert.equal(selectedName(),'正式採用後才更新的名稱');assert.equal(root.querySelector('.active-item-header').querySelector('h2').textContent,'正式採用後才更新的名稱');assert.equal(context.project.title,projectTitle);assert.deepEqual(context.project.creativeItems.find(i=>i.id===other.id),other);assert.deepEqual(context.project.versions.find(v=>v.id===candidate.id),candidate);
+  await fixtureFill(doc,'chat-input','請把第一項內容改為「採用第二次修改後的名稱」');await fixtureClick(doc,'送出想法 ↗');const revision=structuredClone(context.project.versions.at(-1));assert.equal(revision.source,'revision');assert.equal(context.project.activeItem.title,'正式採用後才更新的名稱');assert.equal(selectedName(),'正式採用後才更新的名稱');
+  await fixtureClick(doc,'採用這次修改');await fixtureDialogClick(doc,'確認採用這次修改');assert.equal(context.project.activeItem.title,'採用第二次修改後的名稱');assert.equal(selectedName(),'採用第二次修改後的名稱');assert.equal(root.querySelector('.active-item-header').querySelector('h2').textContent,'採用第二次修改後的名稱');assert.equal(context.project.title,projectTitle);assert.deepEqual(context.project.versions.find(v=>v.id===revision.id),revision);assert.deepEqual(context.project.versions.find(v=>v.id===candidate.id),candidate);
+  const switched=root.querySelectorAll('.creative-item-tab')[1];void switched.dispatchEvent('click');await settle();assert.equal(context.project.activeItemId,other.id);assert.equal(context.project.activeItem.title,other.title);void root.querySelectorAll('.creative-item-tab')[0].dispatchEvent('click');await settle();assert.equal(context.project.activeItemId,itemId);assert.equal(selectedName(),'採用第二次修改後的名稱');assert.equal(context.project.title,projectTitle);assert.deepEqual(context.project.versions.find(v=>v.id===revision.id),revision);assert.deepEqual(context.project.versions.slice(0,initial.versions.length),initial.versions);
+ });
+});
+
+test('demo promotion chooses the Chinese main title even when an English item is listed first',async()=>{
+ const api=createDemoAdapter();let project=(await api.request('project',{id:(await api.request('state')).projects[0].id})).project;const title=project.title,oldName=project.activeItem.title,fields=[item('en','英文名稱','Do Not Rename To English'),item('note','宣傳短句','不是項目名稱'),item('zh','中文名稱','中文主名稱優先')];
+ project=await call(api,'snapshot',project,{items:fields,basedOnVersionId:project.officialVersionId,goalAndRationale:'這個測試只在採用正式版時更新項目名稱。'});const version=structuredClone(project.versions.at(-1));assert.equal(project.activeItem.title,oldName);project=await call(api,'promote',project,{versionId:version.id});assert.equal(project.activeItem.title,'中文主名稱優先');assert.equal(project.title,title);assert.deepEqual(project.versions.find(v=>v.id===version.id),version);assert.deepEqual(project.versions.find(v=>v.id===version.id).items,fields);
+});
+
+test('workspace terminology describes creative content and dynamic version saving naturally',async()=>{
+ await withLiveFixture(async({doc,root})=>{
+  assert.equal(doc.getElementById('editor-heading').textContent,'編輯創作內容');assert.equal(doc.getElementById('save-snapshot').textContent,'另存新版本 V5');assert.equal(doc.getElementById('save-minor').textContent,'另存小修改 V4.1');assert.doesNotMatch(root.textContent,/整組名稱|整組另存|指定小修改/);
+ });
+ for(const path of ['../public/app.js','../public/demo.js'])assert.doesNotMatch(await readFile(new URL(path,import.meta.url),'utf8'),/整組/);
 });

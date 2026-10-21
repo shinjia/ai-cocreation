@@ -13,7 +13,7 @@ class OllamaAdapter {
         curl_setopt_array($curl,$options);$ok=curl_exec($curl);$code=curl_errno($curl);$status=(int)curl_getinfo($curl,CURLINFO_HTTP_CODE);curl_close($curl);
         ensure(!$tooLarge,'MODEL_RESPONSE_TOO_LARGE','Ollama 回應超過安全上限，已停止。',502);
         if($ok===false){$messages=array(CURLE_COULDNT_CONNECT=>'無法連到本機 Ollama。請確認 Ollama 已啟動，且服務埠號正確。',CURLE_OPERATION_TIMEDOUT=>'Ollama 回應逾時。模型可能正在載入或主機記憶體不足；沒有自動重試。');throw new AppError('OLLAMA_CONNECTION',isset($messages[$code])?$messages[$code]:'Ollama 連線未完成（cURL '.$code.'）；請檢查本機服務設定。',502);}
-        if($status<200||$status>=300){$hints=array(400=>'模型或格式參數不相容。請更新 Ollama 並確認模型支援結構化輸出。',404=>'找不到 API 路徑或指定模型。請先用連線檢查核對已安裝的模型名稱。',500=>'Ollama 無法載入或執行模型；請查看 Ollama 程式中的記憶體／模型錯誤。',503=>'本機模型服務忙碌或尚未就緒。');throw new AppError('OLLAMA_HTTP_ERROR','Ollama HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'服務未完成要求。').' 未回傳原始內容，避免洩漏學生資料。',502);}
+        if($status<200||$status>=300){$hints=array(400=>'模型或格式參數不相容。請更新 Ollama 並確認模型支援結構化輸出。',404=>'找不到 API 路徑或指定模型。請先用連線檢查核對已安裝的模型名稱。',500=>'Ollama 無法載入或執行模型；請查看 Ollama 程式中的記憶體／模型錯誤。',503=>'本機模型服務忙碌或尚未就緒。');throw new AppError('OLLAMA_HTTP_ERROR','Ollama HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'服務未完成要求。').' 未回傳原始內容，避免洩漏使用者資料。',502);}
         try{$data=json_decode($body,false,128,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('MODEL_OUTPUT_INVALID','Ollama 回應不是有效 JSON。請確認埠號上的服務確實是 Ollama。',502);}
         ensure(plain($data),'MODEL_OUTPUT_INVALID','Ollama 回應格式不正確。',502);ensure(!field($data,'error'),'OLLAMA_MODEL_ERROR','Ollama 回報模型錯誤。請確認模型已安裝、可載入且支援結構化輸出。',502);return $data;
     }

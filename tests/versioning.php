@@ -43,6 +43,10 @@ function versioningItem($project,$id) {
 }
 function versioningWithoutCoordinates($version) {unset($version['major'],$version['minor']);return $version;}
 function versioningLast($values) {return $values[count($values)-1];}
+function versioningCombinedFromLegacyFields($version) {
+    unset($version['goalAndRationale']);
+    return versionGoalAndRationale($version);
+}
 function versioningLegacy($number,$text) {
     return array('id'=>newId(),'number'=>$number,'title'=>$text,
         'items'=>array(array('id'=>'name','label'=>'名稱','content'=>$text)),
@@ -134,9 +138,13 @@ class VersioningFixtureAdapter {
         if(isset($props['outcome'])) {
             $official=$data['officialVersion'];$items=$official['items'];$goal=versionGoalText($official);
             if($this->mode==='goal_only')$goal='只更新本版目標：以溫暖語氣邀請第一次參加的同學。';
-            elseif($this->mode!=='unchanged')$items[0]['content']=$data['latestStudentMessage'];
+            elseif($this->mode!=='unchanged')$items[0]['content']=$data['latestUserMessage'];
             $out=array('outcome'=>'revision','reply'=>'已準備待審閱的完整修訂。','question'=>'','items'=>$items,
                 'rationale'=>'保留其餘內容，依本次要求調整。','goalText'=>$goal,'changeSummary'=>$this->mode==='goal_only'?'只修改本版目標，內容保持原文。':'只修改本次指定名稱，其餘完整保留。');
+            if($this->mode==='unchanged'&&versionHasCombinedOverride($official)) {
+                $out['rationale']='只依本次要求恢復先前目標，所有作品內容保持原文。';
+                $out['changeSummary']='將手動合併欄位中的新目標恢復為保留的先前目標，不修改作品文字。';
+            }
             if($this->mode==='missing_goal')unset($out['goalText']);
             if($this->mode==='empty_summary')$out['changeSummary']='';
         }elseif(isset($props['purpose'])) {
@@ -188,6 +196,35 @@ versioningCheck(nextVersionCoordinates($mixed['versions'],'minor',$mixed['versio
 versioningReject(function(){nextVersionCoordinates(array(),'minor');},'VERSION_BASE_REQUIRED');
 versioningReject(function(){nextVersionCoordinates(array(),'unsupported');},'VERSION_MODE');
 
+// Single-input metadata compatibility. These native PHP assertions are prepared
+// but UNEXECUTED in this authoring environment; do not infer a runtime pass.
+$combinedLegacy=array('id'=>str_repeat('6',32),'goalText'=>'本版自己的目標。',
+    'goalSnapshot'=>array('summary'=>'不能覆蓋已有 goalText 的舊摘要。'),
+    'changeSummary'=>'討論後採納的變更。','rationale'=>'保留不同修改意見。');
+$combinedLegacyBefore=$combinedLegacy;
+$combinedExpected="本版目標：\n本版自己的目標。\n\n討論與變更摘要：\n討論後採納的變更。\n\n修改意見：\n保留不同修改意見。";
+versioningCheck(versionGoalAndRationale($combinedLegacy)===$combinedExpected,'legacy distinct goal summary and comments combine in order with labels');
+versioningCheck($combinedLegacy===$combinedLegacyBefore&&!array_key_exists('goalAndRationale',$combinedLegacy),'combined helper never backfills or mutates legacy records');
+$equalLegacy=array('goalText'=>'完全相同的文字。','changeSummary'=>'完全相同的文字。','rationale'=>'完全相同的文字。');
+versioningCheck(versionGoalAndRationale($equalLegacy)==="本版目標：\n完全相同的文字。",'legacy exact duplicate values appear only once');
+$partialEqual=array('goalText'=>'不同目標。','changeSummary'=>'相同修改內容。','rationale'=>'相同修改內容。');
+versioningCheck(versionGoalAndRationale($partialEqual)==="本版目標：\n不同目標。\n\n討論與變更摘要：\n相同修改內容。",'duplicate summary and rationale retain only first label');
+$fallbackLegacy=array('goalSnapshot'=>array('summary'=>'只有舊快照的目標。'),'changeSummary'=>'','rationale'=>'保留舊意見。');
+versioningCheck(versionGoalAndRationale($fallbackLegacy)==="本版目標：\n只有舊快照的目標。\n\n修改意見：\n保留舊意見。",'missing goalText falls back to goalSnapshot and skips empty text');
+versioningCheck(versionGoalAndRationale(array())===''&&versionGoalAndRationale(array('goalText'=>'','changeSummary'=>'','rationale'=>''))==='','absent or empty legacy metadata does not fabricate labels');
+$storedCombined=$combinedLegacy;$storedCombined['goalAndRationale']="  使用者自行合併的原文。\n\n保留原來換行與空白。  ";
+versioningCheck(versionGoalAndRationale($storedCombined)===$storedCombined['goalAndRationale'],'stored combined string is authoritative and returned verbatim');
+$storedEmpty=$combinedLegacy;$storedEmpty['goalAndRationale']='';
+versioningCheck(versionGoalAndRationale($storedEmpty)==='','stored empty combined string remains authoritative rather than resurrecting old text');
+$repeatedCombined=$combinedLegacy;
+for($i=0;$i<4;$i++) {
+    $repeatedCombined['goalAndRationale']=versionGoalAndRationale($repeatedCombined);
+    versioningCheck($repeatedCombined['goalAndRationale']===$combinedExpected,'reopening combined editor does not duplicate old labels or text '.$i);
+}
+$combinedComparisonSnapshot=versionComparisonSnapshot($storedCombined);
+versioningCheck($combinedComparisonSnapshot['goalAndRationale']===$storedCombined['goalAndRationale']&&$combinedComparisonSnapshot['goalText']===$storedCombined['goalText']&&$combinedComparisonSnapshot['rationale']===$storedCombined['rationale'],'comparison snapshot includes authoritative combined text and preserves separate historical evidence');
+versioningCheck(versionComparisonSnapshot($combinedLegacy)['goalAndRationale']===null&&$combinedLegacy===$combinedLegacyBefore,'legacy comparison keeps missing stored combined evidence absent without mutating source');
+
 $dir=sys_get_temp_dir().'/cocreation-versioning-'.bin2hex(random_bytes(6));mkdir($dir,0700,true);
 try {
     $_SESSION=array('csrf'=>str_repeat('b',64));$owner=str_repeat('a',64);
@@ -206,6 +243,7 @@ try {
     foreach($generated as $i=>$v) {
         versioningCheck($v['goalText']===$v['goalSnapshot']['summary']&&$v['goalText']!==$p['brief']['summary']&&$v['goalSource']==='ai'&&$v['changeSummary']!==''&&$v['basedOnVersionId']===null,'generated version keeps its own goal and same-call summary');
         versioningCheck(count($v['discussionMessageIds'])===2&&$messagesById[$v['discussionMessageIds'][0]]['kind']==='generation_request'&&$messagesById[$v['discussionMessageIds'][1]]['kind']==='generation','generated metadata points to actual request and reply');
+        versioningCheck(isset($v['goalAndRationale'])&&$v['goalAndRationale']===versioningCombinedFromLegacyFields($v),'generated combined text contains same-call version goal summary and rationale');
     }
     $beforeCalls=$model->calls;$app->action($request);
     versioningCheck($model->calls===$beforeCalls,'generation replay never invokes a model twice');
@@ -254,6 +292,7 @@ try {
     $result=$app->action($request);$p=$result['project'];$goalRevision=versioningLast($p['versions']);
     versioningCheck($model->calls===$beforeCalls+1&&count($model->schema['properties'])===7&&isset($model->schema['properties']['goalText'],$model->schema['properties']['changeSummary']),'refine uses exactly one seven-field model response');
     versioningCheck($goalRevision['items']===$major['items']&&$goalRevision['goalText']!==$major['goalText']&&$goalRevision['goalSnapshot']['summary']===$goalRevision['goalText']&&$goalRevision['changeSummary']==='只修改本版目標，內容保持原文。','goal-only refinement saves an authentic full revision');
+    versioningCheck(isset($goalRevision['goalAndRationale'])&&$goalRevision['goalAndRationale']===versioningCombinedFromLegacyFields($goalRevision),'AI revision stores combined text from this response without another inference');
     versioningCheck(versionLabel($goalRevision)==='V4.1'&&$goalRevision['basedOnVersionId']===$major['id']&&$p['officialVersionId']===$major['id']&&$p['goalApprovedAt']===null,'goal-only revision is minor, does not adopt or fabricate approval');
     versioningCheck($model->data['officialVersion']['goalText']===$major['goalText']&&array_slice($p['versions'],0,count($oldVersions))===$oldVersions,'revision uses official own goal and keeps every previous version immutable');
     $reply=versioningLast($p['messages']);$student=$p['messages'][count($p['messages'])-2];
@@ -408,6 +447,89 @@ try {
     versioningCheck($frozenRevision['provenance']['memberId']===$memberA&&$frozenRevision['provenance']['memberNickname']==='重新啟用的甲'&&$frozenRevision['provenance']['requestedModel']==='fixture-gamma'&&$frozenReply['provenance']===$frozenRevision['provenance'],'revision and response both retain frozen approved member identity and model');
     versioningCheck(array_slice($memberProject['versions'],0,count($memberVersions))===$memberVersions&&array_slice($memberProject['messages'],0,count($memberHistory['messages']))===$memberHistory['messages'],'subsequent roster edits and refinement preserve all prior content and provenance snapshots');
     versioningCheck($memberApp->project($p['id'])===$priorProject&&$memberApp->project($other['id'])===$other,'member end-to-end fixture does not mutate earlier versioning or isolated projects');
+
+    // Isolated single-input save/edit cycle and official-title synchronization.
+    // Its own store and model leave every earlier numbering/call-count assertion intact.
+    $mergedStore=new VersioningMemoryStore();$mergedModel=new VersioningFixtureAdapter();
+    $mergedApp=new CocreationApp($mergedStore,$config,$owner,$mergedModel);
+    $mergedProject=$mergedApp->action(array('action'=>'new','title'=>'合併欄位隔離專案','description'=>'專案名稱與說明不得因採用版本而改動。'))['project'];
+    $mergedOuterTitle=$mergedProject['title'];$mergedOuterDescription=$mergedProject['description'];
+    $mergedInitialItemTitle=$mergedProject['activeItem']['title'];$mergedItemDescription=$mergedProject['activeItem']['description'];
+    for($i=0;$i<3;$i++)$mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'discuss',array('text'=>'合併欄位討論 '.$i)))['project'];
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'summarize'))['project'];
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'approve_goal'))['project'];
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'generate'))['project'];
+    $mergedSeed=$mergedProject['versions'][0];$mergedItems=$mergedSeed['items'];
+    $mergedItems[0]['content']='合併欄位正式名稱';
+    $mergedItems[]=array('id'=>'custom_merged','label'=>'自訂完整補充','content'=>'不可因合併輸入框而遺失的內容。');
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedSeed['id'],'versionMode'=>'major','items'=>$mergedItems,'goalText'=>'舊格式單獨保存的目標。','rationale'=>'舊格式單獨保存的修改意見。')))['project'];
+    $mergedLegacy=versioningLast($mergedProject['versions']);
+    versioningCheck($mergedLegacy['goalText']==='舊格式單獨保存的目標。'&&$mergedLegacy['rationale']==='舊格式單獨保存的修改意見。'&&$mergedLegacy['goalAndRationale']===versioningCombinedFromLegacyFields($mergedLegacy),'old snapshot payload still saves separate fields and derives new combined field');
+    $combinedUserText="\n  改為邀請所有有興趣的人參加。\n\n我的修改意見：少一點口號，多一點具體邀請。\t  \n";
+    $mergedCalls=$mergedModel->calls;
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedLegacy['id'],'versionMode'=>'major','items'=>$mergedItems,'goalAndRationale'=>$combinedUserText)))['project'];
+    $mergedMajor=versioningLast($mergedProject['versions']);
+    versioningCheck(versionLabel($mergedMajor)==='V5'&&$mergedMajor['basedOnVersionId']===$mergedLegacy['id']&&$mergedMajor['goalAndRationale']===$combinedUserText&&$mergedMajor['items']===$mergedItems,'single combined input creates immutable major snapshot with full custom bundle');
+    foreach(array('goalText','goalSnapshot','changeSummary','rationale') as $key)versioningCheck($mergedMajor[$key]===$mergedLegacy[$key],'combined save retains historical separate metadata '.$key.' without trying to split new prose');
+    versioningCheck(versionGoalAndRationale($mergedMajor)===$combinedUserText&&versioningById($mergedProject['versions'],$mergedLegacy['id'])===$mergedLegacy,'saved combined text is authoritative and old snapshot stays immutable');
+    versioningCheck(versioningById($mergedApp->project($mergedProject['id'])['versions'],$mergedMajor['id'])['goalAndRationale']===$combinedUserText&&versionGoalAndRationale($mergedMajor)===$combinedUserText&&trim($combinedUserText)!==$combinedUserText,'combined snapshot storage and editor round-trip preserve exact leading trailing and internal whitespace');
+    $combinedEditedText=versionGoalAndRationale($mergedMajor)."\n\n補充：保留自訂項目與原本的語氣。";
+    $mergedMinorItems=$mergedMajor['items'];$mergedMinorItems[0]['content']='尚未採用的小修改名稱';
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedMajor['id'],'versionMode'=>'minor','items'=>$mergedMinorItems,'goalAndRationale'=>$combinedEditedText)))['project'];
+    $mergedMinor=versioningLast($mergedProject['versions']);
+    versioningCheck(versionLabel($mergedMinor)==='V5.1'&&$mergedMinor['goalAndRationale']===$combinedEditedText&&$mergedMinor['items']===$mergedMinorItems,'single combined input saves full minor snapshot with expected coordinates');
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedMinor['id'],'versionMode'=>'minor','items'=>$mergedMinor['items'],'goalAndRationale'=>versionGoalAndRationale($mergedMinor))))['project'];
+    $mergedRepeat=versioningLast($mergedProject['versions']);
+    versioningCheck(versionLabel($mergedRepeat)==='V5.2'&&versionGoalAndRationale($mergedRepeat)===$combinedEditedText&&$mergedRepeat['goalAndRationale']===$mergedMinor['goalAndRationale'],'snapshot then reopen and save does not duplicate merged legacy fields');
+    versioningCheck($mergedProject['activeItem']['title']===$mergedInitialItemTitle&&$mergedProject['officialVersionId']===null&&$mergedModel->calls===$mergedCalls,'creating major or minor candidates does not rename item or invoke a model');
+
+    $maxCombined=str_repeat('字',4000);
+    versioningCheck(strlen($maxCombined)===12000,'combined-field boundary is 12000 UTF-8 bytes, not characters');
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedMajor['id'],'versionMode'=>'minor','items'=>$mergedItems,'goalAndRationale'=>$maxCombined)))['project'];
+    versioningCheck(versioningLast($mergedProject['versions'])['goalAndRationale']===$maxCombined,'exact 12000-byte combined value is accepted unchanged');
+    foreach(array(str_repeat('x',12001),str_repeat('字',4001),'',array(),"不可\0保存","\xC3\x28") as $invalidCombined) {
+        $beforeMerged=$mergedApp->project($mergedProject['id']);
+        versioningReject(function()use($mergedApp,$mergedProject,$mergedMajor,$mergedItems,$invalidCombined){$mergedApp->action(versioningInput($mergedApp,$mergedProject,'snapshot',array('basedOnVersionId'=>$mergedMajor['id'],'versionMode'=>'minor','items'=>$mergedItems,'goalAndRationale'=>$invalidCombined)));},'INVALID_INPUT');
+        versioningCheck($mergedApp->project($mergedProject['id'])===$beforeMerged&&$mergedModel->calls===$mergedCalls,'invalid combined input is atomic and makes no model call');
+    }
+
+    $mergedVersionsBeforeCompare=$mergedProject['versions'];
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'compare',array('versionIds'=>array($mergedMajor['id'],$mergedMinor['id']),'question'=>'以各版合併保存的目標與修改意見比較。')))['project'];
+    $mergedComparison=versioningLast($mergedProject['comparisons']);
+    versioningCheck($mergedModel->calls===$mergedCalls+1&&array_column($mergedModel->data['selectedVersions'],'goalAndRationale')===array($combinedUserText,$combinedEditedText),'comparison dispatch includes exact selected combined text in one injected call');
+    versioningCheck(array_column($mergedComparison['versionGoalSnapshots'],'goalAndRationale')===array($combinedUserText,$combinedEditedText)&&$mergedProject['versions']===$mergedVersionsBeforeCompare,'comparison stores combined evidence without rewriting selected versions');
+    $mergedBeforePromote=$mergedProject;$mergedCalls=$mergedModel->calls;
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'promote',array('versionId'=>$mergedMajor['id'])))['project'];
+    versioningCheck($mergedProject['officialVersionId']===$mergedMajor['id']&&$mergedProject['activeItem']['title']==='合併欄位正式名稱'&&versioningItem($mergedProject,$mergedProject['activeItemId'])['title']==='合併欄位正式名稱','adopting official version immediately updates active item and item list title');
+    versioningCheck($mergedProject['title']===$mergedOuterTitle&&$mergedProject['description']===$mergedOuterDescription&&$mergedProject['activeItem']['description']===$mergedItemDescription,'official adoption never renames project or rewrites project and item descriptions');
+    versioningCheck($mergedProject['versions']===$mergedBeforePromote['versions']&&$mergedProject['references']===$mergedBeforePromote['references']&&$mergedProject['goalApprovedAt']===$mergedBeforePromote['goalApprovedAt']&&$mergedModel->calls===$mergedCalls,'title synchronization changes no version snapshot reference approval or model-call count');
+    // The manual combined note is goal B; its untouched compatibility field is
+    // still goal A. Returning to A is a real metadata revision, not a no-op.
+    versioningCheck(versionHasCombinedOverride($mergedMajor)&&!versionHasCombinedOverride($mergedLegacy),'manual combined override is distinguished from lossless legacy composition');
+    $mergedBeforeRevert=$mergedProject;$mergedRevertCalls=$mergedModel->calls;$mergedModel->mode='unchanged';
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'discuss',array('text'=>'只把本版目標恢復成舊格式單獨保存的目標，所有作品文字維持原樣。')))['project'];
+    $mergedGoalRevert=versioningLast($mergedProject['versions']);$mergedModel->mode='valid';
+    versioningCheck($mergedModel->calls===$mergedRevertCalls+1&&count($mergedProject['versions'])===count($mergedBeforeRevert['versions'])+1,'goal-only revert from combined override creates one revision with exactly one injected call');
+    versioningCheck($mergedGoalRevert['items']===$mergedMajor['items']&&$mergedGoalRevert['goalText']===$mergedMajor['goalText']&&$mergedGoalRevert['goalAndRationale']!==$mergedMajor['goalAndRationale']&&$mergedGoalRevert['goalAndRationale']===versioningCombinedFromLegacyFields($mergedGoalRevert),'unchanged items and legacy goal A do not hide a genuine change from authoritative combined goal B');
+    versioningCheck($mergedGoalRevert['changeSummary']==='將手動合併欄位中的新目標恢復為保留的先前目標，不修改作品文字。'&&$mergedProject['officialVersionId']===$mergedMajor['id']&&$mergedProject['activeItem']['title']==='合併欄位正式名稱'&&array_slice($mergedProject['versions'],0,count($mergedBeforeRevert['versions']))===$mergedBeforeRevert['versions'],'goal revert keeps explicit same-call explanation without adoption title changes or history rewrite');
+    $mergedCalls=$mergedModel->calls;
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'discuss',array('text'=>'正式版之後的新名稱')))['project'];
+    $mergedRevision=versioningLast($mergedProject['versions']);
+    versioningCheck($mergedModel->calls===$mergedCalls+1&&$mergedModel->data['officialVersion']['goalAndRationale']===$combinedUserText&&$mergedModel->data['officialVersion']['goalText']===$mergedMajor['goalText'],'refinement includes authoritative combined official text and untouched compatibility goal');
+    versioningCheck($mergedRevision['goalAndRationale']===versioningCombinedFromLegacyFields($mergedRevision)&&$mergedRevision['items'][2]===$mergedItems[2],'same-call AI revision stores merged metadata and preserves custom item');
+    versioningCheck($mergedProject['activeItem']['title']==='合併欄位正式名稱'&&$mergedProject['officialVersionId']===$mergedMajor['id'],'new revision candidate alone does not rename the adopted item');
+    $mergedBeforeSecondPromote=$mergedProject;$mergedCalls=$mergedModel->calls;
+    $mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'promote',array('versionId'=>$mergedRevision['id'])))['project'];
+    versioningCheck($mergedProject['activeItem']['title']==='正式版之後的新名稱'&&$mergedProject['officialVersionId']===$mergedRevision['id'],'adopting later revision updates the item title again immediately');
+    versioningCheck($mergedProject['title']===$mergedOuterTitle&&$mergedProject['description']===$mergedOuterDescription&&$mergedProject['versions']===$mergedBeforeSecondPromote['versions']&&$mergedModel->calls===$mergedCalls,'later promotion retains project identity all old snapshots and zero additional inference');
+    foreach(array($mergedLegacy,$mergedMajor,$mergedMinor,$mergedRepeat) as $oldMerged)versioningCheck(versioningById($mergedProject['versions'],$oldMerged['id'])===$oldMerged,'combined edit compare refine and promote leave every prior snapshot immutable');
+
+    $nameChoices=array(array('id'=>'english','label'=>'英文名稱','content'=>'English First'),array('id'=>'custom','label'=>'自訂名稱','content'=>'Generic Middle'),array('id'=>'main','label'=>'中文名稱','content'=>"  正式\n名稱\t範例  "));
+    versioningCheck(officialItemTitle($nameChoices)==='正式 名稱 範例','official title prefers explicit Chinese label and collapses whitespace');
+    versioningCheck(officialItemTitle(array(array('id'=>'other','label'=>'補充','content'=>'First Content'),array('id'=>'name','label'=>'名稱','content'=>'Generic Name')))==='Generic Name','official title chooses generic name before first-content fallback');
+    versioningCheck(officialItemTitle(array(array('id'=>'custom','label'=>'自訂補充','content'=>'第一項的內容')))==='第一項的內容','official title falls back to first content when no name item exists');
+    versioningCheck(officialItemTitle(array(array('id'=>'name','label'=>'中文名稱','content'=>str_repeat('字',61))))===str_repeat('字',59).'…','official title truncates by Unicode code points to 59 plus ellipsis');
+    versioningCheck($mergedApp->project($mergedProject['id'])['title']===$mergedOuterTitle&&$memberApp->project($p['id'])===$priorProject,'isolated merged scenario leaves earlier projects and outer project title unchanged');
     versioningCheck(glob($dir.'/openai-session-keys/*.json')===array(),'fixture created no credential files');
     echo 'TOTAL '.$versioningChecks." versioning checks passed; injected model, in-memory Store, no HTTP/PDO/SQLite/key/user data.\n";
 } finally {versioningCleanup($dir);}

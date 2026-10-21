@@ -24,7 +24,7 @@ class OpenAIAdapter
         if($ok===false)throw new AppError($code===CURLE_OPERATION_TIMEDOUT?'MODEL_TIMEOUT':'MODEL_UNAVAILABLE',$code===CURLE_OPERATION_TIMEDOUT?'OpenAI 回應逾時，無法確認是否已處理或計費。沒有自動重試；請先保留原文。':'無法安全連線 OpenAI。請檢查 PHP cURL、CA 憑證與網路；不要關閉憑證驗證。',502);
         if($status<200||$status>=300){
             $hints=array(400=>'模型或結構化輸出參數不相容，請核對模型名稱。',401=>'API Key 無效或已失效，請清除後重新貼入。',403=>'此 API Key 或專案沒有使用權限。',404=>'找不到指定模型或此專案無權使用。',429=>'達到速率或帳戶額度限制，請查看 OpenAI 專案用量／帳務。');
-            throw new AppError('OPENAI_HTTP_ERROR','OpenAI HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'上游服務未完成請求，請稍後由你決定是否重試。').' 未顯示上游原始回應，以免洩漏金鑰或學生文字。',502);
+            throw new AppError('OPENAI_HTTP_ERROR','OpenAI HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'上游服務未完成請求，請稍後由你決定是否重試。').' 未顯示上游原始回應，以免洩漏金鑰或使用者文字。',502);
         }
         try{return json_decode($body,false,128,JSON_THROW_ON_ERROR);}catch(JsonException $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 回應不是有效 JSON。',502);}
     }
