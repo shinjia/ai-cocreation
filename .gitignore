@@ -1,0 +1,36 @@
+# Machine-specific installation settings and locks. Keep config.example.php tracked.
+config.local.php
+config.local.php.*
+.install.lock
+.install.lock.*
+
+# Credentials and private runtime data must never be committed.
+.env
+.env.*
+!.env.example
+credentials.json
+*.pem
+*.key
+*.sqlite*
+*.db
+*.db-*
+*.log
+openai-session-keys/
+sessions/
+/private/
+/data/
+
+# Local tools, generated packages, backups and editor files.
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+*.zip
+*.tar.gz
+*.bak
+*.backup
+*.orig
+*.swp
+*~
+.DS_Store
+Thumbs.db

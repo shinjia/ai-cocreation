@@ -1,0 +1,66 @@
+Cumulative patch 02 - 2026-10-21 UTC. Real JS transport/renderers with scripted receiver; NO PHP server, real model or credentials.
+✔ local-only HTTP boundary includes loopback, proxy rejection, CSRF, Origin and body cap (11.227943ms)
+✔ temporary vault never lives in config or SQLite, does not echo secret, expires and can clear (1.459903ms)
+✔ paid actions require explicit consent, current model, current key generation, and idempotency (3.011127ms)
+✔ goal approval gate, one question, module boundary, no code execution (2.17131ms)
+✔ official pointer changes only on explicit promote; generation never auto-finalizes (1.910902ms)
+✔ snapshots and comparisons retain exact goal/message/version linkage and enforce membership (3.169818ms)
+✔ fixed HTTPS Responses endpoint, certificate verification, strict schema, no upstream raw errors (1.081577ms)
+✔ installer non-destructive lock, external private data and no secret input (1.664815ms)
+✔ project identity and metadata separate from generated title; all reads scoped (1.872375ms)
+✔ Ollama restricts destination to loopback and never receives OpenAI credential (2.772949ms)
+✔ provider selection binds every call to immutable settings, no automatic fallback (1.934717ms)
+✔ connection tests read only model metadata, no inference (1.176847ms)
+✔ extensible stable-id naming bundles validated and generated only from approved item definitions (2.337867ms)
+✔ project shell separates creative items, isolates active item actions, and pins explicit cross-item references (1.748282ms)
+✔ context changes invalidate projected approvals consistently and finalized metadata requires reopening (1.673206ms)
+✔ generation capacity checked before inference and reference copying avoids recursive content explosion (2.59809ms)
+✔ inference storage budgets bound all copied references and six-byte JSON escaping at capacity edge (18.006492ms)
+✔ official discussion branches into true revisions before initial-goal reset and never promotes automatically (1.589576ms)
+✔ refinement includes current full official bundle, custom labels, current references and genuine output validation (1.551898ms)
+✔ existing official allows manual save without falsely restoring approval; initial work still goal gated (1.02731ms)
+✔ revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction (2.309543ms)
+✔ request IDs use secure random 32-character lowercase hex (3.383783ms)
+✔ goal summary and generation are separate, lifecycle-aware gates (0.600696ms)
+✔ comparison requires 2–5 distinct existing versions, including official (0.995478ms)
+✔ extensible items validate stable IDs, names, content, UTF-8 and limits (0.925716ms)
+✔ provenance labels use immutable request data and distinguish missing actual model (0.252109ms)
+✔ explicit export allowlists project content, excludes keys/session/settings (1.498353ms)
+✔ demo cannot save keys, test providers, or execute unconsented inference (3.252421ms)
+✔ three discussions, summary, approval and generation remain separate (7.029869ms)
+✔ whole-group snapshots, lineage, promotion and comparisons preserve originals (3.954245ms)
+✔ finalization snapshots entire group; reopen and metadata changes preserve history (4.026925ms)
+✔ projects reopen independently and returned objects cannot mutate saved history (2.958921ms)
+✔ demo source has no networking or persistent browser storage; rendering never uses HTML injection (13.568608ms)
+✔ creative items isolate discussion, draft source versions, and unavailable capabilities (2.203555ms)
+✔ cross-item references are explicit immutable whole-version copies (4.359626ms)
+✔ archive is recoverable; project closure respects every nonarchived item (3.718499ms)
+✔ summary count excludes reference and lifecycle messages from the three discussions (0.163262ms)
+✔ real renderer DOM fixture initializes, preserves drafts on item switch, and cancels AI without sending (65.100708ms)
+✔ real settings DOM fixture preserves history, switches next-call model, clears key before adapter request (26.245415ms)
+✔ key expiry accepts Unix seconds instead of displaying 1970 (0.727003ms)
+✔ live renderer creates a project through real fetch transport and reopens after bootstrap (6.658391ms)
+✔ revision helpers track the newest unadopted branch and diff by stable item IDs (0.78906ms)
+✔ demo discussion refines official full bundles repeatedly only after explicit adoption (4.906002ms)
+✔ vague questions and no-op demo changes ask for clarification without fake revisions or goal resets (1.594151ms)
+✔ existing official can be revised and manually saved with legacy null approval while finalize guards remain (2.095648ms)
+✔ finalized official blocks discussion until reopened and new revisions preserve finalization snapshot (1.942201ms)
+✔ real renderer plus real fetch adapter promotes, revises, reviews and adopts whole bundles repeatedly (113.154066ms)
+✔ real renderer does not block official manual edits or discussion when old goal approval is null (34.066296ms)
+✔ live PHP promotion history does not resurrect an already-adopted revision after selecting its old base (0.483267ms)
+✔ real fetch transport creates project with required body action, CSRF and JSON content type (3.034611ms)
+✔ every mutation route serializes authoritative action alongside unchanged payload (1.465132ms)
+✔ initial state and subsequent project reopen remain GET with query ID, no body or credentials in URL (0.722557ms)
+✔ missing action control reproduces exact PHP rejection and adapter surfaces 400 without retry (4.676473ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 453.573001
+PASS: Actual SQLite schema, insert/upsert owner isolation, read ownership, request uniqueness, non-destructive reinitialization (7 checks, including owner-scoped settings).
+NOT RUN: PHP PDO integration or HTTP workflow.
+PASS: Pygments lexer found balanced delimiters and no lexer errors in 18 PHP files.
+NOT RUN: PHP parser, php -l, PHP PDO runtime, Apache, or OpenAI API. A lexer pass is NOT a syntax/runtime pass.

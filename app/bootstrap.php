@@ -1,0 +1,11 @@
+<?php
+require_once __DIR__.'/validation.php';
+require_once __DIR__.'/config.php';
+require_once __DIR__.'/store.php';
+require_once __DIR__.'/credential.php';
+require_once __DIR__.'/model.php';
+require_once __DIR__.'/ollama.php';
+require_once __DIR__.'/modules/titles.php';
+require_once __DIR__.'/modules.php';
+require_once __DIR__.'/session.php';
+require_once __DIR__.'/app.php';
