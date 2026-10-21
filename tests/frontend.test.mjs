@@ -82,7 +82,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version5"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version5"/);assert.match(html,/demo\.js\?v=20261021-version5/);assert.match(demo,/app\.js\?v=20261021-version5/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version6"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version6"/);assert.match(html,/demo\.js\?v=20261021-version6/);assert.match(demo,/app\.js\?v=20261021-version6/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -765,4 +765,47 @@ test('workspace terminology describes creative content and dynamic version savin
   assert.equal(doc.getElementById('editor-heading').textContent,'編輯創作內容');assert.equal(doc.getElementById('save-snapshot').textContent,'另存新版本 V5');assert.equal(doc.getElementById('save-minor').textContent,'另存小修改 V4.1');assert.doesNotMatch(root.textContent,/整組名稱|整組另存|指定小修改/);
  });
  for(const path of ['../public/app.js','../public/demo.js'])assert.doesNotMatch(await readFile(new URL(path,import.meta.url),'utf8'),/整組/);
+});
+
+test('official snapshot leads the current item workspace in the same desktop and mobile logical order',async()=>{
+ await withLiveFixture(async({doc,root,project,calls})=>{
+  const main=doc.getElementById('workspace'),overview=doc.getElementById('official-section'),layout=root.querySelector('.workspace-layout'),card=root.querySelector('.official-card'),official=project.versions.find(v=>v.id===project.officialVersionId);
+  assert.equal(main.className,'item-workspace');assert.deepEqual(main.children,[overview,layout]);assert.equal(layout.children[0],root.querySelector('.dialogue-panel'));assert.equal(layout.children[1],root.querySelector('.work-column'));
+  const shell=main.parentNode;assert.ok(shell.children.indexOf(root.querySelector('.creative-items-panel'))<shell.children.indexOf(main));assert.ok(shell.children.indexOf(root.querySelector('.active-item-header'))<shell.children.indexOf(main));
+  assert.equal(overview.getAttribute('aria-labelledby'),'official-heading');assert.equal(doc.getElementById('official-heading').textContent,'03 正式版');assert.equal(card.parentNode,overview);assert.equal(root.querySelectorAll('.official-card').length,1);assert.equal(root.querySelectorAll('#version-'+official.id).length,1);assert.equal(layout.querySelector('.official-card'),null);
+  assert.match(card.textContent,new RegExp(versionLabel(official)));assert.match(doc.getElementById('official-status').textContent,/討論中/);for(const field of official.items)assert.ok(card.textContent.includes(field.content));
+  const content=doc.getElementById('official-content');assert.equal(content.getAttribute('tabindex'),'0');assert.equal(content.getAttribute('role'),'region');assert.equal(content.getAttribute('aria-label'),'目前正式版完整創作內容');
+  assert.equal(!!doc.getElementById('official-details').open,false);assert.ok(card.querySelector('input'));assert.ok(card.querySelectorAll('button').some(b=>b.textContent==='請 AI 繼續修改'));assert.ok(card.querySelectorAll('button').some(b=>b.textContent==='手動編輯這一版'));
+  assert.equal(doc.getElementById('discussion-member').closest('.dialogue-panel'),layout.children[0]);assert.deepEqual(calls.map(c=>c.action),['state','project']);
+ });
+ const css=await readFile(new URL('../public/styles.css',import.meta.url),'utf8');assert.match(css,/\.official-content\{max-height:22rem;overflow:auto/);assert.match(css,/\.official-content:focus-visible\{outline:/);assert.match(css,/@media\(max-width:760px\)\{\.official-overview/);assert.match(css,/@media print\{\.official-content\{max-height:none;overflow:visible\}/);
+ for(const block of css.matchAll(/\.(?:item-workspace|official-overview|official-content)[^{]*\{([^}]*)\}/g))assert.doesNotMatch(block[1],/position\s*:\s*(?:fixed|sticky)|\border\s*:/);
+});
+
+test('official reading state survives member and checkbox rerenders, but a newly adopted version starts fresh',async()=>{
+ await withMemberFixture(async context=>{
+  const {doc,root,calls,second}=context,official=context.project.versions.find(v=>v.id===context.project.officialVersionId),candidate=context.project.versions.find(v=>v.id!==official.id),original=structuredClone(context.project.versions);
+  doc.getElementById('official-content').scrollTop=120;doc.getElementById('official-details').open=true;await fixtureSelect(doc,'discussion-member',second);
+  assert.equal(doc.getElementById('official-content').scrollTop,120);assert.equal(doc.getElementById('official-details').open,true);await fixtureVersionSelect(doc,official.id);assert.equal(doc.getElementById('official-content').scrollTop,120);assert.equal(doc.getElementById('official-details').open,true);
+  await fixtureCardClick(doc,candidate.id,'設為正式版');await fixtureDialogClick(doc,'取消');assert.equal(doc.getElementById('official-content').scrollTop,120);assert.equal(doc.getElementById('official-details').open,true);assert.equal(context.project.officialVersionId,official.id);
+  await fixtureCardClick(doc,candidate.id,'設為正式版');await fixtureDialogClick(doc,'設為正式版');assert.equal(context.project.officialVersionId,candidate.id);assert.equal(doc.getElementById('official-content').scrollTop,0);assert.equal(!!doc.getElementById('official-details').open,false);assert.equal(root.querySelectorAll('.official-card').length,1);assert.equal(root.querySelectorAll('#version-'+candidate.id).length,1);assert.deepEqual(context.project.versions,original);assert.ok(!calls.some(c=>['discuss','generate','compare'].includes(c.action)));
+ });
+});
+
+test('top official area explicitly stays empty until a candidate is adopted',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,source,app}=context;let p=await call(source,'create_item',context.project,{type:'titles',title:'尚未採用的項目',description:'保留這份說明'});await app.reload();
+  assert.equal(doc.getElementById('workspace').children[0],doc.getElementById('official-section'));assert.equal(root.querySelector('.official-card'),null);assert.match(doc.getElementById('official-section').textContent,/目前尚未指定正式版/);assert.match(doc.getElementById('official-status').textContent,/尚未指定/);
+  for(const text of ['活動命名','一般觀眾','溫暖邀請'])p=await call(source,'discuss',p,{text,consent:true});p=await call(source,'summarize',p,{consent:true});p=await call(source,'approve_goal',p);p=await call(source,'generate',p,{consent:true});await app.reload();
+  assert.equal(p.officialVersionId,null);assert.equal(root.querySelector('.official-card'),null);assert.match(doc.getElementById('official-section').textContent,/從下方候選選擇/);assert.equal(root.querySelector('.candidate-grid').children.length,p.versions.length);assert.equal(context.project.activeItem.title,'尚未採用的項目');
+ });
+});
+
+test('top official status distinguishes pending changes and finalized or archived work without changing snapshots',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,source,app}=context;let p=context.project;const original=structuredClone(p.versions.find(v=>v.id===p.officialVersionId));
+  p=await call(source,'discuss',p,{text:'請把第一項內容改為「尚未採用的新名稱」',consent:true});await app.reload();assert.match(doc.getElementById('official-section').textContent,/有待審閱的修改，尚未取代目前正式版/);assert.equal(root.querySelector('.official-card').id,'version-'+original.id);assert.ok(root.querySelector('.official-card').textContent.includes(original.items[0].content));
+  p=await call(source,'finalize',p);await app.reload();assert.equal(doc.getElementById('official-status').textContent,'已定稿');assert.equal(fixtureButton(doc,'請 AI 繼續修改').disabled,true);
+  p=await call(source,'reopen',p);await app.reload();assert.match(doc.getElementById('official-status').textContent,/討論中/);p=await call(source,'archive_item',p);await app.reload();assert.equal(doc.getElementById('official-status').textContent,'已封存 · 唯讀');assert.deepEqual(context.project.versions.find(v=>v.id===original.id),original);assert.equal(root.querySelectorAll('.official-card').length,1);
+ });
 });
