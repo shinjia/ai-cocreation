@@ -1,2678 +1,655 @@
-TAP version 13
-# Subtest: native validator has two exact bounded artifact shapes, never text substitutes
-ok 1 - native validator has two exact bounded artifact shapes, never text substitutes
-  ---
-  duration_ms: 26.477085
-  type: 'test'
-  ...
-# Subtest: table text and stable identities are preserved with byte, UTF8 and existing-secret guards
-ok 2 - table text and stable identities are preserved with byte, UTF8 and existing-secret guards
-  ---
-  duration_ms: 7.033447
-  type: 'test'
-  ...
-# Subtest: chart parser has real TSV numeric data, consistent rows and bounded dimensions
-ok 3 - chart parser has real TSV numeric data, consistent rows and bounded dimensions
-  ---
-  duration_ms: 4.039567
-  type: 'test'
-  ...
-# Subtest: numeric grammar and decimal magnitude reject executable data, exponent and rounded-bound bypass
-ok 4 - numeric grammar and decimal magnitude reject executable data, exponent and rounded-bound bypass
-  ---
-  duration_ms: 7.412837
-  type: 'test'
-  ...
-# Subtest: source normalizes only CRLF while retaining conventional final newline and source formatting
-ok 5 - source normalizes only CRLF while retaining conventional final newline and source formatting
-  ---
-  duration_ms: 5.516904
-  type: 'test'
-  ...
-# Subtest: legacy projection is always server derived from full validated artifacts
-ok 6 - legacy projection is always server derived from full validated artifacts
-  ---
-  duration_ms: 4.886985
-  type: 'test'
-  ...
-# Subtest: provider native schemas forbid extra properties and use strict nested string-array objects
-ok 7 - provider native schemas forbid extra properties and use strict nested string-array objects
-  ---
-  duration_ms: 3.201872
-  type: 'test'
-  ...
-# Subtest: artifact module reuses strict fixed-model path and seven-field ready/exploring brief
-ok 8 - artifact module reuses strict fixed-model path and seven-field ready/exploring brief
-  ---
-  duration_ms: 2.112345
-  type: 'test'
-  ...
-# Subtest: generation produces exactly one complete artifact with metadata in one bounded call
-ok 9 - generation produces exactly one complete artifact with metadata in one bounded call
-  ---
-  duration_ms: 7.757938
-  type: 'test'
-  ...
-# Subtest: refinement uses candidate source, forbids paragraph ranges, and rejects fake changes
-ok 10 - refinement uses candidate source, forbids paragraph ranges, and rejects fake changes
-  ---
-  duration_ms: 5.157601
-  type: 'test'
-  ...
-# Subtest: strict clarification echoes exact source then discards it with bounded unused metadata
-ok 11 - strict clarification echoes exact source then discards it with bounded unused metadata
-  ---
-  duration_ms: 3.876005
-  type: 'test'
-  ...
-# Subtest: fusion receives only explicit 2–5 source artifacts and their goals, not shared creative goal
-ok 12 - fusion receives only explicit 2–5 source artifacts and their goals, not shared creative goal
-  ---
-  duration_ms: 5.838338
-  type: 'test'
-  ...
-# Subtest: native fixtures explicitly distinguish preparation from executed runtime coverage
-ok 13 - native fixtures explicitly distinguish preparation from executed runtime coverage
-  ---
-  duration_ms: 2.81516
-  type: 'test'
-  ...
-# Subtest: flowchart parser enforces declared bounded graphs, reserved ids and strict safe labels
-ok 14 - flowchart parser enforces declared bounded graphs, reserved ids and strict safe labels
-  ---
-  duration_ms: 1.886722
-  type: 'test'
-  ...
-# Subtest: flowchart source-export grammar rejects hidden statements and unsupported nested shapes
-ok 15 - flowchart source-export grammar rejects hidden statements and unsupported nested shapes
-  ---
-  duration_ms: 1.635269
-  type: 'test'
-  ...
-# Subtest: raw JSON guard preserves object-array identity before associative conversion
-ok 16 - raw JSON guard preserves object-array identity before associative conversion
-  ---
-  duration_ms: 3.867763
-  type: 'test'
-  ...
-# Subtest: native defaults contain no invented chart numbers and support only table/chart
-ok 17 - native defaults contain no invented chart numbers and support only table/chart
-  ---
-  duration_ms: 5.009092
-  type: 'test'
-  ...
-# Subtest: table validation preserves stable IDs, whitespace, empty cells and immutable clones
-ok 18 - table validation preserves stable IDs, whitespace, empty cells and immutable clones
-  ---
-  duration_ms: 2.444616
-  type: 'test'
-  ...
-# Subtest: table exact shape, stable ASCII identifiers, dimensions and string types are enforced
-ok 19 - table exact shape, stable ASCII identifiers, dimensions and string types are enforced
-  ---
-  duration_ms: 2.591925
-  type: 'test'
-  ...
-# Subtest: native validation enforces UTF8 bytes, malformed Unicode/NUL, full JSON size, and secret guard
-ok 20 - native validation enforces UTF8 bytes, malformed Unicode/NUL, full JSON size, and secret guard
-  ---
-  duration_ms: 7.585243
-  type: 'test'
-  ...
-# Subtest: chart parser canonical labels, decimal values, CRLF and optional terminal LF match the native contract
-ok 21 - chart parser canonical labels, decimal values, CRLF and optional terminal LF match the native contract
-  ---
-  duration_ms: 0.639547
-  type: 'test'
-  ...
-# Subtest: chart rejects formulas, loose numbers, whitespace, magnitude rounding bypasses and unsupported types
-ok 22 - chart rejects formulas, loose numbers, whitespace, magnitude rounding bypasses and unsupported types
-  ---
-  duration_ms: 0.818732
-  type: 'test'
-  ...
-# Subtest: chart rejects malformed, oversized, duplicate and empty source labels without guessing data
-ok 23 - chart rejects malformed, oversized, duplicate and empty source labels without guessing data
-  ---
-  duration_ms: 0.773645
-  type: 'test'
-  ...
-# Subtest: pie rejects multiple series, negative numbers including underflow, and zero sum
-ok 24 - pie rejects multiple series, negative numbers including underflow, and zero sum
-  ---
-  duration_ms: 0.53377
-  type: 'test'
-  ...
-# Subtest: authoritative item projection includes full table text and all chart metadata without formula mutation
-ok 25 - authoritative item projection includes full table text and all chart metadata without formula mutation
-  ---
-  duration_ms: 0.860313
-  type: 'test'
-  ...
-# Subtest: CSV and TSV protect spreadsheet formula cells while preserving quoted multiline literals
-ok 26 - CSV and TSV protect spreadsheet formula cells while preserving quoted multiline literals
-  ---
-  duration_ms: 0.997896
-  type: 'test'
-  ...
-# Subtest: chart TSV escapes only text fields, leaving strict numeric negative/positive values as numbers
-ok 27 - chart TSV escapes only text fields, leaving strict numeric negative/positive values as numbers
-  ---
-  duration_ms: 0.545116
-  type: 'test'
-  ...
-# Subtest: table rendering uses real DOM text, semantic headers/caption and a keyboard-accessible scroll region
-ok 28 - table rendering uses real DOM text, semantic headers/caption and a keyboard-accessible scroll region
-  ---
-  duration_ms: 1.429425
-  type: 'test'
-  ...
-# Subtest: bar, line and pie previews render finite actual geometry plus complete accessible text data
-ok 29 - bar, line and pie previews render finite actual geometry plus complete accessible text data
-  ---
-  duration_ms: 3.90653
-  type: 'test'
-  ...
-# Subtest: zero and single-point chart cases never fabricate values or produce invalid geometry
-ok 30 - zero and single-point chart cases never fabricate values or produce invalid geometry
-  ---
-  duration_ms: 2.19703
-  type: 'test'
-  ...
-# Subtest: safe SVG export uses escaped XML primitives, includes all values, and never executes source text
-ok 31 - safe SVG export uses escaped XML primitives, includes all values, and never executes source text
-  ---
-  duration_ms: 5.936334
-  type: 'test'
-  ...
-# Subtest: table editor independently changes columns, rows and cells while preserving stable identity and saved inputs
-ok 32 - table editor independently changes columns, rows and cells while preserving stable identity and saved inputs
-  ---
-  duration_ms: 12.331114
-  type: 'test'
-  ...
-# Subtest: table editor retains invalid text drafts and disables minimum/maximum structural actions
-ok 33 - table editor retains invalid text drafts and disables minimum/maximum structural actions
-  ---
-  duration_ms: 19.372562
-  type: 'test'
-  ...
-# Subtest: editor controls have unique explicit labels, including ambiguous stable-ID combinations and repeated prefixes
-ok 34 - editor controls have unique explicit labels, including ambiguous stable-ID combinations and repeated prefixes
-  ---
-  duration_ms: 2.023674
-  type: 'test'
-  ...
-# Subtest: disabled editor cannot change artifacts or expose active mutating controls
-ok 35 - disabled editor cannot change artifacts or expose active mutating controls
-  ---
-  duration_ms: 3.640286
-  type: 'test'
-  ...
-# Subtest: chart source editing keeps invalid drafts, removes stale visual, and re-renders from changed values
-ok 36 - chart source editing keeps invalid drafts, removes stale visual, and re-renders from changed values
-  ---
-  duration_ms: 2.335505
-  type: 'test'
-  ...
-# Subtest: frontend errors correspond exactly to PHP validation messages and public module contains no unsafe side effects
-ok 37 - frontend errors correspond exactly to PHP validation messages and public module contains no unsafe side effects
-  ---
-  duration_ms: 29.764017
-  type: 'test'
-  ...
-# Subtest: flowchart parser handles safe declared shapes, forward references, TB alias, comments, labels and cycles
-ok 38 - flowchart parser handles safe declared shapes, forward references, TB alias, comments, labels and cycles
-  ---
-  duration_ms: 1.464346
-  type: 'test'
-  ...
-# Subtest: flowchart rejects unsupported directives, wrong headers, implicit nodes, chains and reserved identifiers
-ok 39 - flowchart rejects unsupported directives, wrong headers, implicit nodes, chains and reserved identifiers
-  ---
-  duration_ms: 0.763821
-  type: 'test'
-  ...
-# Subtest: flowchart source-export bypasses and nested non-subset shapes are rejected rather than silently reinterpreted
-ok 40 - flowchart source-export bypasses and nested non-subset shapes are rejected rather than silently reinterpreted
-  ---
-  duration_ms: 1.076022
-  type: 'test'
-  ...
-# Subtest: flowchart validates the entire source including ignored comments against Unicode line and bidi bypasses
-ok 41 - flowchart validates the entire source including ignored comments against Unicode line and bidi bypasses
-  ---
-  duration_ms: 3.027329
-  type: 'test'
-  ...
-# Subtest: flowchart label grammar forbids entities, HTML, escapes, controls, executable links and unquoted delimiters
-ok 42 - flowchart label grammar forbids entities, HTML, escapes, controls, executable links and unquoted delimiters
-  ---
-  duration_ms: 0.860353
-  type: 'test'
-  ...
-# Subtest: flowchart caps node and edge complexity, including cyclic diagrams with complete finite geometry
-ok 43 - flowchart caps node and edge complexity, including cyclic diagrams with complete finite geometry
-  ---
-  duration_ms: 26.458136
-  type: 'test'
-  ...
-# Subtest: flowchart renders real node shapes, arrows, self loops, labels, accessible text and escaped title
-ok 44 - flowchart renders real node shapes, arrows, self loops, labels, accessible text and escaped title
-  ---
-  duration_ms: 3.733905
-  type: 'test'
-  ...
-# Subtest: flowchart MMD/TXT exports preserve normalized user source, never add directives or silently convert modes
-ok 45 - flowchart MMD/TXT exports preserve normalized user source, never add directives or silently convert modes
-  ---
-  duration_ms: 0.393482
-  type: 'test'
-  ...
-# Subtest: chart mode switch retains drafts, updates source label, hides flow axes, and does not claim placeholder is AI output
-ok 46 - chart mode switch retains drafts, updates source label, hides flow axes, and does not claim placeholder is AI output
-  ---
-  duration_ms: 1.724442
-  type: 'test'
-  ...
-# Subtest: metadata uses textareas and preserves valid multiline strings rather than single-line input sanitization
-ok 47 - metadata uses textareas and preserves valid multiline strings rather than single-line input sanitization
-  ---
-  duration_ms: 1.147036
-  type: 'test'
-  ...
-# Subtest: local-only HTTP boundary includes loopback, proxy rejection, CSRF, Origin and body cap
-ok 48 - local-only HTTP boundary includes loopback, proxy rejection, CSRF, Origin and body cap
-  ---
-  duration_ms: 24.860401
-  type: 'test'
-  ...
-# Subtest: temporary vault never lives in config or SQLite, does not echo secret, expires and can clear
-ok 49 - temporary vault never lives in config or SQLite, does not echo secret, expires and can clear
-  ---
-  duration_ms: 3.151664
-  type: 'test'
-  ...
-# Subtest: paid actions require explicit consent, current model, current key generation, and idempotency
-ok 50 - paid actions require explicit consent, current model, current key generation, and idempotency
-  ---
-  duration_ms: 3.674857
-  type: 'test'
-  ...
-# Subtest: goal approval gate, one question, module boundary, no code execution
-ok 51 - goal approval gate, one question, module boundary, no code execution
-  ---
-  duration_ms: 3.596731
-  type: 'test'
-  ...
-# Subtest: official pointer changes only on explicit promote; generation never auto-finalizes
-ok 52 - official pointer changes only on explicit promote; generation never auto-finalizes
-  ---
-  duration_ms: 1.002033
-  type: 'test'
-  ...
-# Subtest: snapshots and comparisons retain exact goal/message/version linkage and enforce membership
-ok 53 - snapshots and comparisons retain exact goal/message/version linkage and enforce membership
-  ---
-  duration_ms: 9.486286
-  type: 'test'
-  ...
-# Subtest: fixed HTTPS Responses endpoint, certificate verification, strict schema, no upstream raw errors
-ok 54 - fixed HTTPS Responses endpoint, certificate verification, strict schema, no upstream raw errors
-  ---
-  duration_ms: 1.555371
-  type: 'test'
-  ...
-# Subtest: installer non-destructive lock, external private data and no secret input
-ok 55 - installer non-destructive lock, external private data and no secret input
-  ---
-  duration_ms: 2.02101
-  type: 'test'
-  ...
-# Subtest: project identity and metadata separate from generated title; all reads scoped
-ok 56 - project identity and metadata separate from generated title; all reads scoped
-  ---
-  duration_ms: 3.884818
-  type: 'test'
-  ...
-# Subtest: Ollama restricts destination to loopback and never receives OpenAI credential
-ok 57 - Ollama restricts destination to loopback and never receives OpenAI credential
-  ---
-  duration_ms: 2.49367
-  type: 'test'
-  ...
-# Subtest: provider selection binds every call to immutable settings, no automatic fallback
-ok 58 - provider selection binds every call to immutable settings, no automatic fallback
-  ---
-  duration_ms: 16.167761
-  type: 'test'
-  ...
-# Subtest: connection tests read only model metadata, no inference
-ok 59 - connection tests read only model metadata, no inference
-  ---
-  duration_ms: 3.61599
-  type: 'test'
-  ...
-# Subtest: extensible stable-id naming bundles validated and generated only from approved item definitions
-ok 60 - extensible stable-id naming bundles validated and generated only from approved item definitions
-  ---
-  duration_ms: 16.910821
-  type: 'test'
-  ...
-# Subtest: project shell separates creative items, isolates active item actions, and pins explicit cross-item references
-ok 61 - project shell separates creative items, isolates active item actions, and pins explicit cross-item references
-  ---
-  duration_ms: 11.683146
-  type: 'test'
-  ...
-# Subtest: context changes invalidate projected approvals consistently and finalized metadata requires reopening
-ok 62 - context changes invalidate projected approvals consistently and finalized metadata requires reopening
-  ---
-  duration_ms: 2.591774
-  type: 'test'
-  ...
-# Subtest: generation capacity checked before inference and reference copying avoids recursive content explosion
-ok 63 - generation capacity checked before inference and reference copying avoids recursive content explosion
-  ---
-  duration_ms: 2.414362
-  type: 'test'
-  ...
-# Subtest: inference storage budgets bound all copied references and six-byte JSON escaping at capacity edge
-ok 64 - inference storage budgets bound all copied references and six-byte JSON escaping at capacity edge
-  ---
-  duration_ms: 40.530617
-  type: 'test'
-  ...
-# Subtest: official discussion branches into true revisions before initial-goal reset and never promotes automatically
-ok 65 - official discussion branches into true revisions before initial-goal reset and never promotes automatically
-  ---
-  duration_ms: 1.378089
-  type: 'test'
-  ...
-# Subtest: refinement includes current full official bundle, custom labels, current references and genuine output validation
-ok 66 - refinement includes current full official bundle, custom labels, current references and genuine output validation
-  ---
-  duration_ms: 0.759533
-  type: 'test'
-  ...
-# Subtest: existing official allows manual save without falsely restoring approval; initial work still goal gated
-ok 67 - existing official allows manual save without falsely restoring approval; initial work still goal gated
-  ---
-  duration_ms: 1.854093
-  type: 'test'
-  ...
-# Subtest: revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction
-ok 68 - revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction
-  ---
-  duration_ms: 2.381674
-  type: 'test'
-  ...
-# Subtest: two-level version metadata migrates without changing snapshot identities and allocates from all versions
-ok 69 - two-level version metadata migrates without changing snapshot identities and allocates from all versions
-  ---
-  duration_ms: 1.292572
-  type: 'test'
-  ...
-# Subtest: candidate archives are reversible metadata, block official archival and retain immutable versions
-ok 70 - candidate archives are reversible metadata, block official archival and retain immutable versions
-  ---
-  duration_ms: 0.814454
-  type: 'test'
-  ...
-# Subtest: comparison uses each selected version goal and changes, never current shared-goal approval
-ok 71 - comparison uses each selected version goal and changes, never current shared-goal approval
-  ---
-  duration_ms: 0.852441
-  type: 'test'
-  ...
-# Subtest: new per-version goals and discussion summaries are generated in the existing call and manual notes preserved
-ok 72 - new per-version goals and discussion summaries are generated in the existing call and manual notes preserved
-  ---
-  duration_ms: 1.167287
-  type: 'test'
-  ...
-# Subtest: AI member settings are non-secret allowlisted owner-scoped records with explicit opt-in and no fallback
-ok 73 - AI member settings are non-secret allowlisted owner-scoped records with explicit opt-in and no fallback
-  ---
-  duration_ms: 1.200886
-  type: 'test'
-  ...
-# Subtest: paid member configuration is frozen at dispatch and provenance stores nickname and stable member ID
-ok 74 - paid member configuration is frozen at dispatch and provenance stores nickname and stable member ID
-  ---
-  duration_ms: 1.030154
-  type: 'test'
-  ...
-# Subtest: available model catalog uses explicit metadata-only fixed destinations without invented inventory
-ok 75 - available model catalog uses explicit metadata-only fixed destinations without invented inventory
-  ---
-  duration_ms: 1.043584
-  type: 'test'
-  ...
-# Subtest: member editing and switching require revision lease and explicit null selection never falls back
-ok 76 - member editing and switching require revision lease and explicit null selection never falls back
-  ---
-  duration_ms: 0.87871
-  type: 'test'
-  ...
-# Subtest: AI prompts use general-audience roles without rewriting persisted user-authored history
-ok 77 - AI prompts use general-audience roles without rewriting persisted user-authored history
-  ---
-  duration_ms: 1.093809
-  type: 'test'
-  ...
-# Subtest: raw model schema validates JSON arrays versus objects before lossy conversion
-ok 78 - raw model schema validates JSON arrays versus objects before lossy conversion
-  ---
-  duration_ms: 0.720947
-  type: 'test'
-  ...
-# Subtest: clarification tolerates bounded metadata and punctuation variants without accepting fake revised content
-ok 79 - clarification tolerates bounded metadata and punctuation variants without accepting fake revised content
-  ---
-  duration_ms: 0.690872
-  type: 'test'
-  ...
-# Subtest: server distinguishes explicit rejection from genuinely unknown outcomes and never promises no charge
-ok 80 - server distinguishes explicit rejection from genuinely unknown outcomes and never promises no charge
-  ---
-  duration_ms: 0.58775
-  type: 'test'
-  ...
-# Subtest: shipped UI installation docs and demo defaults do not frame the tool as coursework
-ok 81 - shipped UI installation docs and demo defaults do not frame the tool as coursework
-  ---
-  duration_ms: 11.384214
-  type: 'test'
-  ...
-# Subtest: combined version notes are immutable snapshots and authoritative in refinement and comparison
-ok 82 - combined version notes are immutable snapshots and authoritative in refinement and comparison
-  ---
-  duration_ms: 7.059996
-  type: 'test'
-  ...
-# Subtest: promotion atomically renames the active creative item only and preserves prior names in history
-ok 83 - promotion atomically renames the active creative item only and preserves prior names in history
-  ---
-  duration_ms: 4.456003
-  type: 'test'
-  ...
-# Subtest: dialogue choices use strict optional single-choice schema rather than parsing or inventing buttons
-ok 84 - dialogue choices use strict optional single-choice schema rather than parsing or inventing buttons
-  ---
-  duration_ms: 1.082472
-  type: 'test'
-  ...
-# Subtest: choice answer is resolved from only the latest bound question before any provider call
-ok 85 - choice answer is resolved from only the latest bound question before any provider call
-  ---
-  duration_ms: 0.859732
-  type: 'test'
-  ...
-# Subtest: choice history preserves server-resolved source linkage and outbound question without relabeling model origin
-ok 86 - choice history preserves server-resolved source linkage and outbound question without relabeling model origin
-  ---
-  duration_ms: 0.80456
-  type: 'test'
-  ...
-# Subtest: initial discussion storage budget includes escaped six-option question, selected answer and context binding
-ok 87 - initial discussion storage budget includes escaped six-option question, selected answer and context binding
-  ---
-  duration_ms: 1.469263
-  type: 'test'
-  ...
-# Subtest: request IDs use secure random 32-character lowercase hex
-ok 88 - request IDs use secure random 32-character lowercase hex
-  ---
-  duration_ms: 8.27283
-  type: 'test'
-  ...
-# Subtest: goal summary and generation are separate, lifecycle-aware gates
-ok 89 - goal summary and generation are separate, lifecycle-aware gates
-  ---
-  duration_ms: 0.441854
-  type: 'test'
-  ...
-# Subtest: comparison requires 2–5 distinct existing versions, including official
-ok 90 - comparison requires 2–5 distinct existing versions, including official
-  ---
-  duration_ms: 0.402325
-  type: 'test'
-  ...
-# Subtest: extensible items validate stable IDs, names, content, UTF-8 and limits
-ok 91 - extensible items validate stable IDs, names, content, UTF-8 and limits
-  ---
-  duration_ms: 0.76431
-  type: 'test'
-  ...
-# Subtest: provenance labels use immutable request data and distinguish missing actual model
-ok 92 - provenance labels use immutable request data and distinguish missing actual model
-  ---
-  duration_ms: 0.357499
-  type: 'test'
-  ...
-# Subtest: explicit export allowlists project content, excludes keys/session/settings
-ok 93 - explicit export allowlists project content, excludes keys/session/settings
-  ---
-  duration_ms: 0.850879
-  type: 'test'
-  ...
-# Subtest: demo cannot save keys, test providers, or execute unconsented inference
-ok 94 - demo cannot save keys, test providers, or execute unconsented inference
-  ---
-  duration_ms: 2.936896
-  type: 'test'
-  ...
-# Subtest: one sufficient discussion permits direction confirmation while compatibility generation remains explicit
-ok 95 - one sufficient discussion permits direction confirmation while compatibility generation remains explicit
-  ---
-  duration_ms: 5.227754
-  type: 'test'
-  ...
-# Subtest: whole-group snapshots, lineage, promotion and comparisons preserve originals
-ok 96 - whole-group snapshots, lineage, promotion and comparisons preserve originals
-  ---
-  duration_ms: 11.401038
-  type: 'test'
-  ...
-# Subtest: finalization snapshots entire group; reopen and metadata changes preserve history
-ok 97 - finalization snapshots entire group; reopen and metadata changes preserve history
-  ---
-  duration_ms: 4.686554
-  type: 'test'
-  ...
-# Subtest: projects reopen independently and returned objects cannot mutate saved history
-ok 98 - projects reopen independently and returned objects cannot mutate saved history
-  ---
-  duration_ms: 4.317248
-  type: 'test'
-  ...
-# Subtest: demo source has no networking or persistent browser storage; rendering never uses HTML injection
-ok 99 - demo source has no networking or persistent browser storage; rendering never uses HTML injection
-  ---
-  duration_ms: 49.177541
-  type: 'test'
-  ...
-# Subtest: creative items isolate discussion, draft source versions, and unavailable capabilities
-ok 100 - creative items isolate discussion, draft source versions, and unavailable capabilities
-  ---
-  duration_ms: 3.359871
-  type: 'test'
-  ...
-# Subtest: cross-item references are explicit immutable whole-version copies
-ok 101 - cross-item references are explicit immutable whole-version copies
-  ---
-  duration_ms: 3.513958
-  type: 'test'
-  ...
-# Subtest: archive is recoverable; project closure respects every nonarchived item
-ok 102 - archive is recoverable; project closure respects every nonarchived item
-  ---
-  duration_ms: 4.503824
-  type: 'test'
-  ...
-# Subtest: manual direction summary requires discussion content, never an arbitrary three-turn count
-ok 103 - manual direction summary requires discussion content, never an arbitrary three-turn count
-  ---
-  duration_ms: 0.203592
-  type: 'test'
-  ...
-# Subtest: real renderer DOM fixture preserves drafts on item switch and cancels setup without sending
-ok 104 - real renderer DOM fixture preserves drafts on item switch and cancels setup without sending
-  ---
-  duration_ms: 85.965499
-  type: 'test'
-  ...
-# Subtest: real settings DOM fixture saves roster without rebinding projects and clears key before adapter request
-ok 105 - real settings DOM fixture saves roster without rebinding projects and clears key before adapter request
-  ---
-  duration_ms: 36.013464
-  type: 'test'
-  ...
-# Subtest: key expiry accepts Unix seconds instead of displaying 1970
-ok 106 - key expiry accepts Unix seconds instead of displaying 1970
-  ---
-  duration_ms: 0.534781
-  type: 'test'
-  ...
-# Subtest: renderer plus mocked fetch transport creates a project through real fetch transport and reopens after bootstrap
-ok 107 - renderer plus mocked fetch transport creates a project through real fetch transport and reopens after bootstrap
-  ---
-  duration_ms: 6.882393
-  type: 'test'
-  ...
-# Subtest: revision helpers track the newest unadopted branch and diff by stable item IDs
-ok 108 - revision helpers track the newest unadopted branch and diff by stable item IDs
-  ---
-  duration_ms: 0.564445
-  type: 'test'
-  ...
-# Subtest: demo discussion refines official full bundles repeatedly only after explicit adoption
-ok 109 - demo discussion refines official full bundles repeatedly only after explicit adoption
-  ---
-  duration_ms: 6.498384
-  type: 'test'
-  ...
-# Subtest: vague questions and no-op demo changes ask for clarification without fake revisions or goal resets
-ok 110 - vague questions and no-op demo changes ask for clarification without fake revisions or goal resets
-  ---
-  duration_ms: 4.063873
-  type: 'test'
-  ...
-# Subtest: existing official can be revised and manually saved with legacy null approval while finalize guards remain
-ok 111 - existing official can be revised and manually saved with legacy null approval while finalize guards remain
-  ---
-  duration_ms: 4.423245
-  type: 'test'
-  ...
-# Subtest: finalized official blocks discussion until reopened and new revisions preserve finalization snapshot
-ok 112 - finalized official blocks discussion until reopened and new revisions preserve finalization snapshot
-  ---
-  duration_ms: 4.025316
-  type: 'test'
-  ...
-# Subtest: real renderer plus real fetch adapter promotes, revises, reviews and adopts whole bundles repeatedly
-ok 113 - real renderer plus real fetch adapter promotes, revises, reviews and adopts whole bundles repeatedly
-  ---
-  duration_ms: 118.529248
-  type: 'test'
-  ...
-# Subtest: real renderer does not block official manual edits or discussion when old goal approval is null
-ok 114 - real renderer does not block official manual edits or discussion when old goal approval is null
-  ---
-  duration_ms: 43.238944
-  type: 'test'
-  ...
-# Subtest: persisted promotion history does not resurrect an already-adopted revision after selecting its old base
-ok 115 - persisted promotion history does not resurrect an already-adopted revision after selecting its old base
-  ---
-  duration_ms: 0.556984
-  type: 'test'
-  ...
-# Subtest: two-level numbering reads legacy snapshots and allocates major and minor branches without collisions
-ok 116 - two-level numbering reads legacy snapshots and allocates major and minor branches without collisions
-  ---
-  duration_ms: 0.218083
-  type: 'test'
-  ...
-# Subtest: comparison guards explain selection, lifecycle, uncertainty and UTF-8 limits without requiring goal approval
-ok 117 - comparison guards explain selection, lifecycle, uncertainty and UTF-8 limits without requiring goal approval
-  ---
-  duration_ms: 0.364579
-  type: 'test'
-  ...
-# Subtest: demo minor snapshots and AI-script revisions retain major lineage; archives never mutate historical versions
-ok 118 - demo minor snapshots and AI-script revisions retain major lineage; archives never mutate historical versions
-  ---
-  duration_ms: 8.628457
-  type: 'test'
-  ...
-# Subtest: demo comparisons preserve historical goal basis after metadata invalidates approval
-ok 119 - demo comparisons preserve historical goal basis after metadata invalidates approval
-  ---
-  duration_ms: 3.595169
-  type: 'test'
-  ...
-# Subtest: real renderer and fetch boundary save complete major/minor versions with computed labels and selected lineage
-ok 120 - real renderer and fetch boundary save complete major/minor versions with computed labels and selected lineage
-  ---
-  duration_ms: 51.403363
-  type: 'test'
-  ...
-# Subtest: real renderer and fetch boundary archive/restore candidates without deleting content or comparison history
-ok 121 - real renderer and fetch boundary archive/restore candidates without deleting content or comparison history
-  ---
-  duration_ms: 34.472653
-  type: 'test'
-  ...
-# Subtest: real renderer and fetch boundary compare with null goal approval, handle UTF-8/error and display historical basis
-ok 122 - real renderer and fetch boundary compare with null goal approval, handle UTF-8/error and display historical basis
-  ---
-  duration_ms: 28.017063
-  type: 'test'
-  ...
-# Subtest: real renderer enforces maximum five selected versions and supports a five-version comparison
-ok 123 - real renderer enforces maximum five selected versions and supports a five-version comparison
-  ---
-  duration_ms: 49.264855
-  type: 'test'
-  ...
-# Subtest: version goals and comments validate independently and preserve explicit legacy absence
-ok 124 - version goals and comments validate independently and preserve explicit legacy absence
-  ---
-  duration_ms: 0.406065
-  type: 'test'
-  ...
-# Subtest: one merged metadata input saves immutable exact text, survives repeated edit/save and compares selected snapshots
-ok 125 - one merged metadata input saves immutable exact text, survives repeated edit/save and compares selected snapshots
-  ---
-  duration_ms: 46.798789
-  type: 'test'
-  ...
-# Subtest: real renderer reviews and adopts goal-only AI-script revisions without discarding unchanged bundle content
-ok 126 - real renderer reviews and adopts goal-only AI-script revisions without discarding unchanged bundle content
-  ---
-  duration_ms: 19.482307
-  type: 'test'
-  ...
-# Subtest: legacy renderer labels old goal/rationale and never substitutes common goal for a source without one
-ok 127 - legacy renderer labels old goal/rationale and never substitutes common goal for a source without one
-  ---
-  duration_ms: 6.270235
-  type: 'test'
-  ...
-# Subtest: artwork colors retain strong readable contrast and non-color content labels
-ok 128 - artwork colors retain strong readable contrast and non-color content labels
-  ---
-  duration_ms: 1.393127
-  type: 'test'
-  ...
-# Subtest: AI member helpers never fall back to another enabled member and provenance uses immutable nickname snapshots
-ok 129 - AI member helpers never fall back to another enabled member and provenance uses immutable nickname snapshots
-  ---
-  duration_ms: 0.330442
-  type: 'test'
-  ...
-# Subtest: one explicit setup opt-in enables multiple deliberate AI actions without per-request dialogs
-ok 130 - one explicit setup opt-in enables multiple deliberate AI actions without per-request dialogs
-  ---
-  duration_ms: 54.131704
-  type: 'test'
-  ...
-# Subtest: project model is fixed; global selection changes and disabling never reroute or lose drafts
-ok 131 - project model is fixed; global selection changes and disabling never reroute or lose drafts
-  ---
-  duration_ms: 24.962784
-  type: 'test'
-  ...
-# Subtest: member renaming and disabling never relabel saved AI replies or version provenance
-ok 132 - member renaming and disabling never relabel saved AI replies or version provenance
-  ---
-  duration_ms: 18.019707
-  type: 'test'
-  ...
-# Subtest: model-list metadata is explicit-only, uses exact fetched names, shows errors and keeps manual fallback without inference
-ok 133 - model-list metadata is explicit-only, uses exact fetched names, shows errors and keeps manual fallback without inference
-  ---
-  duration_ms: 4.426998
-  type: 'test'
-  ...
-# Subtest: in-flight calls retain their fixed project member and block duplicate requests without a model selector
-ok 134 - in-flight calls retain their fixed project member and block duplicate requests without a model selector
-  ---
-  duration_ms: 9.117739
-  type: 'test'
-  ...
-# Subtest: stale settings keep local draft and cannot overwrite a newer roster revision
-ok 135 - stale settings keep local draft and cannot overwrite a newer roster revision
-  ---
-  duration_ms: 12.308365
-  type: 'test'
-  ...
-# Subtest: missing or expired OpenAI keys block inference with actionable setup text, without a fallback member
-ok 136 - missing or expired OpenAI keys block inference with actionable setup text, without a fallback member
-  ---
-  duration_ms: 9.798744
-  type: 'test'
-  ...
-# Subtest: member nickname limits use UTF-8 bytes and invalid settings stay open with all drafts intact
-ok 137 - member nickname limits use UTF-8 bytes and invalid settings stay open with all drafts intact
-  ---
-  duration_ms: 4.033612
-  type: 'test'
-  ...
-# Subtest: new AI members receive stable secure IDs, remain disabled until checked and respect the 20-member cap
-ok 138 - new AI members receive stable secure IDs, remain disabled until checked and respect the 20-member cap
-  ---
-  duration_ms: 9.847326
-  type: 'test'
-  ...
-# Subtest: clearing the global default cannot unbind an existing project or choose a fallback
-ok 139 - clearing the global default cannot unbind an existing project or choose a fallback
-  ---
-  duration_ms: 10.27179
-  type: 'test'
-  ...
-# Subtest: reference picker excludes archived versions and empty sources while retaining pinned archived snapshots
-ok 140 - reference picker excludes archived versions and empty sources while retaining pinned archived snapshots
-  ---
-  duration_ms: 11.273482
-  type: 'test'
-  ...
-# Subtest: dialogue panel shows one fixed project model above the log and composer, with no quick switch
-ok 141 - dialogue panel shows one fixed project model above the log and composer, with no quick switch
-  ---
-  duration_ms: 4.555489
-  type: 'test'
-  ...
-# Subtest: UI defaults and seeded demo use general-audience creative examples, without altering legacy role storage
-ok 142 - UI defaults and seeded demo use general-audience creative examples, without altering legacy role storage
-  ---
-  duration_ms: 5.88451
-  type: 'test'
-  ...
-# Subtest: existing user-authored school content stays intact while its stored student role displays as you
-ok 143 - existing user-authored school content stays intact while its stored student role displays as you
-  ---
-  duration_ms: 3.306488
-  type: 'test'
-  ...
-# Subtest: mocked fetch approvals stay on the bound provider after global defaults change, preserving context and drafts
-ok 144 - mocked fetch approvals stay on the bound provider after global defaults change, preserving context and drafts
-  ---
-  duration_ms: 22.403742
-  type: 'test'
-  ...
-# Subtest: known invalid model output remains rejected and permits deliberate retry on the same fixed model with drafts intact
-ok 145 - known invalid model output remains rejected and permits deliberate retry on the same fixed model with drafts intact
-  ---
-  duration_ms: 29.616318
-  type: 'test'
-  ...
-# Subtest: timeouts, network loss, malformed JSON and old unclassified 5xx remain uncertain without automatic retry
-ok 146 - timeouts, network loss, malformed JSON and old unclassified 5xx remain uncertain without automatic retry
-  ---
-  duration_ms: 58.282458
-  type: 'test'
-  ...
-# Subtest: checking an unknown result and receiving explicit rejection on the same request clears only the uncertainty
-ok 147 - checking an unknown result and receiving explicit rejection on the same request clears only the uncertainty
-  ---
-  duration_ms: 64.104635
-  type: 'test'
-  ...
-# Subtest: combined version metadata prefers stored text verbatim and joins unique legacy values without loss
-ok 148 - combined version metadata prefers stored text verbatim and joins unique legacy values without loss
-  ---
-  duration_ms: 0.467146
-  type: 'test'
-  ...
-# Subtest: explicit empty stored combined metadata does not fall back to old text or common goal
-ok 149 - explicit empty stored combined metadata does not fall back to old text or common goal
-  ---
-  duration_ms: 3.262371
-  type: 'test'
-  ...
-# Subtest: adopted item names prefer explicit main labels, then generic names, without altering full content
-ok 150 - adopted item names prefer explicit main labels, then generic names, without altering full content
-  ---
-  duration_ms: 0.331965
-  type: 'test'
-  ...
-# Subtest: explicit promotion immediately renames only its creative item; pending changes and switching preserve names and history
-ok 151 - explicit promotion immediately renames only its creative item; pending changes and switching preserve names and history
-  ---
-  duration_ms: 57.660401
-  type: 'test'
-  ...
-# Subtest: demo promotion chooses the Chinese main title even when an English item is listed first
-ok 152 - demo promotion chooses the Chinese main title even when an English item is listed first
-  ---
-  duration_ms: 2.035193
-  type: 'test'
-  ...
-# Subtest: workspace terminology describes creative content and dynamic version saving naturally
-ok 153 - workspace terminology describes creative content and dynamic version saving naturally
-  ---
-  duration_ms: 5.742509
-  type: 'test'
-  ...
-# Subtest: official snapshot leads the current item workspace in the same desktop and mobile logical order
-ok 154 - official snapshot leads the current item workspace in the same desktop and mobile logical order
-  ---
-  duration_ms: 8.519637
-  type: 'test'
-  ...
-# Subtest: official reading state survives tree and checkbox rerenders, but a newly adopted version starts fresh
-ok 155 - official reading state survives tree and checkbox rerenders, but a newly adopted version starts fresh
-  ---
-  duration_ms: 15.086293
-  type: 'test'
-  ...
-# Subtest: top official area explicitly stays empty until a candidate is adopted
-ok 156 - top official area explicitly stays empty until a candidate is adopted
-  ---
-  duration_ms: 9.875227
-  type: 'test'
-  ...
-# Subtest: top official status distinguishes pending changes and finalized or archived work without changing snapshots
-ok 157 - top official status distinguishes pending changes and finalized or archived work without changing snapshots
-  ---
-  duration_ms: 18.182977
-  type: 'test'
-  ...
-# Subtest: only bounded structured discussion questions expose choices, with strict persisted context
-ok 158 - only bounded structured discussion questions expose choices, with strict persisted context
-  ---
-  duration_ms: 1.216453
-  type: 'test'
-  ...
-# Subtest: choice click uses one bound fetch call, preserves exact typed draft throughout busy and retains linked normal history
-ok 159 - choice click uses one bound fetch call, preserves exact typed draft throughout busy and retains linked normal history
-  ---
-  duration_ms: 7.784832
-  type: 'test'
-  ...
-# Subtest: the fixed project member, not a changed global default, handles a saved explicit choice
-ok 160 - the fixed project member, not a changed global default, handles a saved explicit choice
-  ---
-  duration_ms: 6.822618
-  type: 'test'
-  ...
-# Subtest: refinement clarification choices produce a reviewable minor revision without replacing official or draft
-ok 161 - refinement clarification choices produce a reviewable minor revision without replacing official or draft
-  ---
-  duration_ms: 12.373931
-  type: 'test'
-  ...
-# Subtest: legacy prose and empty choices invent no buttons; legacy structured choices without binding are nonactionable
-ok 162 - legacy prose and empty choices invent no buttons; legacy structured choices without binding are nonactionable
-  ---
-  duration_ms: 6.70335
-  type: 'test'
-  ...
-# Subtest: historical choice labels, questions and different answer values render as text, never HTML
-ok 163 - historical choice labels, questions and different answer values render as text, never HTML
-  ---
-  duration_ms: 1.543661
-  type: 'test'
-  ...
-# Subtest: only the actual last question in matching active context can submit, including readonly and setup guards
-ok 164 - only the actual last question in matching active context can submit, including readonly and setup guards
-  ---
-  duration_ms: 12.95732
-  type: 'test'
-  ...
-# Subtest: uncertain choice outcome locks repeat clicks and keeps typed draft without auto-retry
-ok 165 - uncertain choice outcome locks repeat clicks and keeps typed draft without auto-retry
-  ---
-  duration_ms: 3.353317
-  type: 'test'
-  ...
-# Subtest: stale revision rejection refreshes latest discussion, keeps draft and never resends old choice
-ok 166 - stale revision rejection refreshes latest discussion, keeps draft and never resends old choice
-  ---
-  duration_ms: 3.521517
-  type: 'test'
-  ...
-# Subtest: demo refuses tampered and stale choice references without changing history, while typed answers still work
-ok 167 - demo refuses tampered and stale choice references without changing history, while typed answers still work
-  ---
-  duration_ms: 2.97933
-  type: 'test'
-  ...
-# Subtest: module registry preserves all twelve ordered choices and honestly enables three text modules and five structured artifacts
-ok 168 - module registry preserves all twelve ordered choices and honestly enables three text modules and five structured artifacts
-  ---
-  duration_ms: 11.67575
-  type: 'test'
-  ...
-# Subtest: module content validation distinguishes full short text and bounded stable paragraphs without truncation
-ok 169 - module content validation distinguishes full short text and bounded stable paragraphs without truncation
-  ---
-  duration_ms: 1.601877
-  type: 'test'
-  ...
-# Subtest: project model helpers require the frozen enabled member, exact provider/model/endpoint, and no global fallback
-ok 170 - project model helpers require the frozen enabled member, exact provider/model/endpoint, and no global fallback
-  ---
-  duration_ms: 0.810218
-  type: 'test'
-  ...
-# Subtest: unbound legacy projects require one explicit binding; no creation fallback, rebind, or silent model drift
-ok 171 - unbound legacy projects require one explicit binding; no creation fallback, rebind, or silent model drift
-  ---
-  duration_ms: 1.461197
-  type: 'test'
-  ...
-# Subtest: scripted readiness is content-based, permits early summarizing, and never generates until current confirmation
-ok 172 - scripted readiness is content-based, permits early summarizing, and never generates until current confirmation
-  ---
-  duration_ms: 3.572564
-  type: 'test'
-  ...
-# Subtest: confirm-generate gate accepts intact earlier direction but rejects future, missing, string markers and readonly state
-ok 173 - confirm-generate gate accepts intact earlier direction but rejects future, missing, string markers and readonly state
-  ---
-  duration_ms: 0.513005
-  type: 'test'
-  ...
-# Subtest: renderer provides one deliberate current-direction generation and allows more discussion before it
-ok 174 - renderer provides one deliberate current-direction generation and allows more discussion before it
-  ---
-  duration_ms: 19.055278
-  type: 'test'
-  ...
-# Subtest: candidate refinement creates exact-source minor versions before adoption and rejects archived or foreign sources
-ok 175 - candidate refinement creates exact-source minor versions before adoption and rejects archived or foreign sources
-  ---
-  duration_ms: 3.255001
-  type: 'test'
-  ...
-# Subtest: renderer uses the same explicit candidate source for AI and manual work without adopting it
-ok 176 - renderer uses the same explicit candidate source for AI and manual work without adopting it
-  ---
-  duration_ms: 12.011941
-  type: 'test'
-  ...
-# Subtest: article refinement requires an explicit valid range and merges only selected paragraphs into a complete immutable snapshot
-ok 177 - article refinement requires an explicit valid range and merges only selected paragraphs into a complete immutable snapshot
-  ---
-  duration_ms: 3.846132
-  type: 'test'
-  ...
-# Subtest: article renderer starts with no selected range, preserves choice scope, and sends selected stable IDs only
-ok 178 - article renderer starts with no selected range, preserves choice scope, and sends selected stable IDs only
-  ---
-  duration_ms: 28.543748
-  type: 'test'
-  ...
-# Subtest: short text remains exactly one full-body field for generation, revision, and manual snapshots
-ok 179 - short text remains exactly one full-body field for generation, revision, and manual snapshots
-  ---
-  duration_ms: 1.824679
-  type: 'test'
-  ...
-# Subtest: fusion creates one independent major candidate with immutable source snapshots and never compares or adopts automatically
-ok 180 - fusion creates one independent major candidate with immutable source snapshots and never compares or adopts automatically
-  ---
-  duration_ms: 5.337896
-  type: 'test'
-  ...
-# Subtest: compare and fusion controls have independent drafts, errors, deliberate requests, and visible source lineage
-ok 181 - compare and fusion controls have independent drafts, errors, deliberate requests, and visible source lineage
-  ---
-  duration_ms: 20.779507
-  type: 'test'
-  ...
-# Subtest: collapsible version tree groups actual minor lineage and preserves folds without duplicate DOM IDs or bottom history
-ok 182 - collapsible version tree groups actual minor lineage and preserves folds without duplicate DOM IDs or bottom history
-  ---
-  duration_ms: 12.264247
-  type: 'test'
-  ...
-# Subtest: legacy one-time setup is explicit in the renderer and preserves all project history
-ok 183 - legacy one-time setup is explicit in the renderer and preserves all project history
-  ---
-  duration_ms: 9.109707
-  type: 'test'
-  ...
-# Subtest: switching creative items away and back retains an intact ready direction without repeating discussion
-ok 184 - switching creative items away and back retains an intact ready direction without repeating discussion
-  ---
-  duration_ms: 7.547338
-  type: 'test'
-  ...
-# Subtest: confirm_generate and fuse transport failures remain unknown without auto retries or false completion
-ok 185 - confirm_generate and fuse transport failures remain unknown without auto retries or false completion
-  ---
-  duration_ms: 20.289967
-  type: 'test'
-  ...
-# Subtest: new paid transport actions classify network, malformed, and explicit rejected outcomes consistently
-ok 186 - new paid transport actions classify network, malformed, and explicit rejected outcomes consistently
-  ---
-  duration_ms: 18.283589
-  type: 'test'
-  ...
-# Subtest: content validation errors identify UTF-8 limits and duplicate labels without silently truncating
-ok 187 - content validation errors identify UTF-8 limits and duplicate labels without silently truncating
-  ---
-  duration_ms: 5.211497
-  type: 'test'
-  ...
-# Subtest: short-text renderer exposes one full body, reports overflow, and never submits truncated contents
-ok 188 - short-text renderer exposes one full body, reports overflow, and never submits truncated contents
-  ---
-  duration_ms: 14.189285
-  type: 'test'
-  ...
-# Subtest: article manual editor blocks oversized paragraph snapshots and keeps every original byte for correction
-ok 189 - article manual editor blocks oversized paragraph snapshots and keeps every original byte for correction
-  ---
-  duration_ms: 13.912549
-  type: 'test'
-  ...
-# Subtest: short-text and article promotion preserve user-authored item names and do not promise title renaming
-ok 190 - short-text and article promotion preserve user-authored item names and do not promise title renaming
-  ---
-  duration_ms: 17.102648
-  type: 'test'
-  ...
-# Subtest: repeated fusion and cross-item pins preserve direct content and lineage without recursively nesting source snapshots
-ok 191 - repeated fusion and cross-item pins preserve direct content and lineage without recursively nesting source snapshots
-  ---
-  duration_ms: 3.235261
-  type: 'test'
-  ...
-# Subtest: metadata-only text snapshots preserve paragraph and full-body whitespace through real renderer and mocked JSON transport
-ok 192 - metadata-only text snapshots preserve paragraph and full-body whitespace through real renderer and mocked JSON transport
-  ---
-  duration_ms: 36.51997
-  type: 'test'
-  ...
-# Subtest: title editing retains every existing custom field without a redundant add-field control
-ok 193 - title editing retains every existing custom field without a redundant add-field control
-  ---
-  duration_ms: 3.809198
-  type: 'test'
-  ...
-# Subtest: table renderer edits real columns rows cells and saves complete typed artifact through fetch without touching source
-ok 194 - table renderer edits real columns rows cells and saves complete typed artifact through fetch without touching source
-  ---
-  duration_ms: 25.104713
-  type: 'test'
-  ...
-# Subtest: chart source editor preserves invalid drafts then saves data-driven SVG as a new immutable version
-ok 195 - chart source editor preserves invalid drafts then saves data-driven SVG as a new immutable version
-  ---
-  duration_ms: 32.958498
-  type: 'test'
-  ...
-# Subtest: artifact candidate refinement promotes full reviewed artifact and keeps project and item metadata unchanged
-ok 196 - artifact candidate refinement promotes full reviewed artifact and keeps project and item metadata unchanged
-  ---
-  duration_ms: 42.351481
-  type: 'test'
-  ...
-# Subtest: artifact comparison renders the exact selected data without generating or relabeling versions
-ok 197 - artifact comparison renders the exact selected data without generating or relabeling versions
-  ---
-  duration_ms: 42.987734
-  type: 'test'
-  ...
-# Subtest: artifact exports and pinned references retain native structure independently of later manual snapshots
-ok 198 - artifact exports and pinned references retain native structure independently of later manual snapshots
-  ---
-  duration_ms: 3.167881
-  type: 'test'
-  ...
-# Subtest: flowchart choice generates only after confirmation then edits native source through the actual fetch boundary
-ok 199 - flowchart choice generates only after confirmation then edits native source through the actual fetch boundary
-  ---
-  duration_ms: 25.755673
-  type: 'test'
-  ...
-# Subtest: flowchart mode switching preserves the complete draft, never translating or replacing source silently
-ok 200 - flowchart mode switching preserves the complete draft, never translating or replacing source silently
-  ---
-  duration_ms: 4.900313
-  type: 'test'
-  ...
-# Subtest: flowchart comparison and explicit fusion keep native source snapshots, lineage and the fixed member
-ok 201 - flowchart comparison and explicit fusion keep native source snapshots, lineage and the fixed member
-  ---
-  duration_ms: 35.366231
-  type: 'test'
-  ...
-# Subtest: scripted artifact fusion rejects a union already present in any selected source instead of minting a fake revision
-ok 202 - scripted artifact fusion rejects a union already present in any selected source instead of minting a fake revision
-  ---
-  duration_ms: 7.218373
-  type: 'test'
-  ...
-# Subtest: mindmap native pending acceptance saves only explicitly checked branches through real renderer and fetch
-ok 203 - mindmap native pending acceptance saves only explicitly checked branches through real renderer and fetch
-  ---
-  duration_ms: 34.783347
-  type: 'test'
-  ...
-# Subtest: mindmap selected saved node gets reviewable pending-only revision and continuing adoption preserves provenance
-ok 204 - mindmap selected saved node gets reviewable pending-only revision and continuing adoption preserves provenance
-  ---
-  duration_ms: 44.905883
-  type: 'test'
-  ...
-# Subtest: mindmap raw node and child drafts survive outer reload and AI response, block incomplete saves, and escape malicious text
-ok 205 - mindmap raw node and child drafts survive outer reload and AI response, block incomplete saves, and escape malicious text
-  ---
-  duration_ms: 32.02774
-  type: 'test'
-  ...
-# Subtest: mindmap choices are node-scoped and a deliberate choice uses saved-source context without clearing typed draft
-ok 206 - mindmap choices are node-scoped and a deliberate choice uses saved-source context without clearing typed draft
-  ---
-  duration_ms: 33.535868
-  type: 'test'
-  ...
-# Subtest: mindmap manual split branches compare and fuse explicitly without accepting remaining proposals or overwriting sources
-ok 207 - mindmap manual split branches compare and fuse explicitly without accepting remaining proposals or overwriting sources
-  ---
-  duration_ms: 55.079224
-  type: 'test'
-  ...
-# Subtest: mindmap custom child and merge are explicit draft edits, lossless and saved only as a full new snapshot
-ok 208 - mindmap custom child and merge are explicit draft edits, lossless and saved only as a full new snapshot
-  ---
-  duration_ms: 27.851407
-  type: 'test'
-  ...
-# Subtest: mindmap transport rejects pending or stale target nodes and over-budget combined fusion metadata without side effects
-ok 209 - mindmap transport rejects pending or stale target nodes and over-budget combined fusion metadata without side effects
-  ---
-  duration_ms: 6.614428
-  type: 'test'
-  ...
-# Subtest: vector editor validates native numeric drafts and saves full geometry via real fetch without replacing source
-ok 210 - vector editor validates native numeric drafts and saves full geometry via real fetch without replacing source
-  ---
-  duration_ms: 33.481087
-  type: 'test'
-  ...
-# Subtest: vector ongoing AI-style scripted refinement stays visible and adopting a later revision preserves full object history
-ok 211 - vector ongoing AI-style scripted refinement stays visible and adopting a later revision preserves full object history
-  ---
-  duration_ms: 64.459278
-  type: 'test'
-  ...
-# Subtest: vector raw document and shape drafts survive reload and clarification, while invalid paint remains inert and unsaved
-ok 212 - vector raw document and shape drafts survive reload and clarification, while invalid paint remains inert and unsaved
-  ---
-  duration_ms: 41.718568
-  type: 'test'
-  ...
-# Subtest: vector shape addition ordering undo and literal text stay native and explicit through full snapshot transport
-ok 213 - vector shape addition ordering undo and literal text stay native and explicit through full snapshot transport
-  ---
-  duration_ms: 35.128437
-  type: 'test'
-  ...
-# Subtest: vector comparison and explicit fusion preserve ordered compatible objects and authoritative per-version notes
-ok 214 - vector comparison and explicit fusion preserve ordered compatible objects and authoritative per-version notes
-  ---
-  duration_ms: 83.946099
-  type: 'test'
-  ...
-# Subtest: vector deliberate reply buttons validate saved question before one request and preserve typed free-text draft
-ok 215 - vector deliberate reply buttons validate saved question before one request and preserve typed free-text draft
-  ---
-  duration_ms: 30.947501
-  type: 'test'
-  ...
-# Subtest: vector saved references finalization and export preserve native geometry despite later source changes
-ok 216 - vector saved references finalization and export preserve native geometry despite later source changes
-  ---
-  duration_ms: 5.906302
-  type: 'test'
-  ...
-# Subtest: webpage requires three separate current-direction checks then sends one explicit actual fetch and immutable approval
-ok 217 - webpage requires three separate current-direction checks then sends one explicit actual fetch and immutable approval
-  ---
-  duration_ms: 22.151913
-  type: 'test'
-  ...
-# Subtest: webpage new discussion clears old direction checks and stale checkbox cannot approve a new summary
-ok 218 - webpage new discussion clears old direction checks and stale checkbox cannot approve a new summary
-  ---
-  duration_ms: 14.092001
-  type: 'test'
-  ...
-# Subtest: webpage transport rejects absent partial duplicate and stale approvals without versions or dialogue side effects
-ok 219 - webpage transport rejects absent partial duplicate and stale approvals without versions or dialogue side effects
-  ---
-  duration_ms: 2.274049
-  type: 'test'
-  ...
-# Subtest: webpage raw fields survive reload and require explicit apply before full major snapshot via actual transport
-ok 220 - webpage raw fields survive reload and require explicit apply before full major snapshot via actual transport
-  ---
-  duration_ms: 42.066942
-  type: 'test'
-  ...
-# Subtest: webpage official can be repeatedly revised as reviewable candidates while fixed member and prior full page remain intact
-ok 221 - webpage official can be repeatedly revised as reviewable candidates while fixed member and prior full page remain intact
-  ---
-  duration_ms: 66.204174
-  type: 'test'
-  ...
-# Subtest: webpage selected full pages compare then explicitly fuse distinct sections with own goals and no implicit adoption
-ok 222 - webpage selected full pages compare then explicitly fuse distinct sections with own goals and no implicit adoption
-  ---
-  duration_ms: 85.853773
-  type: 'test'
-  ...
-# Subtest: webpage stale editor nodes cannot mutate a newly selected source or another item after uiState replacement
-ok 223 - webpage stale editor nodes cannot mutate a newly selected source or another item after uiState replacement
-  ---
-  duration_ms: 55.698257
-  type: 'test'
-  ...
-# Subtest: real fetch transport creates project with required body action, CSRF and JSON content type
-ok 224 - real fetch transport creates project with required body action, CSRF and JSON content type
-  ---
-  duration_ms: 2.901593
-  type: 'test'
-  ...
-# Subtest: every mutation route serializes authoritative action alongside unchanged payload
-ok 225 - every mutation route serializes authoritative action alongside unchanged payload
-  ---
-  duration_ms: 3.01466
-  type: 'test'
-  ...
-# Subtest: initial state and subsequent project reopen remain GET with query ID, no body or credentials in URL
-ok 226 - initial state and subsequent project reopen remain GET with query ID, no body or credentials in URL
-  ---
-  duration_ms: 1.450667
-  type: 'test'
-  ...
-# Subtest: missing action control reproduces exact PHP rejection and adapter surfaces 400 without retry
-ok 227 - missing action control reproduces exact PHP rejection and adapter surfaces 400 without retry
-  ---
-  duration_ms: 1.615069
-  type: 'test'
-  ...
-# Subtest: maximum valid whole-bundle metadata survives bounded JSON transport even with escaped text
-ok 228 - maximum valid whole-bundle metadata survives bounded JSON transport even with escaped text
-  ---
-  duration_ms: 10.007186
-  type: 'test'
-  ...
-# Subtest: maximum article manual snapshot fits actual HTTP envelope including worst-case JSON escaping
-ok 229 - maximum article manual snapshot fits actual HTTP envelope including worst-case JSON escaping
-  ---
-  duration_ms: 5.877476
-  type: 'test'
-  ...
-# Subtest: typed native artifacts retain real nested arrays and action across JSON transport with a server raw-shape guard
-ok 230 - typed native artifacts retain real nested arrays and action across JSON transport with a server raw-shape guard
-  ---
-  duration_ms: 2.860583
-  type: 'test'
-  ...
-# Subtest: mindmap native helper exposes exact authoritative tree and pending shapes
-ok 231 - mindmap native helper exposes exact authoritative tree and pending shapes
-  ---
-  duration_ms: 4.733814
-  type: 'test'
-  ...
-# Subtest: topology validation connects every accepted node to one root and keeps proposals outside it
-ok 232 - topology validation connects every accepted node to one root and keeps proposals outside it
-  ---
-  duration_ms: 2.00742
-  type: 'test'
-  ...
-# Subtest: legacy projection walks validated accepted tree and marks the complete pending queue separately
-ok 233 - legacy projection walks validated accepted tree and marks the complete pending queue separately
-  ---
-  duration_ms: 0.868905
-  type: 'test'
-  ...
-# Subtest: mindmap shares strict provider workflow and topic-first open exploration
-ok 234 - mindmap shares strict provider workflow and topic-first open exploration
-  ---
-  duration_ms: 1.000891
-  type: 'test'
-  ...
-# Subtest: generation enforces one root and two to twelve unaccepted branches in one bounded call
-ok 235 - generation enforces one root and two to twelve unaccepted branches in one bounded call
-  ---
-  duration_ms: 1.380923
-  type: 'test'
-  ...
-# Subtest: refinement checks target before inference and forbids mutations outside its pending queue
-ok 236 - refinement checks target before inference and forbids mutations outside its pending queue
-  ---
-  duration_ms: 5.606215
-  type: 'test'
-  ...
-# Subtest: clarification verifies exact source echo then discards artifact and metadata without a version
-ok 237 - clarification verifies exact source echo then discards artifact and metadata without a version
-  ---
-  duration_ms: 1.936114
-  type: 'test'
-  ...
-# Subtest: fusion uses selected version goals and accepted identities, not pending promotion or shared goal
-ok 238 - fusion uses selected version goals and accepted identities, not pending promotion or shared goal
-  ---
-  duration_ms: 1.035172
-  type: 'test'
-  ...
-# Subtest: native fixtures document their unexecuted status and cover boundary and workflow invariants
-ok 239 - native fixtures document their unexecuted status and cover boundary and workflow invariants
-  ---
-  duration_ms: 1.613518
-  type: 'test'
-  ...
-# Subtest: fixed brief has seven standard fields, marks fiction, and keeps exploration open
-ok 240 - fixed brief has seven standard fields, marks fiction, and keeps exploration open
-  ---
-  duration_ms: 2.989453
-  type: 'test'
-  ...
-# Subtest: generation has exactly one fictional root and three separate pending branches
-ok 241 - generation has exactly one fictional root and three separate pending branches
-  ---
-  duration_ms: 2.915074
-  type: 'test'
-  ...
-# Subtest: literal child demo modifies only target pending proposals, never accepted nodes
-ok 242 - literal child demo modifies only target pending proposals, never accepted nodes
-  ---
-  duration_ms: 9.580985
-  type: 'test'
-  ...
-# Subtest: unrecognized text clarifies without pretending to parse user data or create revision
-ok 243 - unrecognized text clarifies without pretending to parse user data or create revision
-  ---
-  duration_ms: 0.722819
-  type: 'test'
-  ...
-# Subtest: supported request is an explicit literal with optional outer whitespace, not semantic matching
-ok 244 - supported request is an explicit literal with optional outer whitespace, not semantic matching
-  ---
-  duration_ms: 0.735768
-  type: 'test'
-  ...
-# Subtest: missing, pending-only, or malformed targets are rejected before a fake response
-ok 245 - missing, pending-only, or malformed targets are rejected before a fake response
-  ---
-  duration_ms: 2.373713
-  type: 'test'
-  ...
-# Subtest: an identical second request is clarification, including pending list reordering
-ok 246 - an identical second request is clarification, including pending list reordering
-  ---
-  duration_ms: 0.835446
-  type: 'test'
-  ...
-# Subtest: proposal IDs are deterministic bounded ASCII and avoid accepted and pending collisions
-ok 247 - proposal IDs are deterministic bounded ASCII and avoid accepted and pending collisions
-  ---
-  duration_ms: 1.771101
-  type: 'test'
-  ...
-# Subtest: matching existing target proposals retain IDs when the fixed set is completed
-ok 248 - matching existing target proposals retain IDs when the fixed set is completed
-  ---
-  duration_ms: 2.665353
-  type: 'test'
-  ...
-# Subtest: already accepted fixed children are not proposed again, and exhausted fixtures clarify
-ok 249 - already accepted fixed children are not proposed again, and exhausted fixtures clarify
-  ---
-  duration_ms: 2.215227
-  type: 'test'
-  ...
-# Subtest: revision observes the combined pending limit and rejects atomically rather than truncating
-ok 250 - revision observes the combined pending limit and rejects atomically rather than truncating
-  ---
-  duration_ms: 2.64289
-  type: 'test'
-  ...
-# Subtest: revision rejects aggregate byte overflow without altering or truncating its valid source
-ok 251 - revision rejects aggregate byte overflow without altering or truncating its valid source
-  ---
-  duration_ms: 13.096767
-  type: 'test'
-  ...
-# Subtest: fusion combines divergent explicit acceptances and never promotes pending-only proposals
-ok 252 - fusion combines divergent explicit acceptances and never promotes pending-only proposals
-  ---
-  duration_ms: 2.708888
-  type: 'test'
-  ...
-# Subtest: fusion retains all exact accepted records, parent links and separate pending records
-ok 253 - fusion retains all exact accepted records, parent links and separate pending records
-  ---
-  duration_ms: 1.173245
-  type: 'test'
-  ...
-# Subtest: fusion rejects different roots and root-content conflicts without invented connections
-ok 254 - fusion rejects different roots and root-content conflicts without invented connections
-  ---
-  duration_ms: 2.909975
-  type: 'test'
-  ...
-# Subtest: fusion rejects all ID content, parent, and cross-status conflicts
-ok 255 - fusion rejects all ID content, parent, and cross-status conflicts
-  ---
-  duration_ms: 1.396907
-  type: 'test'
-  ...
-# Subtest: fusion needs two through five actual valid artifacts
-ok 256 - fusion needs two through five actual valid artifacts
-  ---
-  duration_ms: 0.968684
-  type: 'test'
-  ...
-# Subtest: a union identical to any source is rejected, not only a duplicate of the first
-ok 257 - a union identical to any source is rejected, not only a duplicate of the first
-  ---
-  duration_ms: 1.530624
-  type: 'test'
-  ...
-# Subtest: pending-only variation cannot masquerade as a meaningful accepted-tree fusion
-ok 258 - pending-only variation cannot masquerade as a meaningful accepted-tree fusion
-  ---
-  duration_ms: 1.330819
-  type: 'test'
-  ...
-# Subtest: shared native validation rejects cycles, missing parents, secret data and unknown shapes
-ok 259 - shared native validation rejects cycles, missing parents, secret data and unknown shapes
-  ---
-  duration_ms: 2.322126
-  type: 'test'
-  ...
-# Subtest: fusion rejects accepted union above 80 nodes and allows exactly 80 without truncating
-ok 260 - fusion rejects accepted union above 80 nodes and allows exactly 80 without truncating
-  ---
-  duration_ms: 4.936804
-  type: 'test'
-  ...
-# Subtest: fusion rejects pending union above 24 and allows exactly 24 without accepting it
-ok 261 - fusion rejects pending union above 24 and allows exactly 24 without accepting it
-  ---
-  duration_ms: 2.065376
-  type: 'test'
-  ...
-# Subtest: fusion enforces the native byte limit for a union of individually valid sources
-ok 262 - fusion enforces the native byte limit for a union of individually valid sources
-  ---
-  duration_ms: 6.577392
-  type: 'test'
-  ...
-# Subtest: deep valid trees remain finite and preserve all exact parent relationships
-ok 263 - deep valid trees remain finite and preserve all exact parent relationships
-  ---
-  duration_ms: 6.521708
-  type: 'test'
-  ...
-# Subtest: returned artifacts are detached from input sources
-ok 264 - returned artifacts are detached from input sources
-  ---
-  duration_ms: 0.361725
-  type: 'test'
-  ...
-# Subtest: helper uses shared native validation and has no network or browser state path
-ok 265 - helper uses shared native validation and has no network or browser state path
-  ---
-  duration_ms: 14.205427
-  type: 'test'
-  ...
-# Subtest: default is a genuine single-root native map and clone preserves exact text/IDs
-ok 266 - default is a genuine single-root native map and clone preserves exact text/IDs
-  ---
-  duration_ms: 5.293742
-  type: 'test'
-  ...
-# Subtest: native shape refuses unknown/missing properties, coercion, sparse lists and invalid count
-ok 267 - native shape refuses unknown/missing properties, coercion, sparse lists and invalid count
-  ---
-  duration_ms: 2.423015
-  type: 'test'
-  ...
-# Subtest: identifiers are stable ASCII, unique across both queues, and root shape is exact
-ok 268 - identifiers are stable ASCII, unique across both queues, and root shape is exact
-  ---
-  duration_ms: 5.666974
-  type: 'test'
-  ...
-# Subtest: accepted tree is connected, acyclic and independent of list order; proposals cannot parent proposals
-ok 269 - accepted tree is connected, acyclic and independent of list order; proposals cannot parent proposals
-  ---
-  duration_ms: 1.430747
-  type: 'test'
-  ...
-# Subtest: UTF8 bounds, valid Unicode, NUL, whitespace and secret guard match the shared contract
-ok 270 - UTF8 bounds, valid Unicode, NUL, whitespace and secret guard match the shared contract
-  ---
-  duration_ms: 3.107588
-  type: 'test'
-  ...
-# Subtest: full native and projected outline sizes reject atomically without truncation
-ok 271 - full native and projected outline sizes reject atomically without truncation
-  ---
-  duration_ms: 12.234722
-  type: 'test'
-  ...
-# Subtest: projection is the full deterministic PHP-compatible outline with pending branches labelled unaccepted
-ok 272 - projection is the full deterministic PHP-compatible outline with pending branches labelled unaccepted
-  ---
-  duration_ms: 0.316488
-  type: 'test'
-  ...
-# Subtest: rename, custom children and move preserve IDs/content and are immutable
-ok 273 - rename, custom children and move preserve IDs/content and are immutable
-  ---
-  duration_ms: 2.445398
-  type: 'test'
-  ...
-# Subtest: explicit merge preserves destination and source text, reparents all children/proposals, and rejects overflow atomically
-ok 274 - explicit merge preserves destination and source text, reparents all children/proposals, and rejects overflow atomically
-  ---
-  duration_ms: 1.611134
-  type: 'test'
-  ...
-# Subtest: only explicitly selected proposals enter the accepted tree with their original stable IDs
-ok 275 - only explicitly selected proposals enter the accepted tree with their original stable IDs
-  ---
-  duration_ms: 3.729578
-  type: 'test'
-  ...
-# Subtest: delete never deletes root, branches, or a leaf that still owns proposals
-ok 276 - delete never deletes root, branches, or a leaf that still owns proposals
-  ---
-  duration_ms: 0.73673
-  type: 'test'
-  ...
-# Subtest: genuine SVG draws only accepted nodes/edges and preserves every node in a full accessible list
-ok 277 - genuine SVG draws only accepted nodes/edges and preserves every node in a full accessible list
-  ---
-  duration_ms: 2.501501
-  type: 'test'
-  ...
-# Subtest: single root, deep 80-node tree, and broad tree have finite real geometry and complete lists
-ok 278 - single root, deep 80-node tree, and broad tree have finite real geometry and complete lists
-  ---
-  duration_ms: 28.173092
-  type: 'test'
-  ...
-# Subtest: selection via SVG and native list button selects a node without changing any artifact
-ok 279 - selection via SVG and native list button selects a node without changing any artifact
-  ---
-  duration_ms: 1.216039
-  type: 'test'
-  ...
-# Subtest: rendering/export never inserts executable markup; JSON preserves proposals and TXT labels them clearly
-ok 280 - rendering/export never inserts executable markup; JSON preserves proposals and TXT labels them clearly
-  ---
-  duration_ms: 1.78386
-  type: 'test'
-  ...
-# Subtest: editor starts with unchecked proposals, selection/checkbox changes do not emit, and only checked branches enter draft
-ok 281 - editor starts with unchecked proposals, selection/checkbox changes do not emit, and only checked branches enter draft
-  ---
-  duration_ms: 6.268255
-  type: 'test'
-  ...
-# Subtest: editor keeps interrupted field drafts by node, applies exact text only explicitly, and reset does not emit
-ok 282 - editor keeps interrupted field drafts by node, applies exact text only explicitly, and reset does not emit
-  ---
-  duration_ms: 3.574218
-  type: 'test'
-  ...
-# Subtest: invalid partial typing and overflow do not emit or alter the accepted SVG; correcting fields recovers
-ok 283 - invalid partial typing and overflow do not emit or alter the accepted SVG; correcting fields recovers
-  ---
-  duration_ms: 2.387763
-  type: 'test'
-  ...
-# Subtest: custom child fields survive selection interruption and append exactly one valid child with stable identity
-ok 284 - custom child fields survive selection interruption and append exactly one valid child with stable identity
-  ---
-  duration_ms: 2.689189
-  type: 'test'
-  ...
-# Subtest: move and merge require explicit buttons and safe destinations; merge transfers every branch without early automatic narrowing
-ok 285 - move and merge require explicit buttons and safe destinations; merge transfers every branch without early automatic narrowing
-  ---
-  duration_ms: 3.194397
-  type: 'test'
-  ...
-# Subtest: merge overflow, malicious move value, and acceptance capacity failure are atomic and recoverable in real callbacks
-ok 286 - merge overflow, malicious move value, and acceptance capacity failure are atomic and recoverable in real callbacks
-  ---
-  duration_ms: 8.208054
-  type: 'test'
-  ...
-# Subtest: leaf removal and bounded 20-step undo are local snapshot operations
-ok 287 - leaf removal and bounded 20-step undo are local snapshot operations
-  ---
-  duration_ms: 43.203622
-  type: 'test'
-  ...
-# Subtest: readonly controls and detached handlers cannot mutate, emit, or accidentally trigger a later selected node
-ok 288 - readonly controls and detached handlers cannot mutate, emit, or accidentally trigger a later selected node
-  ---
-  duration_ms: 2.487521
-  type: 'test'
-  ...
-# Subtest: callbacks receive complete isolated snapshots; callback failure is visible rather than falsely reporting saved success
-ok 289 - callbacks receive complete isolated snapshots; callback failure is visible rather than falsely reporting saved success
-  ---
-  duration_ms: 2.351689
-  type: 'test'
-  ...
-# Subtest: module is standalone, safe DOM/SVG primitives only, with no automatic persistence, networking, downloads or dynamic evaluation
-ok 290 - module is standalone, safe DOM/SVG primitives only, with no automatic persistence, networking, downloads or dynamic evaluation
-  ---
-  duration_ms: 18.527362
-  type: 'test'
-  ...
-# Subtest: shared ephemeral uiState retains selected node and unapplied raw text through busy/read-only and AI-response rerenders
-ok 291 - shared ephemeral uiState retains selected node and unapplied raw text through busy/read-only and AI-response rerenders
-  ---
-  duration_ms: 3.367462
-  type: 'test'
-  ...
-# Subtest: pending notifications cover invalid fields, cancellation, multiple nodes, child whitespace and reversible no-ops
-ok 292 - pending notifications cover invalid fields, cancellation, multiple nodes, child whitespace and reversible no-ops
-  ---
-  duration_ms: 3.672794
-  type: 'test'
-  ...
-# Subtest: merge, deletion and undo cannot silently discard raw field or custom-child drafts
-ok 293 - merge, deletion and undo cannot silently discard raw field or custom-child drafts
-  ---
-  duration_ms: 1.107418
-  type: 'test'
-  ...
-# Subtest: registry exposes exact twelve established module ids but enables only supported text and structured artifact formats
-ok 294 - registry exposes exact twelve established module ids but enables only supported text and structured artifact formats
-  ---
-  duration_ms: 9.615747
-  type: 'test'
-  ...
-# Subtest: format validators bound full snapshots and never trim stored text body bytes
-ok 295 - format validators bound full snapshots and never trim stored text body bytes
-  ---
-  duration_ms: 5.950685
-  type: 'test'
-  ...
-# Subtest: one initial discussion call returns either a strict ready direction or an exploratory conversation
-ok 296 - one initial discussion call returns either a strict ready direction or an exploratory conversation
-  ---
-  duration_ms: 1.717902
-  type: 'test'
-  ...
-# Subtest: raw strict response validation precedes associative conversion for both modules
-ok 297 - raw strict response validation precedes associative conversion for both modules
-  ---
-  duration_ms: 1.541811
-  type: 'test'
-  ...
-# Subtest: article targeted refinement preflights bounds then merges complete selected-source snapshot
-ok 298 - article targeted refinement preflights bounds then merges complete selected-source snapshot
-  ---
-  duration_ms: 1.755017
-  type: 'test'
-  ...
-# Subtest: short and article generation advertise actual candidate counts with bounded complete outputs
-ok 299 - short and article generation advertise actual candidate counts with bounded complete outputs
-  ---
-  duration_ms: 9.689877
-  type: 'test'
-  ...
-# Subtest: fusion is one new complete candidate based only on selected version goals
-ok 300 - fusion is one new complete candidate based only on selected version goals
-  ---
-  duration_ms: 3.369304
-  type: 'test'
-  ...
-# Subtest: strict shared numeric schema handles finite native numbers only, integral values and explicit bounds
-ok 301 - strict shared numeric schema handles finite native numbers only, integral values and explicit bounds
-  ---
-  duration_ms: 6.013338
-  type: 'test'
-  ...
-# Subtest: webpage three-part approval validates current summary before inference and leaves legacy modules unchanged
-ok 302 - webpage three-part approval validates current summary before inference and leaves legacy modules unchanged
-  ---
-  duration_ms: 6.621557
-  type: 'test'
-  ...
-# Subtest: project binding is explicit, immutable, and resolved before any paid request journal or adapter call
-ok 303 - project binding is explicit, immutable, and resolved before any paid request journal or adapter call
-  ---
-  duration_ms: 9.933967
-  type: 'test'
-  ...
-# Subtest: direction readiness commits the same response and confirmation performs one generation after exact revision guard
-ok 304 - direction readiness commits the same response and confirmation performs one generation after exact revision guard
-  ---
-  duration_ms: 3.314554
-  type: 'test'
-  ...
-# Subtest: candidate refinement pins selected source and article selection into question validity
-ok 305 - candidate refinement pins selected source and article selection into question validity
-  ---
-  duration_ms: 1.083813
-  type: 'test'
-  ...
-# Subtest: fusion uses new major, complete direct snapshots and bounded ancestor lineage, without adoption
-ok 306 - fusion uses new major, complete direct snapshots and bounded ancestor lineage, without adoption
-  ---
-  duration_ms: 1.658795
-  type: 'test'
-  ...
-# Subtest: both provider adapters declare and validate the requested bounded output token budget
-ok 307 - both provider adapters declare and validate the requested bounded output token budget
-  ---
-  duration_ms: 20.133954
-  type: 'test'
-  ...
-# Subtest: article manual snapshots validate new full structure, while selected AI edits preserve original bytes
-ok 308 - article manual snapshots validate new full structure, while selected AI edits preserve original bytes
-  ---
-  duration_ms: 3.742807
-  type: 'test'
-  ...
-# Subtest: readiness budgets reserve two fully escaped maximum direction snapshots plus reply and metadata
-ok 309 - readiness budgets reserve two fully escaped maximum direction snapshots plus reply and metadata
-  ---
-  duration_ms: 8.835743
-  type: 'test'
-  ...
-# Subtest: article selected patch budget includes all untouched document bytes before inference
-ok 310 - article selected patch budget includes all untouched document bytes before inference
-  ---
-  duration_ms: 1.454372
-  type: 'test'
-  ...
-# Subtest: vector helper accepts only exact native primitive objects and bounded lists
-ok 311 - vector helper accepts only exact native primitive objects and bounded lists
-  ---
-  duration_ms: 7.777698
-  type: 'test'
-  ...
-# Subtest: finite numeric, precision, paint and type-dependent geometry boundaries remain explicit
-ok 312 - finite numeric, precision, paint and type-dependent geometry boundaries remain explicit
-  ---
-  duration_ms: 6.787052
-  type: 'test'
-  ...
-# Subtest: UTF8 and secret checks are shared while canonical text and complete byte limits are retained
-ok 313 - UTF8 and secret checks are shared while canonical text and complete byte limits are retained
-  ---
-  duration_ms: 22.978152
-  type: 'test'
-  ...
-# Subtest: provider schema has complete required keys, strict number types and bounded arrays
-ok 314 - provider schema has complete required keys, strict number types and bounded arrays
-  ---
-  duration_ms: 1.327173
-  type: 'test'
-  ...
-# Subtest: vector module inherits shared fixed-model lifecycle and states honest capability limits
-ok 315 - vector module inherits shared fixed-model lifecycle and states honest capability limits
-  ---
-  duration_ms: 1.357869
-  type: 'test'
-  ...
-# Subtest: generation produces exactly one complete native candidate in a single bounded call
-ok 316 - generation produces exactly one complete native candidate in a single bounded call
-  ---
-  duration_ms: 3.230219
-  type: 'test'
-  ...
-# Subtest: refinement uses full selected source, own goal and immutable candidate semantics
-ok 317 - refinement uses full selected source, own goal and immutable candidate semantics
-  ---
-  duration_ms: 1.239594
-  type: 'test'
-  ...
-# Subtest: clarification requires exact canonical echo and discards artifact plus unused metadata
-ok 318 - clarification requires exact canonical echo and discards artifact plus unused metadata
-  ---
-  duration_ms: 0.943285
-  type: 'test'
-  ...
-# Subtest: fusion only considers explicitly selected snapshots with own goals and rejects copied output
-ok 319 - fusion only considers explicitly selected snapshots with own goals and rejects copied output
-  ---
-  duration_ms: 1.056052
-  type: 'test'
-  ...
-# Subtest: fusion fingerprint preserves ordered geometry and multiplicity but excludes only naming metadata
-ok 320 - fusion fingerprint preserves ordered geometry and multiplicity but excludes only naming metadata
-  ---
-  duration_ms: 1.073558
-  type: 'test'
-  ...
-# Subtest: fusion fingerprint normalizes hexadecimal paint case without altering native source
-ok 321 - fusion fingerprint normalizes hexadecimal paint case without altering native source
-  ---
-  duration_ms: 4.246187
-  type: 'test'
-  ...
-# Subtest: native fixtures explicitly remain unexecuted and cover boundary plus lifecycle invariants
-ok 322 - native fixtures explicitly remain unexecuted and cover boundary plus lifecycle invariants
-  ---
-  duration_ms: 1.313744
-  type: 'test'
-  ...
-# Subtest: fixed brief is seven standard fields and does not claim to understand a user brief
-ok 323 - fixed brief is seven standard fields and does not claim to understand a user brief
-  ---
-  duration_ms: 7.480257
-  type: 'test'
-  ...
-# Subtest: fixed fictional emblem contains five editable primitives and literal lettering, not a raster
-ok 324 - fixed fictional emblem contains five editable primitives and literal lettering, not a raster
-  ---
-  duration_ms: 20.145726
-  type: 'test'
-  ...
-# Subtest: exported demonstration commands each create one real native change from the fixed fixture
-ok 325 - exported demonstration commands each create one real native change from the fixed fixture
-  ---
-  duration_ms: 6.46822
-  type: 'test'
-  ...
-# Subtest: title change is literal and retains inner whitespace, markup and text objects without rewriting them
-ok 326 - title change is literal and retains inner whitespace, markup and text objects without rewriting them
-  ---
-  duration_ms: 2.005968
-  type: 'test'
-  ...
-# Subtest: unique named-shape and stable-ID color assignments change only the explicitly selected field
-ok 327 - unique named-shape and stable-ID color assignments change only the explicitly selected field
-  ---
-  duration_ms: 3.695578
-  type: 'test'
-  ...
-# Subtest: literal malicious labels are data and cannot inject SVG or executable commands
-ok 328 - literal malicious labels are data and cannot inject SVG or executable commands
-  ---
-  duration_ms: 3.781554
-  type: 'test'
-  ...
-# Subtest: missing or ambiguous name/ID targets clarify rather than pick, rename or add an object
-ok 329 - missing or ambiguous name/ID targets clarify rather than pick, rename or add an object
-  ---
-  duration_ms: 2.220866
-  type: 'test'
-  ...
-# Subtest: line fill is not presented as a visible revision but its explicit stroke change is supported
-ok 330 - line fill is not presented as a visible revision but its explicit stroke change is supported
-  ---
-  duration_ms: 1.102471
-  type: 'test'
-  ...
-# Subtest: identical title and case-only equivalent color are clarification without a fake version
-ok 331 - identical title and case-only equivalent color are clarification without a fake version
-  ---
-  duration_ms: 2.918238
-  type: 'test'
-  ...
-# Subtest: unknown natural language never claims analysis, echoes private requests or alters geometry
-ok 332 - unknown natural language never claims analysis, echoes private requests or alters geometry
-  ---
-  duration_ms: 17.375027
-  type: 'test'
-  ...
-# Subtest: optional choices are exactly two literal actions that each really work on the current source
-ok 333 - optional choices are exactly two literal actions that each really work on the current source
-  ---
-  duration_ms: 14.329451
-  type: 'test'
-  ...
-# Subtest: choices are omitted when both executable safe examples cannot be offered
-ok 334 - choices are omitted when both executable safe examples cannot be offered
-  ---
-  duration_ms: 0.725023
-  type: 'test'
-  ...
-# Subtest: non-text requests and invalid assignment results throw plain Errors rather than truncating data
-ok 335 - non-text requests and invalid assignment results throw plain Errors rather than truncating data
-  ---
-  duration_ms: 1.62854
-  type: 'test'
-  ...
-# Subtest: fusion preserves all exact stable objects and the first-source back-to-front order
-ok 336 - fusion preserves all exact stable objects and the first-source back-to-front order
-  ---
-  duration_ms: 2.745432
-  type: 'test'
-  ...
-# Subtest: fusion compares the entire ordered drawing, not an unordered set of shapes
-ok 337 - fusion compares the entire ordered drawing, not an unordered set of shapes
-  ---
-  duration_ms: 1.827133
-  type: 'test'
-  ...
-# Subtest: distinct IDs with repeated drawing geometry retain multiplicity for transparency and occlusion
-ok 338 - distinct IDs with repeated drawing geometry retain multiplicity for transparency and occlusion
-  ---
-  duration_ms: 1.077614
-  type: 'test'
-  ...
-# Subtest: fusion requires compatible canvas dimensions and exact background without transforming a source
-ok 339 - fusion requires compatible canvas dimensions and exact background without transforming a source
-  ---
-  duration_ms: 0.826032
-  type: 'test'
-  ...
-# Subtest: same-ID conflicts in every shape field reject rather than rename, replace or drop content
-ok 340 - same-ID conflicts in every shape field reject rather than rename, replace or drop content
-  ---
-  duration_ms: 6.493197
-  type: 'test'
-  ...
-# Subtest: no-op detection checks any source including metadata-only and reordered-source-list variations
-ok 341 - no-op detection checks any source including metadata-only and reordered-source-list variations
-  ---
-  duration_ms: 0.984046
-  type: 'test'
-  ...
-# Subtest: fusion requires two through five dense source artifacts without extra own properties
-ok 342 - fusion requires two through five dense source artifacts without extra own properties
-  ---
-  duration_ms: 1.610583
-  type: 'test'
-  ...
-# Subtest: all entry points reject corrupt native schemas and unsafe color strings through shared validation
-ok 343 - all entry points reject corrupt native schemas and unsafe color strings through shared validation
-  ---
-  duration_ms: 1.791671
-  type: 'test'
-  ...
-# Subtest: native number bounds and exact three-decimal precision are enforced without silent rounding
-ok 344 - native number bounds and exact three-decimal precision are enforced without silent rounding
-  ---
-  duration_ms: 2.637743
-  type: 'test'
-  ...
-# Subtest: fusion accepts exactly 100 shapes and rejects 101 atomically without dropping layers
-ok 345 - fusion accepts exactly 100 shapes and rejects 101 atomically without dropping layers
-  ---
-  duration_ms: 31.471122
-  type: 'test'
-  ...
-# Subtest: native and projection byte limits apply to literal revisions without truncation or extra invalid choices
-ok 346 - native and projection byte limits apply to literal revisions without truncation or extra invalid choices
-  ---
-  duration_ms: 11.001717
-  type: 'test'
-  ...
-# Subtest: fusion enforces aggregate native and projection size even for individually valid sources
-ok 347 - fusion enforces aggregate native and projection size even for individually valid sources
-  ---
-  duration_ms: 7.553486
-  type: 'test'
-  ...
-# Subtest: revision, clarification and fusion outputs are deeply detached from all input sources
-ok 348 - revision, clarification and fusion outputs are deeply detached from all input sources
-  ---
-  duration_ms: 1.279704
-  type: 'test'
-  ...
-# Subtest: helper imports native validation and has no network, persistence, raster or script execution path
-ok 349 - helper imports native validation and has no network, persistence, raster or script execution path
-  ---
-  duration_ms: 13.555872
-  type: 'test'
-  ...
-# Subtest: native defaults cover all six geometric types; clone canonicalizes key order and isolates all nested points
-ok 350 - native defaults cover all six geometric types; clone canonicalizes key order and isolates all nested points
-  ---
-  duration_ms: 7.111106
-  type: 'test'
-  ...
-# Subtest: exact objects, array bounds, dense lists and own keys reject malformed JSON shapes without coercion
-ok 351 - exact objects, array bounds, dense lists and own keys reject malformed JSON shapes without coercion
-  ---
-  duration_ms: 5.73121
-  type: 'test'
-  ...
-# Subtest: stable unique ASCII IDs and strict six-digit colors forbid executable or external paint references
-ok 352 - stable unique ASCII IDs and strict six-digit colors forbid executable or external paint references
-  ---
-  duration_ms: 4.216088
-  type: 'test'
-  ...
-# Subtest: numeric contract is strict finite native numbers, integer canvas and exact <=3 decimals without rounding
-ok 353 - numeric contract is strict finite native numbers, integer canvas and exact <=3 decimals without rounding
-  ---
-  duration_ms: 5.833662
-  type: 'test'
-  ...
-# Subtest: shape-dependent geometry has positive boxes, signed line deltas, local bounded points and no paths
-ok 354 - shape-dependent geometry has positive boxes, signed line deltas, local bounded points and no paths
-  ---
-  duration_ms: 10.159361
-  type: 'test'
-  ...
-# Subtest: UTF8, nonblank text-shapes, NUL, lone surrogates and secret guard preserve valid text exactly
-ok 355 - UTF8, nonblank text-shapes, NUL, lone surrogates and secret guard preserve valid text exactly
-  ---
-  duration_ms: 4.390185
-  type: 'test'
-  ...
-# Subtest: canonical projection preserves fixed schema order, normalized numbers and PHP Unicode escapes
-ok 356 - canonical projection preserves fixed schema order, normalized numbers and PHP Unicode escapes
-  ---
-  duration_ms: 1.299964
-  type: 'test'
-  ...
-# Subtest: 60000-byte canonical size including PHP U2028/U2029 escaping rejects atomically without truncation
-ok 357 - 60000-byte canonical size including PHP U2028/U2029 escaping rejects atomically without truncation
-  ---
-  duration_ms: 7.370816
-  type: 'test'
-  ...
-# Subtest: exact canonical byte boundary accepts 60000 bytes and rejects one byte more
-ok 358 - exact canonical byte boundary accepts 60000 bytes and rejects one byte more
-  ---
-  duration_ms: 6.392378
-  type: 'test'
-  ...
-# Subtest: pure add/update/remove/reorder/duplicate preserve identities and content with isolated immutable snapshots
-ok 359 - pure add/update/remove/reorder/duplicate preserve identities and content with isolated immutable snapshots
-  ---
-  duration_ms: 8.289284
-  type: 'test'
-  ...
-# Subtest: real SVG uses correct geometric primitives, line signed deltas, translated points, and readable bounded scrolling
-ok 360 - real SVG uses correct geometric primitives, line signed deltas, translated points, and readable bounded scrolling
-  ---
-  duration_ms: 3.398738
-  type: 'test'
-  ...
-# Subtest: SVG DOM/export use escaped full text and no executable markup, URLs, path, images or hidden unsupported claims
-ok 361 - SVG DOM/export use escaped full text and no executable markup, URLs, path, images or hidden unsupported claims
-  ---
-  duration_ms: 6.203219
-  type: 'test'
-  ...
-# Subtest: selection through SVG or accessible full list does not mutate or emit any artifact
-ok 362 - selection through SVG or accessible full list does not mutate or emit any artifact
-  ---
-  duration_ms: 3.416635
-  type: 'test'
-  ...
-# Subtest: raw fields require explicit apply, survive shape switching, preserve exact text and do not mutate accepted preview
-ok 363 - raw fields require explicit apply, survive shape switching, preserve exact text and do not mutate accepted preview
-  ---
-  duration_ms: 17.167831
-  type: 'test'
-  ...
-# Subtest: decimal UI refuses blank, NaN, exponent, partial parse, out of range and excessive precision without losing drafts
-ok 364 - decimal UI refuses blank, NaN, exponent, partial parse, out of range and excessive precision without losing drafts
-  ---
-  duration_ms: 8.576204
-  type: 'test'
-  ...
-# Subtest: polygon point editing uses local x,y lines; partial/invalid points and nonblank text rejection are atomic
-ok 365 - polygon point editing uses local x,y lines; partial/invalid points and nonblank text rejection are atomic
-  ---
-  duration_ms: 8.771929
-  type: 'test'
-  ...
-# Subtest: editor adds, duplicates, reorders and removes with fresh IDs and prevents duplicate stale clicks
-ok 366 - editor adds, duplicates, reorders and removes with fresh IDs and prevents duplicate stale clicks
-  ---
-  duration_ms: 15.514284
-  type: 'test'
-  ...
-# Subtest: invalid add type, maximum count, and capacity failures never change valid state
-ok 367 - invalid add type, maximum count, and capacity failures never change valid state
-  ---
-  duration_ms: 11.487636
-  type: 'test'
-  ...
-# Subtest: pending notifications include document/invalid/multiple shape drafts and block destructive operations until explicit resolution
-ok 368 - pending notifications include document/invalid/multiple shape drafts and block destructive operations until explicit resolution
-  ---
-  duration_ms: 8.785829
-  type: 'test'
-  ...
-# Subtest: twenty-step undo restores full artifacts and selection, is immutable, and survives outer readonly rerender
-ok 369 - twenty-step undo restores full artifacts and selection, is immutable, and survives outer readonly rerender
-  ---
-  duration_ms: 111.612451
-  type: 'test'
-  ...
-# Subtest: shared uiState retains raw invalid drafts and selection across busy/AI rerenders; detached editors cannot act
-ok 370 - shared uiState retains raw invalid drafts and selection across busy/AI rerenders; detached editors cannot act
-  ---
-  duration_ms: 3.803298
-  type: 'test'
-  ...
-# Subtest: removed-shape raw drafts are not silently thrown away by an external replacement
-ok 371 - removed-shape raw drafts are not silently thrown away by an external replacement
-  ---
-  duration_ms: 2.135012
-  type: 'test'
-  ...
-# Subtest: readonly controls, stale selected-field handlers, and detached SVG selections cannot mutate or emit
-ok 372 - readonly controls, stale selected-field handlers, and detached SVG selections cannot mutate or emit
-  ---
-  duration_ms: 2.745071
-  type: 'test'
-  ...
-# Subtest: callback values are validated complete isolated snapshots; callback failure is visible, never falsely saved
-ok 373 - callback values are validated complete isolated snapshots; callback failure is visible, never falsely saved
-  ---
-  duration_ms: 4.441309
-  type: 'test'
-  ...
-# Subtest: standalone module permits safe direct SVG/DOM only, with no raw SVG parser, execution, network, storage or download effects
-ok 374 - standalone module permits safe direct SVG/DOM only, with no raw SVG parser, execution, network, storage or download effects
-  ---
-  duration_ms: 13.216282
-  type: 'test'
-  ...
-# Subtest: webpage uses exact native root, section and entry keys with no code-bearing properties
-ok 375 - webpage uses exact native root, section and entry keys with no code-bearing properties
-  ---
-  duration_ms: 7.80288
-  type: 'test'
-  ...
-# Subtest: native validation preserves literal text and uses shared UTF8, nonblank, ID and secret guards
-ok 376 - native validation preserves literal text and uses shared UTF8, nonblank, ID and secret guards
-  ---
-  duration_ms: 4.243794
-  type: 'test'
-  ...
-# Subtest: cards and FAQ require one to twelve entries while other native sections cannot contain entries
-ok 377 - cards and FAQ require one to twelve entries while other native sections cannot contain entries
-  ---
-  duration_ms: 1.134078
-  type: 'test'
-  ...
-# Subtest: actions are paired, restricted to hero or CTA, and resolve inside the same snapshot
-ok 378 - actions are paired, restricted to hero or CTA, and resolve inside the same snapshot
-  ---
-  duration_ms: 1.726073
-  type: 'test'
-  ...
-# Subtest: canonical JSON and single-document projection preserve complete content and exact UTF8 cap
-ok 379 - canonical JSON and single-document projection preserve complete content and exact UTF8 cap
-  ---
-  duration_ms: 0.831029
-  type: 'test'
-  ...
-# Subtest: provider schema is fully required, rejects extra keys, and includes strict boolean navigation
-ok 380 - provider schema is fully required, rejects extra keys, and includes strict boolean navigation
-  ---
-  duration_ms: 1.147878
-  type: 'test'
-  ...
-# Subtest: content fingerprint ignores only stable IDs and preserves internal target binding semantics
-ok 381 - content fingerprint ignores only stable IDs and preserves internal target binding semantics
-  ---
-  duration_ms: 1.354114
-  type: 'test'
-  ...
-# Subtest: webpage module inherits fixed-model lifecycle and correct seven-field three-direction mapping
-ok 382 - webpage module inherits fixed-model lifecycle and correct seven-field three-direction mapping
-  ---
-  duration_ms: 1.571845
-  type: 'test'
-  ...
-# Subtest: capability instructions promise only native navigation and FAQ, not arbitrary code or deployment
-ok 383 - capability instructions promise only native navigation and FAQ, not arbitrary code or deployment
-  ---
-  duration_ms: 5.00803
-  type: 'test'
-  ...
-# Subtest: generation creates exactly one full candidate in one bounded model call after confirmed directions
-ok 384 - generation creates exactly one full candidate in one bounded model call after confirmed directions
-  ---
-  duration_ms: 4.444136
-  type: 'test'
-  ...
-# Subtest: refinement preserves full selected source and latest combined goal authority while rejecting content no-ops
-ok 385 - refinement preserves full selected source and latest combined goal authority while rejecting content no-ops
-  ---
-  duration_ms: 1.231472
-  type: 'test'
-  ...
-# Subtest: clarification requires exact canonical echo, rejects edit claims, and discards artifact and goal metadata
-ok 386 - clarification requires exact canonical echo, rejects edit claims, and discards artifact and goal metadata
-  ---
-  duration_ms: 0.913712
-  type: 'test'
-  ...
-# Subtest: goal-only revisions require the exact source artifact even when goal or combined metadata changes
-ok 387 - goal-only revisions require the exact source artifact even when goal or combined metadata changes
-  ---
-  duration_ms: 0.880833
-  type: 'test'
-  ...
-# Subtest: fusion uses two to five selected native snapshots and own goals and rejects any copied content
-ok 388 - fusion uses two to five selected native snapshots and own goals and rejects any copied content
-  ---
-  duration_ms: 0.575932
-  type: 'test'
-  ...
-# Subtest: native PHP fixtures are explicitly unexecuted and cover strict boundaries, bindings and lifecycle semantics
-ok 389 - native PHP fixtures are explicitly unexecuted and cover strict boundaries, bindings and lifecycle semantics
-  ---
-  duration_ms: 1.217291
-  type: 'test'
-  ...
-# Subtest: brief has seven standard fields with webpage structure, style, limits and honest fixed provenance
-ok 390 - brief has seven standard fields with webpage structure, style, limits and honest fixed provenance
-  ---
-  duration_ms: 2.569692
-  type: 'test'
-  ...
-# Subtest: fictional event fixture includes all five native section types and only resolved internal actions
-ok 391 - fictional event fixture includes all five native section types and only resolved internal actions
-  ---
-  duration_ms: 7.449091
-  type: 'test'
-  ...
-# Subtest: exported demonstration commands each change only their stated field
-ok 392 - exported demonstration commands each change only their stated field
-  ---
-  duration_ms: 15.462858
-  type: 'test'
-  ...
-# Subtest: literal title preserves inner whitespace, markup, Chinese and newlines without rewriting any section
-ok 393 - literal title preserves inner whitespace, markup, Chinese and newlines without rewriting any section
-  ---
-  duration_ms: 3.609891
-  type: 'test'
-  ...
-# Subtest: unique section ID or exact heading assignments preserve every other custom field and entry
-ok 394 - unique section ID or exact heading assignments preserve every other custom field and entry
-  ---
-  duration_ms: 7.569269
-  type: 'test'
-  ...
-# Subtest: literal markup and apparent resource URLs are text, not new executable instructions
-ok 395 - literal markup and apparent resource URLs are text, not new executable instructions
-  ---
-  duration_ms: 0.952399
-  type: 'test'
-  ...
-# Subtest: empty section body is supported but blank required headings and document titles are rejected
-ok 396 - empty section body is supported but blank required headings and document titles are rejected
-  ---
-  duration_ms: 1.458488
-  type: 'test'
-  ...
-# Subtest: missing or ambiguous heading and ID targets clarify instead of selecting or adding a section
-ok 397 - missing or ambiguous heading and ID targets clarify instead of selecting or adding a section
-  ---
-  duration_ms: 1.36551
-  type: 'test'
-  ...
-# Subtest: only exact fixed theme tokens and navigation commands can change configuration
-ok 398 - only exact fixed theme tokens and navigation commands can change configuration
-  ---
-  duration_ms: 3.64282
-  type: 'test'
-  ...
-# Subtest: identical literal assignments return clarification without a fake revision or changed goal
-ok 399 - identical literal assignments return clarification without a fake revision or changed goal
-  ---
-  duration_ms: 1.791811
-  type: 'test'
-  ...
-# Subtest: unknown requests and incomplete or combined grammar do not infer, echo private requests or create a version
-ok 400 - unknown requests and incomplete or combined grammar do not infer, echo private requests or create a version
-  ---
-  duration_ms: 15.588975
-  type: 'test'
-  ...
-# Subtest: unknown-input choices are exactly two executable literal changes on the current artifact
-ok 401 - unknown-input choices are exactly two executable literal changes on the current artifact
-  ---
-  duration_ms: 10.654093
-  type: 'test'
-  ...
-# Subtest: non-text requests and invalid Unicode or oversized assignments fail without truncation
-ok 402 - non-text requests and invalid Unicode or oversized assignments fail without truncation
-  ---
-  duration_ms: 2.112495
-  type: 'test'
-  ...
-# Subtest: compatible fusion preserves exact sections, entries, resolved targets and first-source order
-ok 403 - compatible fusion preserves exact sections, entries, resolved targets and first-source order
-  ---
-  duration_ms: 2.009843
-  type: 'test'
-  ...
-# Subtest: fusion considers ordered sections, not an unordered set or a document title change
-ok 404 - fusion considers ordered sections, not an unordered set or a document title change
-  ---
-  duration_ms: 1.477546
-  type: 'test'
-  ...
-# Subtest: distinct stable section IDs retain repeated content and order rather than silently deduplicate
-ok 405 - distinct stable section IDs retain repeated content and order rather than silently deduplicate
-  ---
-  duration_ms: 0.616933
-  type: 'test'
-  ...
-# Subtest: fusion rejects incompatible theme or navigation settings without replacing them
-ok 406 - fusion rejects incompatible theme or navigation settings without replacing them
-  ---
-  duration_ms: 0.505287
-  type: 'test'
-  ...
-# Subtest: same-ID conflicts in full section and entry content reject rather than drop, rename or replace
-ok 407 - same-ID conflicts in full section and entry content reject rather than drop, rename or replace
-  ---
-  duration_ms: 3.512657
-  type: 'test'
-  ...
-# Subtest: dangling targets reject even when another source would supply the missing section
-ok 408 - dangling targets reject even when another source would supply the missing section
-  ---
-  duration_ms: 0.654438
-  type: 'test'
-  ...
-# Subtest: fusion requires two to five dense artifacts without extra, symbol or hidden array properties
-ok 409 - fusion requires two to five dense artifacts without extra, symbol or hidden array properties
-  ---
-  duration_ms: 1.220876
-  type: 'test'
-  ...
-# Subtest: all entry points delegate strict schema validation rather than normalize corrupt input
-ok 410 - all entry points delegate strict schema validation rather than normalize corrupt input
-  ---
-  duration_ms: 4.107537
-  type: 'test'
-  ...
-# Subtest: fusion permits exactly twenty sections and rejects twenty-one atomically
-ok 411 - fusion permits exactly twenty sections and rejects twenty-one atomically
-  ---
-  duration_ms: 3.600467
-  type: 'test'
-  ...
-# Subtest: canonical byte limits apply to literal assignments and prevent unexecutable examples
-ok 412 - canonical byte limits apply to literal assignments and prevent unexecutable examples
-  ---
-  duration_ms: 39.594682
-  type: 'test'
-  ...
-# Subtest: fusion rejects aggregate canonical overflow from individually valid sources without truncation
-ok 413 - fusion rejects aggregate canonical overflow from individually valid sources without truncation
-  ---
-  duration_ms: 8.979245
-  type: 'test'
-  ...
-# Subtest: revision, clarification and fusion are deeply detached from all input provenance
-ok 414 - revision, clarification and fusion are deeply detached from all input provenance
-  ---
-  duration_ms: 2.633396
-  type: 'test'
-  ...
-# Subtest: helper imports shared native validation and has no network, storage, browser execution or persistence path
-ok 415 - helper imports shared native validation and has no network, storage, browser execution or persistence path
-  ---
-  duration_ms: 13.893386
-  type: 'test'
-  ...
-# Subtest: default and all five section types validate; canonical clones isolate entries and preserve literal text
-ok 416 - default and all five section types validate; canonical clones isolate entries and preserve literal text
-  ---
-  duration_ms: 6.596299
-  type: 'test'
-  ...
-# Subtest: exact own keys and dense arrays reject extra, missing, hidden, symbolic, sparse or unsupported data
-ok 417 - exact own keys and dense arrays reject extra, missing, hidden, symbolic, sparse or unsupported data
-  ---
-  duration_ms: 6.624612
-  type: 'test'
-  ...
-# Subtest: stable IDs are ASCII, unique in scope, safe even with object prototype key names
-ok 418 - stable IDs are ASCII, unique in scope, safe even with object prototype key names
-  ---
-  duration_ms: 2.206715
-  type: 'test'
-  ...
-# Subtest: cards/FAQ require one to twelve exact entries; other section entry lists remain empty
-ok 419 - cards/FAQ require one to twelve exact entries; other section entry lists remain empty
-  ---
-  duration_ms: 1.456325
-  type: 'test'
-  ...
-# Subtest: actions permit only existing section IDs, paired hero/CTA labels and mandatory CTA buttons
-ok 420 - actions permit only existing section IDs, paired hero/CTA labels and mandatory CTA buttons
-  ---
-  duration_ms: 1.788295
-  type: 'test'
-  ...
-# Subtest: UTF8 byte limits, nonblank headings, exact literals and shared API-key guard apply to all textual fields
-ok 421 - UTF8 byte limits, nonblank headings, exact literals and shared API-key guard apply to all textual fields
-  ---
-  duration_ms: 3.539627
-  type: 'test'
-  ...
-# Subtest: canonical JSON has fixed order and PHP separator escapes; projection is a single document, never per section
-ok 422 - canonical JSON has fixed order and PHP separator escapes; projection is a single document, never per section
-  ---
-  duration_ms: 4.608769
-  type: 'test'
-  ...
-# Subtest: 60000-byte canonical boundary is exact, atomic, and counts separator escaping
-ok 423 - 60000-byte canonical boundary is exact, atomic, and counts separator escaping
-  ---
-  duration_ms: 16.007298
-  type: 'test'
-  ...
-# Subtest: pure immutable operations preserve section/entry identity and explicitly protect incoming targets
-ok 424 - pure immutable operations preserve section/entry identity and explicitly protect incoming targets
-  ---
-  duration_ms: 6.482231
-  type: 'test'
-  ...
-# Subtest: native DOM renders all content, navigation anchors, card lists and independently operable FAQ semantics
-ok 425 - native DOM renders all content, navigation anchors, card lists and independently operable FAQ semantics
-  ---
-  duration_ms: 4.154416
-  type: 'test'
-  ...
-# Subtest: malicious authored markup and URLs are literal in DOM and escaped in standalone HTML
-ok 426 - malicious authored markup and URLs are literal in DOM and escaped in standalone HTML
-  ---
-  duration_ms: 1.75046
-  type: 'test'
-  ...
-# Subtest: standalone HTML has an early restrictive CSP, fixed responsive high-contrast themes and no app/private context
-ok 427 - standalone HTML has an early restrictive CSP, fixed responsive high-contrast themes and no app/private context
-  ---
-  duration_ms: 1.686485
-  type: 'test'
-  ...
-# Subtest: two preview/editor instances use unique generated IDs and each anchor stays in its own DOM subtree
-ok 428 - two preview/editor instances use unique generated IDs and each anchor stays in its own DOM subtree
-  ---
-  duration_ms: 8.460713
-  type: 'test'
-  ...
-# Subtest: invalid preview reports validation errors and never partially renders malformed input
-ok 429 - invalid preview reports validation errors and never partially renders malformed input
-  ---
-  duration_ms: 0.461193
-  type: 'test'
-  ...
-# Subtest: document edits stay raw/pending until explicit apply, update preview only on apply, and can be discarded
-ok 430 - document edits stay raw/pending until explicit apply, update preview only on apply, and can be discarded
-  ---
-  duration_ms: 7.487383
-  type: 'test'
-  ...
-# Subtest: all authored text uses textareas, never newline-stripping text inputs, and retains multiline drafts through apply
-ok 431 - all authored text uses textareas, never newline-stripping text inputs, and retains multiline drafts through apply
-  ---
-  duration_ms: 7.554667
-  type: 'test'
-  ...
-# Subtest: section drafts survive selection and complete app rerenders; obsolete DOM event handlers do nothing
-ok 432 - section drafts survive selection and complete app rerenders; obsolete DOM event handlers do nothing
-  ---
-  duration_ms: 5.384647
-  type: 'test'
-  ...
-# Subtest: action target control offers only same-document IDs and rejects tampered unsupported targets without clipping drafts
-ok 433 - action target control offers only same-document IDs and rejects tampered unsupported targets without clipping drafts
-  ---
-  duration_ms: 2.092746
-  type: 'test'
-  ...
-# Subtest: card and FAQ entry fields, add/remove/reorder are raw drafts until explicit section apply
-ok 434 - card and FAQ entry fields, add/remove/reorder are raw drafts until explicit section apply
-  ---
-  duration_ms: 11.385465
-  type: 'test'
-  ...
-# Subtest: entry draft operations enforce one-to-twelve bounds and cannot bypass disabled editor state
-ok 435 - entry draft operations enforce one-to-twelve bounds and cannot bypass disabled editor state
-  ---
-  duration_ms: 4.466468
-  type: 'test'
-  ...
-# Subtest: section structural operations are guarded against any pending field and support explicit reorder/add/remove
-ok 436 - section structural operations are guarded against any pending field and support explicit reorder/add/remove
-  ---
-  duration_ms: 6.348623
-  type: 'test'
-  ...
-# Subtest: twenty-step undo survives parent rerenders, is blocked by drafts, and never writes a version itself
-ok 437 - twenty-step undo survives parent rerenders, is blocked by drafts, and never writes a version itself
-  ---
-  duration_ms: 90.6833
-  type: 'test'
-  ...
-# Subtest: orphaned drafts remain pending across external structural changes until explicitly discarded
-ok 438 - orphaned drafts remain pending across external structural changes until explicitly discarded
-  ---
-  duration_ms: 2.382922
-  type: 'test'
-  ...
-# Subtest: no-op applies clear identical drafts without emitting, stale closures cannot double-apply, callback errors are visible
-ok 439 - no-op applies clear identical drafts without emitting, stale closures cannot double-apply, callback errors are visible
-  ---
-  duration_ms: 5.155704
-  type: 'test'
-  ...
-# Subtest: oversize editor values remain visible and pending rather than truncating or emitting invalid state
-ok 440 - oversize editor values remain visible and pending rather than truncating or emitting invalid state
-  ---
-  duration_ms: 0.710369
-  type: 'test'
-  ...
-# Subtest: editor scopes limitations accurately; module contains no dynamic markup, networking, persistence or version saves
-ok 441 - editor scopes limitations accurately; module contains no dynamic markup, networking, persistence or version saves
-  ---
-  duration_ms: 12.356887
-  type: 'test'
-  ...
-1..441
-# tests 441
-# suites 0
-# pass 441
-# fail 0
-# cancelled 0
-# skipped 0
-# todo 0
-# duration_ms 2816.63193
-
-SQLite verification
+✔ native validator retains exact bounded artifact shapes, never text substitutes (8.579283ms)
+✔ table text and stable identities are preserved with byte, UTF8 and existing-secret guards (1.647417ms)
+✔ chart parser has real TSV numeric data, consistent rows and bounded dimensions (1.430827ms)
+✔ numeric grammar and decimal magnitude reject executable data, exponent and rounded-bound bypass (1.440191ms)
+✔ source normalizes only CRLF while retaining conventional final newline and source formatting (1.205093ms)
+✔ legacy projection is always server derived from full validated artifacts (1.526559ms)
+✔ provider native schemas forbid extra properties and use strict nested string-array objects (1.592215ms)
+✔ artifact module reuses strict fixed-model path and seven-field ready/exploring brief (2.791881ms)
+✔ generation produces exactly one complete artifact with metadata in one bounded call (3.86602ms)
+✔ refinement uses candidate source, forbids paragraph ranges, and rejects fake changes (1.098545ms)
+✔ strict clarification echoes exact source then discards it with bounded unused metadata (1.016904ms)
+✔ fusion receives only explicit 2–5 source artifacts and their goals, not shared creative goal (1.220365ms)
+✔ native fixtures explicitly distinguish preparation from executed runtime coverage (1.842776ms)
+✔ flowchart parser enforces declared bounded graphs, reserved ids and strict safe labels (0.710351ms)
+✔ flowchart source-export grammar rejects hidden statements and unsupported nested shapes (1.170903ms)
+✔ raw JSON guard preserves object-array identity before associative conversion (8.577716ms)
+✔ native defaults contain no invented chart numbers and support only table/chart (3.884958ms)
+✔ table validation preserves stable IDs, whitespace, empty cells and immutable clones (1.415364ms)
+✔ table exact shape, stable ASCII identifiers, dimensions and string types are enforced (1.997365ms)
+✔ native validation enforces UTF8 bytes, malformed Unicode/NUL, full JSON size, and secret guard (4.371338ms)
+✔ chart parser canonical labels, decimal values, CRLF and optional terminal LF match the native contract (0.455624ms)
+✔ chart rejects formulas, loose numbers, whitespace, magnitude rounding bypasses and unsupported types (0.542072ms)
+✔ chart rejects malformed, oversized, duplicate and empty source labels without guessing data (0.532618ms)
+✔ pie rejects multiple series, negative numbers including underflow, and zero sum (0.307355ms)
+✔ authoritative item projection includes full table text and all chart metadata without formula mutation (0.66893ms)
+✔ CSV and TSV protect spreadsheet formula cells while preserving quoted multiline literals (0.781596ms)
+✔ chart TSV escapes only text fields, leaving strict numeric negative/positive values as numbers (0.481562ms)
+✔ table rendering uses real DOM text, semantic headers/caption and a keyboard-accessible scroll region (1.278311ms)
+✔ bar, line and pie previews render finite actual geometry plus complete accessible text data (3.100327ms)
+✔ zero and single-point chart cases never fabricate values or produce invalid geometry (2.049032ms)
+✔ safe SVG export uses escaped XML primitives, includes all values, and never executes source text (1.210841ms)
+✔ table editor independently changes columns, rows and cells while preserving stable identity and saved inputs (5.775355ms)
+✔ table editor retains invalid text drafts and disables minimum/maximum structural actions (15.461896ms)
+✔ editor controls have unique explicit labels, including ambiguous stable-ID combinations and repeated prefixes (2.386341ms)
+✔ disabled editor cannot change artifacts or expose active mutating controls (1.420372ms)
+✔ chart source editing keeps invalid drafts, removes stale visual, and re-renders from changed values (3.830177ms)
+✔ frontend errors correspond exactly to PHP validation messages and public module contains no unsafe side effects (25.693974ms)
+✔ flowchart parser handles safe declared shapes, forward references, TB alias, comments, labels and cycles (1.606397ms)
+✔ flowchart rejects unsupported directives, wrong headers, implicit nodes, chains and reserved identifiers (0.764542ms)
+✔ flowchart source-export bypasses and nested non-subset shapes are rejected rather than silently reinterpreted (1.173296ms)
+✔ flowchart validates the entire source including ignored comments against Unicode line and bidi bypasses (3.633145ms)
+✔ flowchart label grammar forbids entities, HTML, escapes, controls, executable links and unquoted delimiters (1.078656ms)
+✔ flowchart caps node and edge complexity, including cyclic diagrams with complete finite geometry (27.247743ms)
+✔ flowchart renders real node shapes, arrows, self loops, labels, accessible text and escaped title (1.470025ms)
+✔ flowchart MMD/TXT exports preserve normalized user source, never add directives or silently convert modes (0.415825ms)
+✔ chart mode switch retains drafts, updates source label, hides flow axes, and does not claim placeholder is AI output (2.012898ms)
+✔ metadata uses textareas and preserves valid multiline strings rather than single-line input sanitization (1.471457ms)
+✔ local-only HTTP boundary includes loopback, proxy rejection, CSRF, Origin and body cap (12.999663ms)
+✔ temporary vault never lives in config or SQLite, does not echo secret, expires and can clear (2.008592ms)
+✔ paid actions require explicit consent, current model, current key generation, and idempotency (2.695388ms)
+✔ goal approval gate, one question, module boundary, no code execution (6.263898ms)
+✔ official pointer changes only on explicit promote; generation never auto-finalizes (1.193947ms)
+✔ snapshots and comparisons retain exact goal/message/version linkage and enforce membership (1.377618ms)
+✔ fixed HTTPS Responses endpoint, certificate verification, strict schema, no upstream raw errors (1.001402ms)
+✔ installer non-destructive lock, external private data and no secret input (2.675518ms)
+✔ project identity and metadata separate from generated title; all reads scoped (1.93968ms)
+✔ Ollama restricts destination to loopback and never receives OpenAI credential (1.191853ms)
+✔ provider selection binds every call to immutable settings, no automatic fallback (8.535438ms)
+✔ connection tests read only model metadata, no inference (5.06232ms)
+✔ extensible stable-id naming bundles validated and generated only from approved item definitions (2.035251ms)
+✔ project shell separates creative items, isolates active item actions, and pins explicit cross-item references (2.333963ms)
+✔ context changes invalidate projected approvals consistently and finalized metadata requires reopening (1.778611ms)
+✔ generation capacity checked before inference and reference copying avoids recursive content explosion (3.724601ms)
+✔ inference storage budgets bound all copied references and six-byte JSON escaping at capacity edge (38.833774ms)
+✔ official discussion branches into true revisions before initial-goal reset and never promotes automatically (1.752773ms)
+✔ refinement includes current full official bundle, custom labels, current references and genuine output validation (0.930337ms)
+✔ existing official allows manual save without falsely restoring approval; initial work still goal gated (6.350396ms)
+✔ revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction (7.221859ms)
+✔ two-level version metadata migrates without changing snapshot identities and allocates from all versions (2.444417ms)
+✔ candidate archives are reversible metadata, block official archival and retain immutable versions (1.317519ms)
+✔ comparison uses each selected version goal and changes, never current shared-goal approval (1.100228ms)
+✔ new per-version goals and discussion summaries are generated in the existing call and manual notes preserved (1.21009ms)
+✔ AI member settings are non-secret allowlisted owner-scoped records with explicit opt-in and no fallback (1.08118ms)
+✔ paid member configuration is frozen at dispatch and provenance stores nickname and stable member ID (3.618734ms)
+✔ available model catalog uses explicit metadata-only fixed destinations without invented inventory (1.220936ms)
+✔ member editing and switching require revision lease and explicit null selection never falls back (1.36525ms)
+✔ AI prompts use general-audience roles without rewriting persisted user-authored history (1.326593ms)
+✔ raw model schema validates JSON arrays versus objects before lossy conversion (1.302788ms)
+✔ clarification tolerates bounded metadata and punctuation variants without accepting fake revised content (1.181528ms)
+✔ server distinguishes explicit rejection from genuinely unknown outcomes and never promises no charge (2.725758ms)
+✔ shipped UI installation docs and demo defaults do not frame the tool as coursework (5.542189ms)
+✔ combined version notes are immutable snapshots and authoritative in refinement and comparison (1.587489ms)
+✔ promotion atomically renames the active creative item only and preserves prior names in history (1.323939ms)
+✔ dialogue choices use strict optional single-choice schema rather than parsing or inventing buttons (4.557793ms)
+✔ choice answer is resolved from only the latest bound question before any provider call (1.570844ms)
+✔ choice history preserves server-resolved source linkage and outbound question without relabeling model origin (0.961252ms)
+✔ initial discussion storage budget includes escaped six-option question, selected answer and context binding (2.13554ms)
+✔ request IDs use secure random 32-character lowercase hex (3.9874ms)
+✔ goal summary and generation are separate, lifecycle-aware gates (0.347274ms)
+✔ comparison requires 2–5 distinct existing versions, including official (0.273905ms)
+✔ extensible items validate stable IDs, names, content, UTF-8 and limits (0.758051ms)
+✔ provenance labels use immutable request data and distinguish missing actual model (0.312883ms)
+✔ explicit export allowlists project content, excludes keys/session/settings (1.013439ms)
+✔ demo cannot save keys, test providers, or execute unconsented inference (2.807744ms)
+✔ one sufficient discussion permits direction confirmation while compatibility generation remains explicit (4.205692ms)
+✔ whole-group snapshots, lineage, promotion and comparisons preserve originals (9.328691ms)
+✔ finalization snapshots entire group; reopen and metadata changes preserve history (4.179984ms)
+✔ projects reopen independently and returned objects cannot mutate saved history (4.033858ms)
+✔ demo source has no networking or persistent browser storage; rendering never uses HTML injection (40.438088ms)
+✔ creative items isolate discussion, draft source versions, and unavailable capabilities (3.220886ms)
+✔ cross-item references are explicit immutable whole-version copies (3.496693ms)
+✔ archive is recoverable; project closure respects every nonarchived item (4.006448ms)
+✔ manual direction summary requires discussion content, never an arbitrary three-turn count (0.157313ms)
+✔ real renderer DOM fixture preserves drafts on item switch and cancels setup without sending (73.875809ms)
+✔ real settings DOM fixture saves roster without rebinding projects and clears key before adapter request (25.793591ms)
+✔ key expiry accepts Unix seconds instead of displaying 1970 (0.352912ms)
+✔ renderer plus mocked fetch transport creates a project through real fetch transport and reopens after bootstrap (4.506217ms)
+✔ revision helpers track the newest unadopted branch and diff by stable item IDs (0.396787ms)
+✔ demo discussion refines official full bundles repeatedly only after explicit adoption (4.488561ms)
+✔ vague questions and no-op demo changes ask for clarification without fake revisions or goal resets (2.968201ms)
+✔ existing official can be revised and manually saved with legacy null approval while finalize guards remain (3.686815ms)
+✔ finalized official blocks discussion until reopened and new revisions preserve finalization snapshot (2.64264ms)
+✔ real renderer plus real fetch adapter promotes, revises, reviews and adopts whole bundles repeatedly (150.319356ms)
+✔ real renderer does not block official manual edits or discussion when old goal approval is null (32.576327ms)
+✔ persisted promotion history does not resurrect an already-adopted revision after selecting its old base (0.483676ms)
+✔ two-level numbering reads legacy snapshots and allocates major and minor branches without collisions (0.169811ms)
+✔ comparison guards explain selection, lifecycle, uncertainty and UTF-8 limits without requiring goal approval (0.561741ms)
+✔ demo minor snapshots and AI-script revisions retain major lineage; archives never mutate historical versions (5.804198ms)
+✔ demo comparisons preserve historical goal basis after metadata invalidates approval (2.325491ms)
+✔ real renderer and fetch boundary save complete major/minor versions with computed labels and selected lineage (52.469778ms)
+✔ real renderer and fetch boundary archive/restore candidates without deleting content or comparison history (32.451922ms)
+✔ real renderer and fetch boundary compare with null goal approval, handle UTF-8/error and display historical basis (47.616268ms)
+✔ real renderer enforces maximum five selected versions and supports a five-version comparison (54.186619ms)
+✔ version goals and comments validate independently and preserve explicit legacy absence (0.436697ms)
+✔ one merged metadata input saves immutable exact text, survives repeated edit/save and compares selected snapshots (48.203797ms)
+✔ real renderer reviews and adopts goal-only AI-script revisions without discarding unchanged bundle content (23.496659ms)
+✔ legacy renderer labels old goal/rationale and never substitutes common goal for a source without one (9.713271ms)
+✔ artwork colors retain strong readable contrast and non-color content labels (1.552537ms)
+✔ AI member helpers never fall back to another enabled member and provenance uses immutable nickname snapshots (0.472339ms)
+✔ one explicit setup opt-in enables multiple deliberate AI actions without per-request dialogs (63.651641ms)
+✔ project model is fixed; global selection changes and disabling never reroute or lose drafts (19.821684ms)
+✔ member renaming and disabling never relabel saved AI replies or version provenance (24.670227ms)
+✔ model-list metadata is explicit-only, uses exact fetched names, shows errors and keeps manual fallback without inference (10.683875ms)
+✔ in-flight calls retain their fixed project member and block duplicate requests without a model selector (15.507637ms)
+✔ stale settings keep local draft and cannot overwrite a newer roster revision (17.041321ms)
+✔ missing or expired OpenAI keys block inference with actionable setup text, without a fallback member (11.365795ms)
+✔ member nickname limits use UTF-8 bytes and invalid settings stay open with all drafts intact (6.447488ms)
+✔ new AI members receive stable secure IDs, remain disabled until checked and respect the 20-member cap (17.089562ms)
+✔ clearing the global default cannot unbind an existing project or choose a fallback (15.883327ms)
+✔ reference picker excludes archived versions and empty sources while retaining pinned archived snapshots (15.906162ms)
+✔ dialogue panel shows one fixed project model above the log and composer, with no quick switch (8.179741ms)
+✔ UI defaults and seeded demo use general-audience creative examples, without altering legacy role storage (11.890741ms)
+✔ existing user-authored school content stays intact while its stored student role displays as you (5.667314ms)
+✔ mocked fetch approvals stay on the bound provider after global defaults change, preserving context and drafts (30.16144ms)
+✔ known invalid model output remains rejected and permits deliberate retry on the same fixed model with drafts intact (22.081678ms)
+✔ timeouts, network loss, malformed JSON and old unclassified 5xx remain uncertain without automatic retry (103.642338ms)
+✔ checking an unknown result and receiving explicit rejection on the same request clears only the uncertainty (19.118824ms)
+✔ combined version metadata prefers stored text verbatim and joins unique legacy values without loss (0.658675ms)
+✔ explicit empty stored combined metadata does not fall back to old text or common goal (4.233844ms)
+✔ adopted item names prefer explicit main labels, then generic names, without altering full content (0.367283ms)
+✔ explicit promotion immediately renames only its creative item; pending changes and switching preserve names and history (74.320139ms)
+✔ demo promotion chooses the Chinese main title even when an English item is listed first (2.734576ms)
+✔ workspace terminology describes creative content and dynamic version saving naturally (6.17073ms)
+✔ official snapshot leads the current item workspace in the same desktop and mobile logical order (6.658019ms)
+✔ official reading state survives tree and checkbox rerenders, but a newly adopted version starts fresh (13.45783ms)
+✔ top official area explicitly stays empty until a candidate is adopted (11.777754ms)
+✔ top official status distinguishes pending changes and finalized or archived work without changing snapshots (24.653171ms)
+✔ only bounded structured discussion questions expose choices, with strict persisted context (0.95327ms)
+✔ choice click uses one bound fetch call, preserves exact typed draft throughout busy and retains linked normal history (8.410332ms)
+✔ the fixed project member, not a changed global default, handles a saved explicit choice (5.77262ms)
+✔ refinement clarification choices produce a reviewable minor revision without replacing official or draft (16.250481ms)
+✔ legacy prose and empty choices invent no buttons; legacy structured choices without binding are nonactionable (7.749364ms)
+✔ historical choice labels, questions and different answer values render as text, never HTML (1.808746ms)
+✔ only the actual last question in matching active context can submit, including readonly and setup guards (19.420981ms)
+✔ uncertain choice outcome locks repeat clicks and keeps typed draft without auto-retry (4.454029ms)
+✔ stale revision rejection refreshes latest discussion, keeps draft and never resends old choice (4.139143ms)
+✔ demo refuses tampered and stale choice references without changing history, while typed answers still work (4.166945ms)
+✔ module registry preserves all twelve ordered choices and honestly enables three text modules, five structured artifacts and uploaded images (4.569269ms)
+✔ module content validation distinguishes full short text and bounded stable paragraphs without truncation (1.870968ms)
+✔ project model helpers require the frozen enabled member, exact provider/model/endpoint, and no global fallback (0.278322ms)
+✔ unbound legacy projects require one explicit binding; no creation fallback, rebind, or silent model drift (1.243099ms)
+✔ scripted readiness is content-based, permits early summarizing, and never generates until current confirmation (4.162097ms)
+✔ confirm-generate gate accepts intact earlier direction but rejects future, missing, string markers and readonly state (0.252113ms)
+✔ renderer provides one deliberate current-direction generation and allows more discussion before it (15.746635ms)
+✔ candidate refinement creates exact-source minor versions before adoption and rejects archived or foreign sources (4.466518ms)
+✔ renderer uses the same explicit candidate source for AI and manual work without adopting it (18.3382ms)
+✔ article refinement requires an explicit valid range and merges only selected paragraphs into a complete immutable snapshot (5.138663ms)
+✔ article renderer starts with no selected range, preserves choice scope, and sends selected stable IDs only (34.700941ms)
+✔ short text remains exactly one full-body field for generation, revision, and manual snapshots (2.60949ms)
+✔ fusion creates one independent major candidate with immutable source snapshots and never compares or adopts automatically (7.877694ms)
+✔ compare and fusion controls have independent drafts, errors, deliberate requests, and visible source lineage (30.842318ms)
+✔ collapsible version tree groups actual minor lineage and preserves folds without duplicate DOM IDs or bottom history (20.478927ms)
+✔ legacy one-time setup is explicit in the renderer and preserves all project history (13.070356ms)
+✔ switching creative items away and back retains an intact ready direction without repeating discussion (7.276055ms)
+✔ confirm_generate and fuse transport failures remain unknown without auto retries or false completion (16.922185ms)
+✔ new paid transport actions classify network, malformed, and explicit rejected outcomes consistently (0.69645ms)
+✔ content validation errors identify UTF-8 limits and duplicate labels without silently truncating (4.726953ms)
+✔ short-text renderer exposes one full body, reports overflow, and never submits truncated contents (17.459225ms)
+✔ article manual editor blocks oversized paragraph snapshots and keeps every original byte for correction (13.466412ms)
+✔ short-text and article promotion preserve user-authored item names and do not promise title renaming (20.822825ms)
+✔ repeated fusion and cross-item pins preserve direct content and lineage without recursively nesting source snapshots (4.118162ms)
+✔ metadata-only text snapshots preserve paragraph and full-body whitespace through real renderer and mocked JSON transport (38.471695ms)
+✔ title editing retains every existing custom field without a redundant add-field control (3.680054ms)
+✔ table renderer edits real columns rows cells and saves complete typed artifact through fetch without touching source (33.073334ms)
+✔ chart source editor preserves invalid drafts then saves data-driven SVG as a new immutable version (29.781649ms)
+✔ artifact candidate refinement promotes full reviewed artifact and keeps project and item metadata unchanged (55.179133ms)
+✔ artifact comparison renders the exact selected data without generating or relabeling versions (38.351967ms)
+✔ artifact exports and pinned references retain native structure independently of later manual snapshots (3.077533ms)
+✔ flowchart choice generates only after confirmation then edits native source through the actual fetch boundary (27.270564ms)
+✔ flowchart mode switching preserves the complete draft, never translating or replacing source silently (5.845487ms)
+✔ flowchart comparison and explicit fusion keep native source snapshots, lineage and the fixed member (45.707461ms)
+✔ scripted artifact fusion rejects a union already present in any selected source instead of minting a fake revision (7.746971ms)
+✔ mindmap native pending acceptance saves only explicitly checked branches through real renderer and fetch (32.487803ms)
+✔ mindmap selected saved node gets reviewable pending-only revision and continuing adoption preserves provenance (72.282976ms)
+✔ mindmap raw node and child drafts survive outer reload and AI response, block incomplete saves, and escape malicious text (32.350303ms)
+✔ mindmap choices are node-scoped and a deliberate choice uses saved-source context without clearing typed draft (41.578867ms)
+✔ mindmap manual split branches compare and fuse explicitly without accepting remaining proposals or overwriting sources (64.281527ms)
+✔ mindmap custom child and merge are explicit draft edits, lossless and saved only as a full new snapshot (20.543442ms)
+✔ mindmap transport rejects pending or stale target nodes and over-budget combined fusion metadata without side effects (7.57661ms)
+✔ vector editor validates native numeric drafts and saves full geometry via real fetch without replacing source (42.567249ms)
+✔ vector ongoing AI-style scripted refinement stays visible and adopting a later revision preserves full object history (80.238591ms)
+✔ vector raw document and shape drafts survive reload and clarification, while invalid paint remains inert and unsaved (72.539043ms)
+✔ vector shape addition ordering undo and literal text stay native and explicit through full snapshot transport (45.091113ms)
+✔ vector comparison and explicit fusion preserve ordered compatible objects and authoritative per-version notes (89.394135ms)
+✔ vector deliberate reply buttons validate saved question before one request and preserve typed free-text draft (37.325619ms)
+✔ vector saved references finalization and export preserve native geometry despite later source changes (5.726412ms)
+✔ webpage requires three separate current-direction checks then sends one explicit actual fetch and immutable approval (30.27632ms)
+✔ webpage new discussion clears old direction checks and stale checkbox cannot approve a new summary (15.702611ms)
+✔ webpage transport rejects absent partial duplicate and stale approvals without versions or dialogue side effects (2.450846ms)
+✔ webpage raw fields survive reload and require explicit apply before full major snapshot via actual transport (39.099393ms)
+✔ webpage official can be repeatedly revised as reviewable candidates while fixed member and prior full page remain intact (74.447859ms)
+✔ webpage selected full pages compare then explicitly fuse distinct sections with own goals and no implicit adoption (98.351441ms)
+✔ webpage stale editor nodes cannot mutate a newly selected source or another item after uiState replacement (55.792484ms)
+✔ real fetch transport creates project with required body action, CSRF and JSON content type (7.27912ms)
+✔ every mutation route serializes authoritative action alongside unchanged payload (2.340152ms)
+✔ initial state and subsequent project reopen remain GET with query ID, no body or credentials in URL (0.765643ms)
+✔ missing action control reproduces exact PHP rejection and adapter surfaces 400 without retry (1.147498ms)
+✔ maximum valid whole-bundle metadata survives bounded JSON transport even with escaped text (15.649944ms)
+✔ maximum article manual snapshot fits actual HTTP envelope including worst-case JSON escaping (13.47709ms)
+✔ typed native artifacts retain real nested arrays and action across JSON transport with a server raw-shape guard (2.683565ms)
+✔ upload decode happens before writer lock; receipt, asset, full project and receipt commit together (1.366892ms)
+✔ read resolves owned project and exact saved item/version before private asset access (1.168799ms)
+✔ media endpoint enforces POST Origin CSRF host session and bounded uploaded file before reading (0.376217ms)
+✔ image analysis opt-in binds exact fixed configuration without reading key or calling provider (0.35137ms)
+✔ image analysis uses saved bytes with size caps and immutable version provenance only (0.328336ms)
+✔ image snapshots validate privately owned bytes; all old module dispatch paths remain (0.447472ms)
+✔ project-specific image opt-in verifies fixed binding and persists without model or key access (1.73073ms)
+✔ every image action prepares authorized persisted bytes before its sole module inference (0.355126ms)
+✔ deduplicated image payload retains a snapshot for every selected version and its distinct note (0.502573ms)
+✔ reference bytes resolve the immutable pinned item/version, never the latest official version (0.323318ms)
+✔ read and upload bind owner, project, item and saved version before access or mutation (0.35777ms)
+✔ manual image snapshots cannot swap an asset, while generate and fuse cannot invoke a model (0.411939ms)
+✔ image provenance records actual fixed model and bounded metadata but never raw pixels (0.341495ms)
+✔ real upload asset, version, project save and receipt share one PDO transaction and rollback boundary (0.312222ms)
+✔ native fixture uses real application/PDO seams and distinguishes its unexecuted status (0.476605ms)
+✔ native application fixture covers bounded comparisons, privacy, fixed references and both rollback failures (0.402125ms)
+✔ deduplicated labels fit the adapter bound with twelve distinct pinned version identities (0.262238ms)
+✔ fixture contains actual one-pixel RGBA PNG bytes, dimensions, scanline, and matching SHA256 (7.751648ms)
+✔ literal metadata survives canonical clone and one-document JSON projection without reinterpreting URLs or markup (2.267805ms)
+✔ exact object keys reject paths, URLs, raw bytes, missing fields, hidden and symbol properties (1.348265ms)
+✔ UTF8 byte boundaries, title nonblank, optional empty strings, invalid Unicode and secret guard (3.174477ms)
+✔ asset ID, hash, MIME, integer dimensions, byte limits and normalization are exact (1.858941ms)
+✔ FromItems rejects wrong collection and item shapes, malformed JSON, arrays and unbounded source (3.218181ms)
+✔ preview without loader or object-URL support is honest, inert, and does not invent a placeholder image (9.426386ms)
+✔ preview uses only parent-loaded PNG Blob, renders all user strings literally, and cleans up exactly once (5.606345ms)
+✔ disposing before loader starts or before late loader resolution never creates an object URL or calls errors (1.31842ms)
+✔ preview rejects URL strings, Blob impostors, non-PNG and wrong lengths without creating object URLs (1.549793ms)
+✔ loader throws, rejected promise, host URL failure and image decoding error have bounded failure and cleanup (1.452039ms)
+✔ preview rejects a non-blob host result and releases a URL created during synchronous disposal (2.112255ms)
+✔ metadata editor only exposes three textareas and explicit apply/discard; saving preserves asset exactly (1.769939ms)
+✔ editor invalid drafts are preserved through failure and rerender, while old editor handlers are inert (0.634829ms)
+✔ discard invalidates detached controls, preserves applied state, and never emits a version (0.472329ms)
+✔ raw untouched CR/LF survives apply, draft identity does not leak across versions, and disabled editors are inert (0.856958ms)
+✔ editor callback failures do not claim a saved version, and literal error text never becomes markup (1.893331ms)
+✔ separate image editors have unique explicit labels and parent token invalidation makes detached handlers inert (0.561191ms)
+✔ JS source uses no networking, markup, URL imports, pixels or model API; PHP source uses shared guards and no IO (23.875053ms)
+✔ exports exact immutable limits and help text explains scope, metadata, local processing and server authority (2.258622ms)
+✔ real static PNG, baseline and progressive JPEG byte fixtures return only MIME and dimensions (1.968372ms)
+✔ signature checks reject unsupported formats, MIME spoofing and empty/oversized/non-byte inputs (0.855786ms)
+✔ PNG dimensions reject zero, over-edge, unsigned huge and over-pixel bounds; exact bounds pass preflight (1.562912ms)
+✔ PNG verifies all chunk lengths, CRCs, IHDR fields, critical chunks, end and ordering (5.316166ms)
+✔ PNG scans APNG controls before/after IDAT and refuses data appended after IEND (1.247505ms)
+✔ source PNG palette/grayscale/high-bit/interlaced headers are legal but malformed palettes fail (1.394023ms)
+✔ PNG ancillary text and EXIF are accepted only as input; parser never returns their content (0.414944ms)
+✔ JPEG rejects truncated segment lengths and truncated scan data instead of trusting SOF alone (13.068644ms)
+✔ JPEG supports bounded 8-bit baseline/progressive frames only, with validated sampling and scan headers (1.106397ms)
+✔ JPEG zero, oversized dimensions and excessive pixel count fail before any decoding (0.652335ms)
+✔ JPEG entropy stuffing, restart markers and fill bytes do not become false SOF markers (0.27072ms)
+✔ all invalid inputs are refused before decoder, canvas or object URL is touched (4.357548ms)
+✔ preflight file size and read failures do not read or decode unbounded content (1.018497ms)
+✔ normalization trusts byte MIME, never original name, and returns only the normalized copy contract (1.360823ms)
+✔ normalization downsizes longest side with rounded aspect ratio, does not upscale, and preserves a minimum pixel (2.060228ms)
+✔ explicit clockwise rotations swap output dimensions but preserve draw aspect and alpha canvas (1.079297ms)
+✔ EXIF-oriented JPEG dimensions may be swapped before an additional explicit rotation (0.307505ms)
+✔ decoder dimension mismatch, zero/noninteger dimensions and decoded size limits still close the bitmap (1.745693ms)
+✔ bitmap decode failures surface and never silently retry via Image/object URL (0.41929ms)
+✔ output size boundary is accepted but oversized/empty/non-PNG output is rejected with bitmap/canvas cleanup (6.721194ms)
+✔ canvas/context/draw/export failures release bitmap and canvas without hidden format fallback (1.054931ms)
+✔ Image fallback only uses a fresh local blob URL and revokes it with cleared handlers after success (0.981532ms)
+✔ Image fallback revokes URL on load/draw/export/size/source-set errors and rejects nonlocal URL before assigning src (1.46015ms)
+✔ missing local APIs fail clearly after safe header validation (0.444528ms)
+✔ module contains no network, upload, storage, filename access, or AI client calls (20.934653ms)
+✔ image input preparation is pure, exact, bounded and hash-bound (1.509543ms)
+✔ memory headroom is checked before encoding without raising limits or changing text-only paths (0.321586ms)
+✔ OpenAI appends real image parts to last user while retaining text (0.248408ms)
+✔ Ollama appends ordered labels and raw base64 images only to last user (0.237081ms)
+✔ both adapters preserve four-argument calls, fixed routes/model and one inference (0.399251ms)
+✔ image module preserves strict schema/context bounds and one-shot attachment scope (0.299323ms)
+✔ image understanding is tied to actual selected asset bytes not metadata alone (0.211262ms)
+✔ refine can return only clarification and cannot synthesize a raster/version (0.325462ms)
+✔ native fixtures explicitly remain unexecuted and cover strict invariants (0.418419ms)
+✔ independent Node payload oracle round-trips actual PNG bytes and labels (2.62317ms)
+✔ image registry enables external upload but never image generation, fake defaults or source-free metadata snapshots (7.363274ms)
+✔ private transport uses POST, CSRF, same-origin cookies and generic filename without original name (2.398258ms)
+✔ private image reads contain only version ownership identifiers in JSON, never URL asset paths (1.813263ms)
+✔ media transport rejects cross-origin routes and wrong media responses, and marks uncertain saves without retries (1.592146ms)
+✔ API adapter shares the state CSRF with its private image methods (0.964487ms)
+✔ empty image workspace offers key-free local upload, no invented asset, and disabled generation (19.345221ms)
+✔ local selection normalizes only in browser, retains metadata through rotation, blocks navigation and cancels safely (59.888875ms)
+✔ explicit save uploads normalized PNG only once despite double click and preserves typed fields (23.64306ms)
+✔ upload uncertainty has no AI fee claim and safely reuses identical request and blob after explicit status check (14.665828ms)
+✔ rejected stale upload refresh keeps local image metadata and retries with a new request ID (10.660202ms)
+✔ one-time image disclosure grants consent without API key or AI call, and then follows normal setup gate (2.725773ms)
+✔ image analysis sends through fixed model without a second dialog and never claims pixel revision (19.654319ms)
+✔ saved image preview uses private source identities, cleans up URLs on rerender and warns metadata export is incomplete (13.568645ms)
+✔ pinned image references read the source item/version, not the active text item (6.129138ms)
+✔ image demo remains unavailable with no private reads, uploads or normalization (1.32488ms)
+✔ cross-tab active-item conflict preserves original upload and requires explicit server-side return (17.471088ms)
+✔ pending image metadata must be explicitly applied before snapshot and never changes the saved asset (16.097796ms)
+✔ selected image versions allow comparison only after consent, while fusion remains unavailable (53.774308ms)
+✔ cancelled normalization cannot restore a discarded local image or overwrite new metadata (2.14305ms)
+✔ malformed successful upload response is uncertain rather than permission to duplicate save (0.541321ms)
+✔ detached upload controls cannot start, save, or replace a later pending draft (7.054076ms)
+✔ image goal approval is explicit and never bundled with unavailable generation or AI calls (2.442534ms)
+✔ private image transport bounds both uploads and downloads to 4 MiB and rejects oversized headers before reading bytes (3.168607ms)
+✔ sixty collapsed image versions load only the top official PNG until one exact preview is requested (27.590951ms)
+✔ requested lazy preview ignores late bytes after rerender and stale load controls never refetch (3.611163ms)
+✔ image history with no official version reads zero PNGs until explicitly requested (3.418797ms)
+✔ comparison duplicates and project-finalization image snapshots remain lazy beside the top official preview (8.146673ms)
+✔ image preflight resource rejection is known uncalled and never claims possible AI fees or uncertainty (8.23238ms)
+✔ other rejected upstream 503 errors retain conservative possible-fee wording (5.519566ms)
+✔ media store shares injected PDO and creates only additive private tables (7.600364ms)
+✔ asset DDL constrains exact type, dimensions, hex identifiers and BLOB length (11.351405ms)
+✔ writer lock starts before callback and commit or rollback uses same PDO (1.455463ms)
+✔ insert requires strict normalized descriptor and binds binary payload as LOB (1.315275ms)
+✔ quota accounting is owner-project scoped and includes all retained assets (1.45307ms)
+✔ asset read is never ID-only and revalidates stored bytes before returning (2.194026ms)
+✔ receipts are owner-scoped immutable inserts with strict request and fingerprint grammar (2.67051ms)
+✔ verification fixtures distinguish actual extracted SQLite checks from unexecuted PHP (5.872218ms)
+✔ mindmap native helper exposes exact authoritative tree and pending shapes (8.078332ms)
+✔ topology validation connects every accepted node to one root and keeps proposals outside it (2.760354ms)
+✔ legacy projection walks validated accepted tree and marks the complete pending queue separately (4.849485ms)
+✔ mindmap shares strict provider workflow and topic-first open exploration (1.773995ms)
+✔ generation enforces one root and two to twelve unaccepted branches in one bounded call (1.145154ms)
+✔ refinement checks target before inference and forbids mutations outside its pending queue (1.085155ms)
+✔ clarification verifies exact source echo then discards artifact and metadata without a version (1.071195ms)
+✔ fusion uses selected version goals and accepted identities, not pending promotion or shared goal (1.084764ms)
+✔ native fixtures document their unexecuted status and cover boundary and workflow invariants (5.252692ms)
+✔ fixed brief has seven standard fields, marks fiction, and keeps exploration open (1.95337ms)
+✔ generation has exactly one fictional root and three separate pending branches (2.589ms)
+✔ literal child demo modifies only target pending proposals, never accepted nodes (3.587918ms)
+✔ unrecognized text clarifies without pretending to parse user data or create revision (0.472329ms)
+✔ supported request is an explicit literal with optional outer whitespace, not semantic matching (0.722589ms)
+✔ missing, pending-only, or malformed targets are rejected before a fake response (1.343117ms)
+✔ an identical second request is clarification, including pending list reordering (0.674609ms)
+✔ proposal IDs are deterministic bounded ASCII and avoid accepted and pending collisions (0.922224ms)
+✔ matching existing target proposals retain IDs when the fixed set is completed (1.451768ms)
+✔ already accepted fixed children are not proposed again, and exhausted fixtures clarify (1.778361ms)
+✔ revision observes the combined pending limit and rejects atomically rather than truncating (2.320443ms)
+✔ revision rejects aggregate byte overflow without altering or truncating its valid source (5.62356ms)
+✔ fusion combines divergent explicit acceptances and never promotes pending-only proposals (1.904257ms)
+✔ fusion retains all exact accepted records, parent links and separate pending records (0.914333ms)
+✔ fusion rejects different roots and root-content conflicts without invented connections (0.904278ms)
+✔ fusion rejects all ID content, parent, and cross-status conflicts (1.461282ms)
+✔ fusion needs two through five actual valid artifacts (0.744782ms)
+✔ a union identical to any source is rejected, not only a duplicate of the first (1.289749ms)
+✔ pending-only variation cannot masquerade as a meaningful accepted-tree fusion (0.423827ms)
+✔ shared native validation rejects cycles, missing parents, secret data and unknown shapes (1.490055ms)
+✔ fusion rejects accepted union above 80 nodes and allows exactly 80 without truncating (3.306402ms)
+✔ fusion rejects pending union above 24 and allows exactly 24 without accepting it (2.949934ms)
+✔ fusion enforces the native byte limit for a union of individually valid sources (6.067187ms)
+✔ deep valid trees remain finite and preserve all exact parent relationships (6.411956ms)
+✔ returned artifacts are detached from input sources (0.402004ms)
+✔ helper uses shared native validation and has no network or browser state path (17.792934ms)
+✔ default is a genuine single-root native map and clone preserves exact text/IDs (3.731501ms)
+✔ native shape refuses unknown/missing properties, coercion, sparse lists and invalid count (1.452679ms)
+✔ identifiers are stable ASCII, unique across both queues, and root shape is exact (3.550282ms)
+✔ accepted tree is connected, acyclic and independent of list order; proposals cannot parent proposals (1.004987ms)
+✔ UTF8 bounds, valid Unicode, NUL, whitespace and secret guard match the shared contract (2.8117ms)
+✔ full native and projected outline sizes reject atomically without truncation (18.454994ms)
+✔ projection is the full deterministic PHP-compatible outline with pending branches labelled unaccepted (0.372451ms)
+✔ rename, custom children and move preserve IDs/content and are immutable (3.036283ms)
+✔ explicit merge preserves destination and source text, reparents all children/proposals, and rejects overflow atomically (2.168438ms)
+✔ only explicitly selected proposals enter the accepted tree with their original stable IDs (2.153556ms)
+✔ delete never deletes root, branches, or a leaf that still owns proposals (0.668158ms)
+✔ genuine SVG draws only accepted nodes/edges and preserves every node in a full accessible list (2.303899ms)
+✔ single root, deep 80-node tree, and broad tree have finite real geometry and complete lists (12.158528ms)
+✔ selection via SVG and native list button selects a node without changing any artifact (2.664387ms)
+✔ rendering/export never inserts executable markup; JSON preserves proposals and TXT labels them clearly (3.661287ms)
+✔ editor starts with unchecked proposals, selection/checkbox changes do not emit, and only checked branches enter draft (8.816864ms)
+✔ editor keeps interrupted field drafts by node, applies exact text only explicitly, and reset does not emit (4.774284ms)
+✔ invalid partial typing and overflow do not emit or alter the accepted SVG; correcting fields recovers (3.25824ms)
+✔ custom child fields survive selection interruption and append exactly one valid child with stable identity (3.54879ms)
+✔ move and merge require explicit buttons and safe destinations; merge transfers every branch without early automatic narrowing (4.255926ms)
+✔ merge overflow, malicious move value, and acceptance capacity failure are atomic and recoverable in real callbacks (13.551214ms)
+✔ leaf removal and bounded 20-step undo are local snapshot operations (48.770444ms)
+✔ readonly controls and detached handlers cannot mutate, emit, or accidentally trigger a later selected node (1.537445ms)
+✔ callbacks receive complete isolated snapshots; callback failure is visible rather than falsely reporting saved success (6.961961ms)
+✔ module is standalone, safe DOM/SVG primitives only, with no automatic persistence, networking, downloads or dynamic evaluation (14.93725ms)
+✔ shared ephemeral uiState retains selected node and unapplied raw text through busy/read-only and AI-response rerenders (4.579835ms)
+✔ pending notifications cover invalid fields, cancellation, multiple nodes, child whitespace and reversible no-ops (3.548691ms)
+✔ merge, deletion and undo cannot silently discard raw field or custom-child drafts (1.291881ms)
+✔ registry exposes exact twelve established module ids but enables only supported text and structured artifact formats (8.675396ms)
+✔ format validators bound full snapshots and never trim stored text body bytes (4.506217ms)
+✔ one initial discussion call returns either a strict ready direction or an exploratory conversation (2.243089ms)
+✔ raw strict response validation precedes associative conversion for both modules (1.338731ms)
+✔ article targeted refinement preflights bounds then merges complete selected-source snapshot (1.390297ms)
+✔ short and article generation advertise actual candidate counts with bounded complete outputs (5.073065ms)
+✔ fusion is one new complete candidate based only on selected version goals (3.602971ms)
+✔ strict shared numeric schema handles finite native numbers only, integral values and explicit bounds (3.932158ms)
+✔ webpage three-part approval validates current summary before inference and leaves legacy modules unchanged (3.314223ms)
+✔ PNG source contract exposes one isolated normalizer with no IO, GD, model, or external decoder (2.446609ms)
+✔ PNG source contract bounds input, dimensions, pixels, IDAT aggregation and every chunk (1.18276ms)
+✔ PNG source contract checks signature, ASCII/reserved chunk bits and CRC before interpreting all chunks (0.271392ms)
+✔ PNG source contract restricts IHDR to non-interlaced RGB/RGBA8 and preserves alpha semantics (0.201168ms)
+✔ PNG source contract requires contiguous IDAT and a final empty IEND without trailing bytes (0.191764ms)
+✔ PNG source contract refuses unavailable zlib or insufficient memory before decoding, without raising limits (0.316148ms)
+✔ PNG source contract validates zlib wrapper then exactly bounds scanline decode and filters (0.281617ms)
+✔ PNG source contract rebuilds fresh CRC and a single IDAT, bounds canonical output and binds its hash (0.208018ms)
+✔ PNG source contract exposes only fixed redacted errors and native fixtures remain explicitly unexecuted (0.583403ms)
+✔ Node golden oracle validates actual PNG framing/CRC, RGB samples and semitransparent RGBA (4.737389ms)
+✔ Node golden oracle reconstructs all five PNG filters to the independently specified RGBA raster (0.376727ms)
+✔ Node golden oracle proves fresh recompression strips ancillary and compressed-tail payloads without changing scanlines (1.205464ms)
+✔ Node zlib oracle proves the inflated-row bound and malformed-checksum golden cases are meaningful (10.641173ms)
+✔ Node zlib oracle proves a valid <=4 MiB source can exceed the canonical output cap (1072.198413ms)
+✔ project binding is explicit, immutable, and resolved before any paid request journal or adapter call (7.648355ms)
+✔ direction readiness commits the same response and confirmation performs one generation after exact revision guard (3.513889ms)
+✔ candidate refinement pins selected source and article selection into question validity (2.908503ms)
+✔ fusion uses new major, complete direct snapshots and bounded ancestor lineage, without adoption (1.510064ms)
+✔ both provider adapters declare and validate the requested bounded output token budget (2.959109ms)
+✔ article manual snapshots validate new full structure, while selected AI edits preserve original bytes (2.543433ms)
+✔ readiness budgets reserve two fully escaped maximum direction snapshots plus reply and metadata (3.955732ms)
+✔ article selected patch budget includes all untouched document bytes before inference (5.628046ms)
+✔ vector helper accepts only exact native primitive objects and bounded lists (6.415632ms)
+✔ finite numeric, precision, paint and type-dependent geometry boundaries remain explicit (3.425348ms)
+✔ UTF8 and secret checks are shared while canonical text and complete byte limits are retained (2.150362ms)
+✔ provider schema has complete required keys, strict number types and bounded arrays (6.876444ms)
+✔ vector module inherits shared fixed-model lifecycle and states honest capability limits (1.373873ms)
+✔ generation produces exactly one complete native candidate in a single bounded call (1.266203ms)
+✔ refinement uses full selected source, own goal and immutable candidate semantics (0.740065ms)
+✔ clarification requires exact canonical echo and discards artifact plus unused metadata (1.384087ms)
+✔ fusion only considers explicitly selected snapshots with own goals and rejects copied output (0.93247ms)
+✔ fusion fingerprint preserves ordered geometry and multiplicity but excludes only naming metadata (1.306313ms)
+✔ fusion fingerprint normalizes hexadecimal paint case without altering native source (3.202147ms)
+✔ native fixtures explicitly remain unexecuted and cover boundary plus lifecycle invariants (4.319662ms)
+✔ fixed brief is seven standard fields and does not claim to understand a user brief (2.464186ms)
+✔ fixed fictional emblem contains five editable primitives and literal lettering, not a raster (10.930071ms)
+✔ exported demonstration commands each create one real native change from the fixed fixture (6.030582ms)
+✔ title change is literal and retains inner whitespace, markup and text objects without rewriting them (2.117503ms)
+✔ unique named-shape and stable-ID color assignments change only the explicitly selected field (2.293443ms)
+✔ literal malicious labels are data and cannot inject SVG or executable commands (3.093797ms)
+✔ missing or ambiguous name/ID targets clarify rather than pick, rename or add an object (1.896546ms)
+✔ line fill is not presented as a visible revision but its explicit stroke change is supported (1.017656ms)
+✔ identical title and case-only equivalent color are clarification without a fake version (2.962133ms)
+✔ unknown natural language never claims analysis, echoes private requests or alters geometry (17.42209ms)
+✔ optional choices are exactly two literal actions that each really work on the current source (12.431793ms)
+✔ choices are omitted when both executable safe examples cannot be offered (1.973711ms)
+✔ non-text requests and invalid assignment results throw plain Errors rather than truncating data (1.00011ms)
+✔ fusion preserves all exact stable objects and the first-source back-to-front order (2.483024ms)
+✔ fusion compares the entire ordered drawing, not an unordered set of shapes (1.875614ms)
+✔ distinct IDs with repeated drawing geometry retain multiplicity for transparency and occlusion (1.072377ms)
+✔ fusion requires compatible canvas dimensions and exact background without transforming a source (1.563713ms)
+✔ same-ID conflicts in every shape field reject rather than rename, replace or drop content (14.431581ms)
+✔ no-op detection checks any source including metadata-only and reordered-source-list variations (1.463546ms)
+✔ fusion requires two through five dense source artifacts without extra own properties (1.368064ms)
+✔ all entry points reject corrupt native schemas and unsafe color strings through shared validation (1.869376ms)
+✔ native number bounds and exact three-decimal precision are enforced without silent rounding (2.407432ms)
+✔ fusion accepts exactly 100 shapes and rejects 101 atomically without dropping layers (29.126692ms)
+✔ native and projection byte limits apply to literal revisions without truncation or extra invalid choices (18.80408ms)
+✔ fusion enforces aggregate native and projection size even for individually valid sources (14.731765ms)
+✔ revision, clarification and fusion outputs are deeply detached from all input sources (1.563173ms)
+✔ helper imports native validation and has no network, persistence, raster or script execution path (13.415207ms)
+✔ native defaults cover all six geometric types; clone canonicalizes key order and isolates all nested points (8.290745ms)
+✔ exact objects, array bounds, dense lists and own keys reject malformed JSON shapes without coercion (5.756777ms)
+✔ stable unique ASCII IDs and strict six-digit colors forbid executable or external paint references (6.378537ms)
+✔ numeric contract is strict finite native numbers, integer canvas and exact <=3 decimals without rounding (5.888863ms)
+✔ shape-dependent geometry has positive boxes, signed line deltas, local bounded points and no paths (6.919076ms)
+✔ UTF8, nonblank text-shapes, NUL, lone surrogates and secret guard preserve valid text exactly (8.990942ms)
+✔ canonical projection preserves fixed schema order, normalized numbers and PHP Unicode escapes (2.252272ms)
+✔ 60000-byte canonical size including PHP U2028/U2029 escaping rejects atomically without truncation (14.45078ms)
+✔ exact canonical byte boundary accepts 60000 bytes and rejects one byte more (5.629258ms)
+✔ pure add/update/remove/reorder/duplicate preserve identities and content with isolated immutable snapshots (5.859719ms)
+✔ real SVG uses correct geometric primitives, line signed deltas, translated points, and readable bounded scrolling (2.544135ms)
+✔ SVG DOM/export use escaped full text and no executable markup, URLs, path, images or hidden unsupported claims (4.415373ms)
+✔ selection through SVG or accessible full list does not mutate or emit any artifact (2.47424ms)
+✔ raw fields require explicit apply, survive shape switching, preserve exact text and do not mutate accepted preview (5.148978ms)
+✔ decimal UI refuses blank, NaN, exponent, partial parse, out of range and excessive precision without losing drafts (6.688235ms)
+✔ polygon point editing uses local x,y lines; partial/invalid points and nonblank text rejection are atomic (5.280613ms)
+✔ editor adds, duplicates, reorders and removes with fresh IDs and prevents duplicate stale clicks (9.731307ms)
+✔ invalid add type, maximum count, and capacity failures never change valid state (7.931254ms)
+✔ pending notifications include document/invalid/multiple shape drafts and block destructive operations until explicit resolution (8.672962ms)
+✔ twenty-step undo restores full artifacts and selection, is immutable, and survives outer readonly rerender (131.376505ms)
+✔ shared uiState retains raw invalid drafts and selection across busy/AI rerenders; detached editors cannot act (6.392463ms)
+✔ removed-shape raw drafts are not silently thrown away by an external replacement (1.689249ms)
+✔ readonly controls, stale selected-field handlers, and detached SVG selections cannot mutate or emit (1.518156ms)
+✔ callback values are validated complete isolated snapshots; callback failure is visible, never falsely saved (4.560527ms)
+✔ standalone module permits safe direct SVG/DOM only, with no raw SVG parser, execution, network, storage or download effects (13.622725ms)
+✔ webpage uses exact native root, section and entry keys with no code-bearing properties (16.843229ms)
+✔ native validation preserves literal text and uses shared UTF8, nonblank, ID and secret guards (1.888183ms)
+✔ cards and FAQ require one to twelve entries while other native sections cannot contain entries (1.396696ms)
+✔ actions are paired, restricted to hero or CTA, and resolve inside the same snapshot (1.482083ms)
+✔ canonical JSON and single-document projection preserve complete content and exact UTF8 cap (1.642411ms)
+✔ provider schema is fully required, rejects extra keys, and includes strict boolean navigation (4.036077ms)
+✔ content fingerprint ignores only stable IDs and preserves internal target binding semantics (2.264671ms)
+✔ webpage module inherits fixed-model lifecycle and correct seven-field three-direction mapping (1.394863ms)
+✔ capability instructions promise only native navigation and FAQ, not arbitrary code or deployment (1.614929ms)
+✔ generation creates exactly one full candidate in one bounded model call after confirmed directions (1.513178ms)
+✔ refinement preserves full selected source and latest combined goal authority while rejecting content no-ops (3.354403ms)
+✔ clarification requires exact canonical echo, rejects edit claims, and discards artifact and goal metadata (0.775918ms)
+✔ goal-only revisions require the exact source artifact even when goal or combined metadata changes (1.623071ms)
+✔ fusion uses two to five selected native snapshots and own goals and rejects any copied content (1.011416ms)
+✔ native PHP fixtures are explicitly unexecuted and cover strict boundaries, bindings and lifecycle semantics (1.327503ms)
+✔ brief has seven standard fields with webpage structure, style, limits and honest fixed provenance (2.820282ms)
+✔ fictional event fixture includes all five native section types and only resolved internal actions (7.533015ms)
+✔ exported demonstration commands each change only their stated field (17.92542ms)
+✔ literal title preserves inner whitespace, markup, Chinese and newlines without rewriting any section (4.802956ms)
+✔ unique section ID or exact heading assignments preserve every other custom field and entry (8.761883ms)
+✔ literal markup and apparent resource URLs are text, not new executable instructions (0.989524ms)
+✔ empty section body is supported but blank required headings and document titles are rejected (1.41948ms)
+✔ missing or ambiguous heading and ID targets clarify instead of selecting or adding a section (0.898259ms)
+✔ only exact fixed theme tokens and navigation commands can change configuration (2.377717ms)
+✔ identical literal assignments return clarification without a fake revision or changed goal (1.150302ms)
+✔ unknown requests and incomplete or combined grammar do not infer, echo private requests or create a version (14.497309ms)
+✔ unknown-input choices are exactly two executable literal changes on the current artifact (9.791377ms)
+✔ non-text requests and invalid Unicode or oversized assignments fail without truncation (1.982573ms)
+✔ compatible fusion preserves exact sections, entries, resolved targets and first-source order (2.697511ms)
+✔ fusion considers ordered sections, not an unordered set or a document title change (1.321405ms)
+✔ distinct stable section IDs retain repeated content and order rather than silently deduplicate (0.814915ms)
+✔ fusion rejects incompatible theme or navigation settings without replacing them (0.52079ms)
+✔ same-ID conflicts in full section and entry content reject rather than drop, rename or replace (3.780253ms)
+✔ dangling targets reject even when another source would supply the missing section (0.715829ms)
+✔ fusion requires two to five dense artifacts without extra, symbol or hidden array properties (1.240315ms)
+✔ all entry points delegate strict schema validation rather than normalize corrupt input (3.33217ms)
+✔ fusion permits exactly twenty sections and rejects twenty-one atomically (3.54837ms)
+✔ canonical byte limits apply to literal assignments and prevent unexecutable examples (37.684434ms)
+✔ fusion rejects aggregate canonical overflow from individually valid sources without truncation (5.355714ms)
+✔ revision, clarification and fusion are deeply detached from all input provenance (1.742598ms)
+✔ helper imports shared native validation and has no network, storage, browser execution or persistence path (11.541255ms)
+✔ default and all five section types validate; canonical clones isolate entries and preserve literal text (7.52278ms)
+✔ exact own keys and dense arrays reject extra, missing, hidden, symbolic, sparse or unsupported data (3.732903ms)
+✔ stable IDs are ASCII, unique in scope, safe even with object prototype key names (3.175514ms)
+✔ cards/FAQ require one to twelve exact entries; other section entry lists remain empty (2.147037ms)
+✔ actions permit only existing section IDs, paired hero/CTA labels and mandatory CTA buttons (3.170811ms)
+✔ UTF8 byte limits, nonblank headings, exact literals and shared API-key guard apply to all textual fields (4.252101ms)
+✔ canonical JSON has fixed order and PHP separator escapes; projection is a single document, never per section (1.816799ms)
+✔ 60000-byte canonical boundary is exact, atomic, and counts separator escaping (10.8684ms)
+✔ pure immutable operations preserve section/entry identity and explicitly protect incoming targets (5.073747ms)
+✔ native DOM renders all content, navigation anchors, card lists and independently operable FAQ semantics (4.273031ms)
+✔ malicious authored markup and URLs are literal in DOM and escaped in standalone HTML (2.354063ms)
+✔ standalone HTML has an early restrictive CSP, fixed responsive high-contrast themes and no app/private context (1.395956ms)
+✔ two preview/editor instances use unique generated IDs and each anchor stays in its own DOM subtree (5.429362ms)
+✔ invalid preview reports validation errors and never partially renders malformed input (0.43936ms)
+✔ document edits stay raw/pending until explicit apply, update preview only on apply, and can be discarded (5.154266ms)
+✔ all authored text uses textareas, never newline-stripping text inputs, and retains multiline drafts through apply (10.686301ms)
+✔ section drafts survive selection and complete app rerenders; obsolete DOM event handlers do nothing (5.652653ms)
+✔ action target control offers only same-document IDs and rejects tampered unsupported targets without clipping drafts (2.199715ms)
+✔ card and FAQ entry fields, add/remove/reorder are raw drafts until explicit section apply (7.165101ms)
+✔ entry draft operations enforce one-to-twelve bounds and cannot bypass disabled editor state (4.391617ms)
+✔ section structural operations are guarded against any pending field and support explicit reorder/add/remove (9.064822ms)
+✔ twenty-step undo survives parent rerenders, is blocked by drafts, and never writes a version itself (111.586623ms)
+✔ orphaned drafts remain pending across external structural changes until explicitly discarded (3.715156ms)
+✔ no-op applies clear identical drafts without emitting, stale closures cannot double-apply, callback errors are visible (7.52345ms)
+✔ oversize editor values remain visible and pending rather than truncating or emitting invalid state (1.272703ms)
+✔ editor scopes limitations accurately; module contains no dynamic markup, networking, persistence or version saves (15.686146ms)
+ℹ tests 564
+ℹ suites 0
+ℹ pass 564
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3038.104261
 PASS: roster first-read conflict preserves explicit data, current CAS succeeds, stale CAS rejects, cross-owner CAS rejects, newer record retained (5 checks).
 PASS: Actual SQLite schema, insert/upsert owner isolation, read ownership, request uniqueness, non-destructive reinitialization (7 checks, including owner-scoped settings).
 NOT RUN: PHP PDO integration or HTTP workflow.
-
-PHP lexical structure only
-PASS: Pygments lexer found balanced delimiters and no lexer errors in 40 PHP files.
+PASS: additive media initialization retains existing user_version
+PASS: actual extracted DDL creates only the two media tables
+PASS: asset schema stores only approved private fields
+PASS: actual asset INSERT and owner/project/item SELECT round-trip binary PNG
+PASS: binary fixture is stored as SQLite BLOB
+PASS: cross-owner asset read is empty
+PASS: cross-project asset read is empty
+PASS: cross-item asset read is empty
+PASS: optional-item read still requires owner and project
+PASS: upload receipt replay lookup returns saved fingerprint/version
+PASS: receipt lookup is owner-scoped
+PASS: asset identity cannot overwrite an existing BLOB
+PASS: duplicate receipt cannot create a second upload
+PASS: same receipt ID with changed fingerprint cannot replace original
+PASS: conflicting receipt leaves original immutable
+PASS: same request ID is independent for another owner
+PASS: reinitialization retains existing project and version body
+PASS: reinitialization retains existing settings
+PASS: reinitialization retains existing request journal
+PASS: reinitialization retains saved asset bytes
+PASS: reinitialization retains upload receipt
+PASS: reinitialization does not overwrite schema version
+PASS: rollback after asset removes transient asset
+PASS: rollback after asset retains original project version
+PASS: rollback after asset leaves no success receipt
+PASS: rollback after project removes transient asset
+PASS: rollback after project retains original project version
+PASS: rollback after project leaves no success receipt
+PASS: rollback after receipt removes transient asset
+PASS: rollback after receipt retains original project version
+PASS: rollback after receipt leaves no success receipt
+PASS: schema rejects non-hex asset ID
+PASS: schema rejects uppercase asset ID
+PASS: schema rejects short asset ID
+PASS: schema rejects non-hex owner
+PASS: schema rejects short owner
+PASS: schema rejects invalid project
+PASS: schema rejects invalid item
+PASS: schema rejects non-PNG MIME
+PASS: schema rejects zero width
+PASS: schema rejects oversize width
+PASS: schema rejects non-integral width
+PASS: schema rejects zero height
+PASS: schema rejects oversize height
+PASS: schema rejects empty byte length
+PASS: schema rejects oversize byte length
+PASS: schema rejects declared BLOB length mismatch
+PASS: schema rejects non-hex digest
+PASS: schema rejects unapproved normalization
+PASS: schema rejects missing creation time
+PASS: schema rejects TEXT instead of BLOB
+PASS: schema rejects empty BLOB
+PASS: schema rejects invalid request ID 'short'
+PASS: schema rejects invalid request ID 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+PASS: schema rejects invalid request ID 'xxxxxxxxxxxxxxxxxxx_'
+PASS: schema rejects invalid request ID 'xxxxxxxxxxxxxxxxxxxé'
+PASS: schema rejects invalid request ID 'xxxxxxxxxxxxxxxxxxx\n'
+PASS: schema rejects invalid receipt fingerprint
+PASS: exact project quota query counts retained assets and bytes
+PASS: exact owner quota query counts every project
+PASS: 100 retained assets leaves no project count slot
+PASS: project count limit is independent of owner allowance
+PASS: 400 assets across projects reaches exact owner count cap
+PASS: owner quota never counts another owner
+PASS: project quota still includes owner boundary
+PASS: exact project quota query counts retained assets and bytes
+PASS: exact owner quota query counts every project
+PASS: 64 MiB project bytes blocks the next image below count cap
+PASS: 256 MiB owner bytes blocks the next image below count cap
+PASS: new project cannot bypass existing owner-byte aggregate
+PASS: first writer sees exactly one remaining project slot
+PASS: second writer is blocked while first owns quota transaction
+PASS: next writer observes committed full quota before any insert
+PASS: serialized quota check retains exactly the capped asset count
+PASS: 74 actual SQLite checks with extracted PHP DDL and prepared queries.
+UNEXECUTED: PHP parser/PDO runtime, normalizeUploadedPng/GD, browser/HTTP and provider integration. Python SQLite is not a substitute.
+PASS: Pygments lexer found balanced delimiters and no lexer errors in 52 PHP files.
 NOT RUN: PHP parser, php -l, PHP PDO runtime, Apache, or OpenAI API. A lexer pass is NOT a syntax/runtime pass.
 
-JavaScript parser checks
-PASS node --check public/app.js
-PASS node --check public/artifacts.js
-PASS node --check public/demo.js
-PASS node --check public/mindmap-demo.js
-PASS node --check public/mindmap.js
-PASS node --check public/vector-demo.js
-PASS node --check public/vector.js
-PASS node --check public/webpage-demo.js
-PASS node --check public/webpage.js
-
-HTML export checked with lxml and independent HTMLParser: fixed tags, no executable/resource-loading elements, 7 valid fragment links, 3 native FAQ disclosures, unique IDs and early CSP. Not a browser run.
+PASS: 12 public JavaScript files passed node --check. No native PHP, HTTP, real browser, or real model calls.

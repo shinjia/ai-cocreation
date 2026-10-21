@@ -22,7 +22,7 @@ function installSuggestedDirectory($documentRoot,$projectRoot)
 }
 function installChecks()
 {
-    $checks=array('PHP 7.4 以上'=>PHP_VERSION_ID>=70400,'JSON'=>extension_loaded('json'),'PDO SQLite'=>extension_loaded('pdo_sqlite'),'cURL（OpenAI HTTPS 連線）'=>extension_loaded('curl'),'工作階段與隨機權杖'=>function_exists('session_start')&&function_exists('random_bytes')&&function_exists('hash_equals'),'檔案鎖'=>function_exists('flock'));
+    $checks=array('PHP 7.4 以上'=>PHP_VERSION_ID>=70400,'JSON'=>extension_loaded('json'),'PDO SQLite'=>extension_loaded('pdo_sqlite'),'cURL（AI 服務連線）'=>extension_loaded('curl'),'zlib（安全 PNG 圖片處理）'=>function_exists('zlib_decode')&&function_exists('gzcompress'),'工作階段與隨機權杖'=>function_exists('session_start')&&function_exists('random_bytes')&&function_exists('hash_equals'),'檔案鎖'=>function_exists('flock'));
     $sqlite=false;
     if(extension_loaded('pdo_sqlite')) { try {$db=new PDO('sqlite::memory:');$sqlite=version_compare($db->query('SELECT sqlite_version()')->fetchColumn(),'3.24.0','>=');}catch(Throwable $e){} }
     $checks['SQLite 3.24.0 以上']=$sqlite; return $checks;

@@ -1,7 +1,7 @@
 <?php
 // Native, immutable document data. Cells are text, never expressions or HTML.
 // Validation is authoritative for manual snapshots and strict model responses.
-function artifactType($type) { return $type==='table'||$type==='chart'||$type==='mindmap'||$type==='vector'||$type==='webpage'; }
+function artifactType($type) { return $type==='table'||$type==='chart'||$type==='mindmap'||$type==='vector'||$type==='webpage'||$type==='image'; }
 function artifactObject($value,$keys,$name) {
     ensure(is_array($value),'ARTIFACT_INVALID',$name.'必須是完整物件。');
     $actual=array_keys($value);sort($actual,SORT_STRING);$expected=$keys;sort($expected,SORT_STRING);
@@ -123,6 +123,7 @@ function parseChartSource($sourceText,$chartType) {
     return array('labels'=>$labels,'series'=>$series,'categoryLabel'=>$categoryLabel);
 }
 function validateArtifact($value,$type) {
+    if($type==='image')return validateImageArtifact($value);
     if($type==='webpage')return validateWebpageArtifact($value);
     if($type==='mindmap')return validateMindmapArtifact($value);
     if($type==='vector')return validateVectorArtifact($value);
@@ -163,6 +164,7 @@ function artifactTsvField($value) {
     return strpbrk($value,"\t\r\n\"")===false?$value:'"'.str_replace('"','""',$value).'"';
 }
 function artifactItems($artifact) {
+    if(field($artifact,'kind')==='image')return imageArtifactItems($artifact);
     if(field($artifact,'kind')==='mindmap')return mindmapItems($artifact);
     if(field($artifact,'kind')==='vector')return vectorItems($artifact);
     if(field($artifact,'kind')==='webpage')return webpageItems($artifact);
@@ -180,6 +182,7 @@ function artifactItems($artifact) {
 }
 function artifactSchemaObject($properties) { return array('type'=>'object','properties'=>$properties,'required'=>array_keys($properties),'additionalProperties'=>false); }
 function artifactSchema($type) {
+    if($type==='image')return imageArtifactSchema();
     if($type==='webpage')return webpageSchema();
     if($type==='mindmap')return mindmapSchema();
     if($type==='vector')return vectorSchema();

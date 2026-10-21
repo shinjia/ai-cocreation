@@ -3,7 +3,7 @@
  * from the user's brief. Literal assignments and exact compatible layer unions
  * never interpret arbitrary requests, import SVG, or save/approve a version.
  */
-import {cloneVector} from './vector.js?v=20261021-version12';
+import {cloneVector} from './vector.js?v=20261021-version13';
 
 const DEMO_TITLE='晨光書屋｜探索版（虛構示範）';
 export const SCRIPTED_VECTOR_TITLE_REQUEST=`標題改為「${DEMO_TITLE}」。`;

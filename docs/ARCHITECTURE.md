@@ -1,5 +1,7 @@
 # AI共創工作室架構與開發契約
 
+本版里程碑：第三階段：外部圖片與實際圖片分析。前八類功能保留；圖片為第九類有界功能，不等於 AI 像素生成。
+
 ## 模組與目錄
 
 - `public/`：本機瀏覽器入口、一次性 HTTP 安裝、同源 JSON API、ES module UI 與明確標示的固定腳本示範。
@@ -10,20 +12,23 @@
 - `app/mindmap.php`、`app/modules/mindmap.php`：已入圖樹／待選清單驗證、主題起步、選定節點待選修訂與受限融合；`public/mindmap.js` 提供原生 SVG、完整文字列表、草稿編輯及匯出，`public/mindmap-demo.js` 是獨立固定腳本替身。
 - `app/vector.php`、`app/modules/vector.php`：有界原生幾何、精確投影、完整向量候選／修訂／融合；`public/vector.js` 提供安全 SVG、原生物件編輯器與匯出，`public/vector-demo.js` 是虛構固定腳本替身。
 - `app/webpage.php`、`app/modules/webpage.php`：純文字原生單頁結構、固定主題、頁內目標驗證、完整候選／修訂／融合；`public/webpage.js` 提供安全 DOM、完整編輯與獨立 HTML／JSON／TXT 匯出，`public/webpage-demo.js` 是虛構固定腳本替身。
+- `app/image.php`、`app/modules/image.php`：嚴格圖片中繼資料與實際圖片討論／比較；`app/image-actions.php` 核對已保存來源、一次性同意、上傳與模型輸入來源。
+- `app/png-upload.php`：有界 PNG 驗證及正規化；`app/media-store.php`：同一 SQLite PDO 的私有 BLOB 與上傳收據；`public/media.php` 為同源 POST 端點。
+- `public/image-upload.js`：本機 PNG／JPEG 檢查、旋轉與縮圖；`public/media.js`：同源上傳／讀取；`public/image.js`：授權 Blob 預覽與純文字中繼資料編輯。
 - `app/content.php`：各類型內容／段落定義及完整內容限制；驗證不默默截斷正文。
 - `app/versioning.php`：主／小版本、舊版讀取、封存、合併目標與比較快照。
 - `app/members.php`、`model.php`、`ollama.php`：非秘密成員設定及兩家 provider adapters。
 - `tests/`：來源契約、前端／示範、SQLite、PHP fixture；`phase1.php` 覆蓋第一階段流程，`artifacts.php` 為表格／圖表契約 fixture，`mindmap.php` 為心智圖契約 fixture，`vector.php` 為原生向量與數值 schema fixture，`webpage.php` 為原生網頁、完整版本與三部分方向確認 fixture。本次缺少原生 PHP，未執行 PHP fixture。
 
-`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。`titles`、`short_text`、`article`、`table`、`chart`、`mindmap`、`vector`、`webpage` 共八個 enabled；其餘四個保留規劃／引用，沒有生成、比較、融合或定稿能力，不以文字替代媒體生成。「共聊」不在本次開發範圍。
+`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。`titles`、`short_text`、`article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image` 共九個 enabled；圖片只提供上傳、分析與比較，不生成／修改／融合像素。其餘圖文、海報與互動視覺程式三個保留規劃／引用，沒有生成、比較、融合或定稿能力，不以文字替代媒體生成。「共聊」不在本次開發範圍。開發中的 composition 輔助程式不代表圖文／海報模組已啟用或完成。
 
 ## 正規資料與相容讀取
 
-SQLite `projects.body` 保存專案：`id`、`title`、`description`、`aiBinding`、`projectLifecycle`、`revision`、`sharedContextRevision`、`activeItemId`、`creativeItems`、`projectFinalizations`。
+SQLite `projects.body` 保存專案：`id`、`title`、`description`、`aiBinding`、`projectLifecycle`、`revision`、`sharedContextRevision`、`activeItemId`、`creativeItems`、`projectFinalizations`，另有預設 null 的 `imageAnalysisConsent`。
 
 每個 creative item 各自有類型、名稱、說明、封存狀態、phase／lifecycle、messages、brief、versions、officialVersionId、comparisons、finalizations、references 與 contextRevision。API 加上 activeItem 並把選取項目的工作欄位投影到頂層；頂層 id／title／description／revision 仍是專案，不得把投影寫成第二份持久內容。
 
-`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
+`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
 
 ## 一次性專案模型綁定
 
@@ -44,6 +49,8 @@ SQLite `projects.body` 保存專案：`id`、`title`、`description`、`aiBindin
 - UI 明確按「確認方向並生成候選」呼叫 `confirm_generate`，以最新 summary／revision 確認方向並生成一次。方向備妥不會自動生成；新構思對談可更新方向。既有 summarize／approve_goal／generate 路由保留相容，但不是畫面要求的固定分段流程。
 
 網頁另以 `brief.tone` 對應視覺風格、`brief.message` 對應內容結構、`brief.constraints` 對應操作功能與限制。三個 checkbox 只存在目前頁面，不呼叫模型或保存作品。`confirm_generate` 必須傳入順序精確為 `["style","content","functions"]` 的 `confirmedDirections`，並以整數 `directionRevision` 等於當前 `summaryRevision`；伺服器不只相信按鈕狀態。新的待確認方向與相關脈絡失效會要求重新確認。通過後才由同一次明確操作生成候選，確認內容以 `directionConfirmation` 保存於既有目標確認對話，包含該 summary revision 及三部分文字。相容的 `approve_goal` 也核對相同契約；既已確認且方向未變的再生成仍須使用者明確按鈕，不自動呼叫。
+
+圖片不使用 confirm_generate／generate／fuse；相容 approve_goal 只確認方向，不推論、不生成圖片。明確上傳可先建立候選，定稿仍須有效方向及正式版。
 
 phase 為 discussion → summary → ready → work；項目及專案 lifecycle 各自為 created → in_progress → finalized。相關共同脈絡變動會使方向確認失效。新批次生成及定稿須有效方向；指定既有版本修訂、來源版本手動另存、比較及融合不藉此強迫重走初次構思，也不假造確認。只有明確 reopen 才解除定稿／結案，過往快照保留。
 
@@ -202,9 +209,59 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 固定腳本使用虛構街角故事日五區塊網頁，不解析真實需求。只處理明確格式的網頁標題、單一區塊標題／內文、固定主題及導覽開關；其餘只釐清或交由手動編輯。固定融合要求主題及導覽相同、同 ID 區塊完整相容，依來源順序追加，不猜測衝突或丟棄資料；與任一來源內容相同時拒絕假融合。
 
+## 外部圖片、私人媒體與實際分析契約
+
+### 原件與本機準備
+
+圖片 artifact 精確為 `{kind:"image",title,alt,attribution,asset}`，asset 精確含 `{id,mime,width,height,byteLength,sha256,normalization}`。title 非空、最多 600 UTF-8 bytes，alt 最多 3,000、attribution 最多 2,000；asset ID 是 32 個小寫十六進位字元，SHA-256 是 64 個；mime 固定 `image/png`、normalization 固定 `png-v1`。寬高各 1–2048、byteLength 1–4,194,304，真正整數，不接受額外欄位、外部 URL、路徑、原檔名或內嵌位元組。`imageArtifactItems()` 產生完整中繼資料投影，不表示圖片已嵌入 JSON；形狀驗證也不證明 owner 或資產存在。
+
+瀏覽器原始檔最多 12 MiB、寬高各最多 8192、總像素最多 16,777,216。以真實位元組識別靜態 PNG 或 8-bit 基線式／漸進式 JPEG，不信任副檔名／MIME；PNG 預檢掃描完整區塊、CRC、動畫控制與結尾，JPEG 預檢有界區段／掃描，不把標頭檢查冒充完整解碼。拒絕 APNG、GIF、SVG、WebP 及尾隨資料。來源 PNG 的調色盤、灰階、高位元深度或交錯只在瀏覽器可解碼的前提下轉換，不能原樣傳入伺服器。
+
+使用 createImageBitmap（imageOrientation=from-image）或在該 API 不存在時才使用本機 Blob URL Image，實際解碼後再核對尺寸。依指定 0／90／180／270 度順時針旋轉，比例縮至最長邊 2048、不放大，以 alpha canvas 輸出最多 4 MiB PNG；失敗不偷偷改用另一解碼路徑。decoder、canvas 及 Blob URL 在成功／錯誤時釋放。選檔與準備不聯網、不上傳、不推論；原始檔不改動，檔名不作標題或上傳檔名。
+
+### PNG 正規化與資源上限
+
+`normalizeUploadedPng()` 接收有界位元組，不讀任意路徑。驗證簽章、最多 1024 個區塊、IHDR／連續 IDAT／IEND 順序、長度、CRC 及無尾隨資料；只接受非交錯 8-bit RGB／RGBA（color type 2／6）、每邊 2048、總像素 4,194,304、輸入／輸出各 4 MiB。拒絕 APNG、tRNS、PLTE、未知必要區塊及不支援的壓縮。zlib 標頭須符合標準且無預設字典；以精確列長限制解壓，核對每列 filter 0–4，再以單一新 IDAT 重新壓縮，只保留 IHDR／IDAT／IEND。
+
+伺服器保留已驗證的濾波掃描列，不依賴 GD，也不把原壓縮資料或 ancillary 中繼資料帶入輸出；雜湊以伺服器最終 PNG 計算。原始 EXIF／IPTC／XMP、色彩描述檔和檔名均不保存。瀏覽器縮圖／解碼及色彩描述檔移除可能造成色彩差異，不能宣稱原始檔、色彩管理或典藏級影像保真。
+
+解碼前依 `memory_limit` 與目前用量保守估計 chunk、CRC、壓縮／解壓副本和保留空間；模型編碼前另預留 raw／base64／JSON／cURL 多份副本。可用記憶體不足或無法安全確認即拒絕，可能比檔案／像素名義上限更早阻擋；不更改或關閉 memory_limit。建議縮小圖片或減少本次圖片數量，而非以取消限制繞過檢查。
+
+### 私有儲存、原子保存與讀取
+
+`MediaStore` 僅使用既有 Store 的同一 PDO，在原 SQLite 增建 `media_assets` 與 `media_upload_receipts` 兩表。沒有替換資料庫、改寫既有表、更新 user_version、清理舊資料或刪除歷史圖片。media_assets 是 append-only PNG BLOB，含 owner／project_id／item_id、固定 descriptor、created_at；收據以 `(owner,request_id)` 唯一，保存 fingerprint 與新 version_id，不保存原始請求、檔名、Key 或 base64。
+
+上傳先核對 owner 的專案存在及有界 PNG，再用同一 PDO 的 `BEGIN IMMEDIATE` 原子保存資產、完整專案／版本與收據；正規化與網路工作不放進短交易。交易內重新驗 revision／active item／封存與定稿狀態、來源版本及配額，失敗整筆回滾。相同 requestId 和 fingerprint 成功重放只回傳已保存版本；內容不同拒收。網路或回應不確定時不自動重試，先讀最新狀態再由使用者明確重送同一請求。
+
+每專案最多 100 資產／64 MiB，每 owner 最多 400 資產／256 MiB；同一圖片的純 metadata 另存沿用資產。封存版本、正式版、定稿歷史及既有固定引用保留 BLOB；沒有垃圾回收或自動騰空間，封存不釋放額度。
+
+`readImageVersion()` 由 owner → project → item → saved version 解析 artifact，再核對資產所屬 item 和完整 descriptor、長度與 SHA-256；不能只憑客戶端提供的資產 ID 讀取。讀取不因來源已封存／定稿而改用新版本，固定引用解析其確切舊版本。手動 snapshot 也必須有已保存來源，而且 asset descriptor 與來源完全相同；只能改 title／alt／attribution 及版本目標，不能換 BLOB 或引用別人的圖片。
+
+`public/media.php` 不提供 GET 圖片網址。上傳與讀取都是同 Origin、Session／owner 及 X-CSRF-Token 的 POST，維持本機 Host／proxy 限制與 no-store／nosniff，另有 Cross-Origin-Resource-Policy: same-origin。multipart 只接受一個 PNG（最多 4 MiB）及最多 32 KiB JSON payload，整體 body 上限 4,325,376 bytes；PHP upload_max_filesize 至少 4M、post_max_size 至少 5M。read_image 的 JSON 最多 64 KiB，只帶專案／項目／版本 ID，不接受任意 URL 或路徑。主 `api.php` JSON 上限仍為 1 MiB，沒有放寬成圖片通道。
+
+只有頂端正式版自動請求預覽；候選、歷史、引用及比較使用明確「載入此圖片預覽」按鈕，避免一頁載入所有歷史 BLOB。未載入時仍可閱讀 metadata；過期／重複事件不觸發新讀取。預覽由核准來源 POST 取得 PNG Blob，使用短暫 object URL；重畫、關閉或錯誤時 revoke，過期回應不能把舊圖片放入新工作區。工作室 CSP 僅在 img-src 增加 blob: 供這類本機預覽，其值為既有 self／data: 加上 blob:；其餘指令不放寬，也不新增任意外部圖片、腳本或 iframe 執行來源。應用程式仍不接受作者指定圖片 URL／data URL。瀏覽器 Blob URL 不是公開分享連結。
+
+### 固定模型與實際輸入來源
+
+`grant_image_analysis` 只在可編輯圖片項目核對固定模型後保存專案層 `{bindingHash,acceptedAt}`，不取 Key、不推論。bindingHash 綁定完整既有 aiBinding；普通 usageConsent 仍必要，不能把圖片上傳當作同意送給模型。確認後使用者明確送出討論／整理方向／比較便執行，不新增逐次確認視窗。模型必須同時支援視覺與所需結構化輸出；模型清單與文字成功都不是此能力的驗收，失敗不換模型、服務或以描述代替像素。
+
+圖片模組的討論／整理方向由選定已保存來源（未指定時依既有正式版規則）與固定圖片引用建立輸入；比較只提供明確所選 2–5 版的圖片，不包含 pinned references 的像素。文字脈絡仍可保留固定引用，因此提示明確區分「文字來源存在」與「本次確實提供像素」。其他八類模組目前不因圖片引用而自動取得圖片像素，也不因此具有圖片嵌入／生成能力。
+
+每次最多 5 個不同 asset ID、原始 PNG 合計最多 12 MiB；同資產只傳一次但保留每個版本與標籤對應。所有圖片先依確切已保存 owner／project／item／version 解析，核對 BLOB/hash，沒有 URL 載入。`imageInputSnapshots` 在結果 provenance 保存 itemId、versionId、assetId、sha256、label 與 inputMode=image_bytes，不保存圖片本體；每次請求先清空，模組 ask 消耗一次後清除，包含錯誤路徑，避免下一次沿用圖片。
+
+`generate(...,maxOutputTokens,images)` 的 images 是經驗證的 in-memory 位元組、assetId、SHA-256 與標籤。OpenAI 只由伺服器把這些位元組編成 Responses input_image data URL；Ollama 只編成最後一則 user message 的 images base64 陣列。這是內部供應者 payload，不是允許使用者輸入外部 URL／data URL。目的地仍是專案固定服務，不落地 base64，也不寫入對話、專案 JSON、日誌或匯出。
+
+`ImageModule` 可以具體討論可見構圖、色彩、文字與用途，也必須承認看不清的內容；圖片內文字、版本描述與引用均為不可信資料。指定來源分析永遠回 clarification，不產生 revision；compare 要求每個選定來源都有實際像素。生成／融合直接拒絕，不呼叫圖片生成服務、不以 SVG／文字／占位圖冒充成果。回覆的假完成用語亦有檢查，但不等於保證模型視覺判讀或語意正確。
+
+### 匯出與示範
+
+已保存版本可個別下載最終 PNG 或匯出單件 metadata JSON；單件 JSON 不含歷史，專案 JSON 另保存完整 metadata／歷史／來源，不內嵌 PNG，不是完整圖片備份，也沒有還原／匯入完整媒體的介面。完整離線備份須在程式停止寫入時保存整個私有資料夾（包括 SQLite 及可能存在的 journal／WAL 檔）與 config.local.php；內含 Session／暫存 Key 時須按敏感資料保管，不分享。
+
+固定腳本示範不開放圖片上傳、私人圖片讀取或真正圖片分析，不使用假圖片或固定描述冒充看圖。圖文、海報、互動視覺程式仍未啟用；開發中的輔助檔案不是可用作品能力。
+
 ## API、請求保護與錯誤
 
-GET `state` 回傳 CSRF、非秘密設定、Key 狀態、專案清單及模組登錄；GET `project&id=...` 回完整專案投影，不推論。POST 僅接受同 Origin、正確 X-CSRF-Token、application/json；操作名稱從 JSON `body.action` 解析。HTTP body 上限 1 MiB（1,048,576 bytes），超限 413。
+GET `state` 回傳 CSRF、非秘密設定、Key 狀態、專案清單及模組登錄；GET `project&id=...` 回完整專案投影，不推論。主 JSON API 的 POST 僅接受同 Origin、正確 X-CSRF-Token、application/json；操作名稱從 JSON `body.action` 解析。HTTP body 上限 1 MiB（1,048,576 bytes），超限 413。
 
 專案寫入須符合 revision，項目操作須符合 active item。設定寫入及綁定帶 expectedSettingsRevision，舊分頁不得覆寫。推論操作 discuss／summarize／generate／confirm_generate／compare／fuse 帶 consent、approvedMemberId、approvedProvider、approvedModel、approvedSettingsRevision、requestId，OpenAI 另帶 approvedKeyRevision；這些是請求一致性檢查，不是逐次確認視窗。
 
@@ -212,7 +269,7 @@ requestId 與請求 fingerprint 防重放；成功重放讀取目前專案，失
 
 ## Provider 與容量界線
 
-OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stream=false；Ollama 固定 PHP 同機 loopback HTTP `/api/chat`、JSON Schema、非串流。兩家 `generate(model,messages,schema,maxOutputTokens)` 接受 6,000–24,000 output tokens，預設 6,000；長文與原生作品路徑要求較大預算，並不保證實際模型的可用性、格式、字數或完成度。截斷／未完成及不合 schema 的輸出拒收。
+OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stream=false；Ollama 固定 PHP 同機 loopback HTTP `/api/chat`、JSON Schema、非串流。兩家 `generate(model,messages,schema,maxOutputTokens,images=array())` 接受 6,000–24,000 output tokens，預設 6,000；長文與原生作品路徑要求較大預算，並不保證實際模型的可用性、格式、字數或完成度。截斷／未完成及不合 schema 的輸出拒收。
 
 `list_models`／test_connection 僅由明確操作讀取 OpenAI 模型中繼資訊或 Ollama `/api/tags`，不推論、不下載、不編造清單。模型可見與結構化生成成功是不同驗證。
 
@@ -226,8 +283,9 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 - mindmap：1–80 個 nodes、0–24 個 proposals；各 label 240、description 2,000 bytes；完整 artifact JSON 與文字投影各最多 60,000。初次 1 個根與 2–12 個待選分支；子分支修訂若有待選變動，目標集合為 2–12 個，仍受全圖總量限制。生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
 - vector：1–100 個 shapes，整數畫布 1–4096；title 600、label 120、text 4,000 bytes，最多 80 個局部頂點。原生 artifact JSON 與精確緊湊投影各最多 60,000 bytes，數值最多三位小數；具體幾何及伺服器序列化差異見上節。生成／修訂／融合請求 24,000 output tokens，不保證產出最大作品。
 - webpage：1–20 區塊，cards／faq 每區 1–12 條目；網頁／區塊／條目標題 600、眉標／按鈕文字 240、區塊內文 12,000、條目內文 6,000 bytes。完整正規 JSON 與投影各最多 60,000 bytes，總量包含欄位結構與跳脫字元；生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
+- image：title 600、alt 3,000、attribution 2,000 bytes；PNG、傳輸、儲存及分析配額依圖片契約，像素不計入專案 JSON 本體。
 - 本版合併意見 12,000；版本 goalText 6,000；對談輸入 4,000；比較／融合問題及生成方向 2,000。其他結構欄位另有限制，不因合併輸入而解除。
-- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
+- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage／image 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
 - 每 owner 最多 100 專案，每專案 30 項目（含封存），每項目 60 版本（含封存）、60 比較、60 輪討論、400 則訊息、12 筆固定引用。專案序列化內容最多 2,000,000 bytes。
 
 推論前按操作保守預留完整結果、引用、來源快照與 JSON 跳脫空間，接近容量可提前拒絕，即使名義版本數尚未滿；不保證磁碟或 SQLite 故障時可保存。資料保存上限、HTTP 限制、模型脈絡及 output tokens 是不同界線，不能互相當作可生成長度保證。
@@ -238,4 +296,4 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 
 結構化單選 2–6 答案，ID 最多 64、label 120、value 1,000 bytes；只接受最新 assistant discussion／clarification。choiceContext 綁定項目、正式版、共同脈絡、項目名稱／說明、baseVersionId 及 targetItemIds，心智圖指定來源另綁定 targetNodeId；伺服器解析已保存答案並核對 input.text，失效或篡改於推論前拒絕。按鈕以 textContent 顯示，不清除文字草稿，不從舊 prose 補造選項。
 
-本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version12`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
+本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version13`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。

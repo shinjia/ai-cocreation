@@ -1,4 +1,57 @@
 <?php
+// Pure in-memory boundary. Ownership and full PNG normalization are performed
+// by the caller before these bytes reach a model. Never resolve URLs or paths.
+function prepareModelImageInputs($images) {
+    ensure(is_array($images)&&($images===array()||array_keys($images)===range(0,count($images)-1))&&count($images)<=5,'IMAGE_INPUT_INVALID','圖片輸入必須是最多5張的有序清單。',409);
+    $out=array();$total=0;
+    foreach($images as $image){
+        ensure(is_array($image)&&count($image)===4,'IMAGE_INPUT_INVALID','圖片輸入欄位不正確。',409);
+        foreach(array('label','bytes','sha256','assetId') as $key)ensure(array_key_exists($key,$image),'IMAGE_INPUT_INVALID','圖片輸入缺少必要欄位。',409);
+        $label=$image['label'];$bytes=$image['bytes'];$sha=$image['sha256'];$assetId=$image['assetId'];
+        ensure(is_string($label)&&preg_match('//u',$label)&&trim($label)!==''&&strlen($label)<=1000&&strpos($label,"\0")===false,'IMAGE_INPUT_INVALID','圖片標籤必須是安全上限內的有效文字。',409);
+        ensure(is_string($bytes)&&strlen($bytes)>=57&&strlen($bytes)<=4194304,'IMAGE_INPUT_INVALID','單張圖片必須是4 MiB以內的PNG位元組。',409);
+        // Envelope check is not a substitute for normalizeUploadedPng().
+        ensure(substr($bytes,0,8)==="\x89PNG\r\n\x1a\n"&&substr($bytes,8,8)==="\x00\x00\x00\x0dIHDR"&&substr($bytes,-12)==="\x00\x00\x00\x00IEND\xae\x42\x60\x82",'IMAGE_INPUT_INVALID','圖片不是已正規化的PNG資料。',409);
+        ensure(is_string($sha)&&preg_match('/^[a-f0-9]{64}$/D',$sha)&&hash_equals($sha,hash('sha256',$bytes)),'IMAGE_INPUT_INVALID','圖片完整性驗證失敗，尚未傳送。',409);
+        ensure(is_string($assetId)&&preg_match('/^[a-f0-9]{32}$/D',$assetId),'IMAGE_INPUT_INVALID','圖片識別碼格式不正確。',409);
+        $total+=strlen($bytes);ensure($total<=12582912,'IMAGE_INPUT_LIMIT','本次圖片合計不得超過12 MiB，尚未傳送。',409);
+        $out[]=array('label'=>$label,'bytes'=>$bytes,'sha256'=>$sha,'assetId'=>$assetId);
+    }
+    if($total>0){
+        // Reserve raw/base64/JSON/cURL copies plus slack before either provider
+        // encodes a byte. Never raise memory_limit or guess missing headroom.
+        ensure(function_exists('pngUploadEnsureMemory'),'IMAGE_RESOURCE_LIMIT','伺服器缺少安全圖片記憶體檢查，尚未編碼或傳送圖片。請確認圖片處理元件已載入，不要關閉記憶體限制。',503);
+        try{pngUploadEnsureMemory(8*$total+16777216);}
+        catch(AppError $error){throw new AppError('IMAGE_RESOURCE_LIMIT','伺服器目前沒有足夠或可確認的安全記憶體編碼與傳送圖片；請縮小圖片或減少本次選取張數後再試，不要關閉記憶體限制。',503);}
+    }
+    return $out;
+}
+function modelImageLastUserIndex($messages) {
+    ensure(is_array($messages)&&count($messages)>0&&array_keys($messages)===range(0,count($messages)-1),'IMAGE_INPUT_INVALID','圖片必須附在有效的使用者訊息。',409);
+    for($index=count($messages)-1;$index>=0;$index--)if(is_array($messages[$index])&&field($messages[$index],'role')==='user')return $index;
+    throw new AppError('IMAGE_INPUT_INVALID','找不到可附上圖片的使用者訊息。',409);
+}
+function openAIImageMessages($messages,$images) {
+    $images=prepareModelImageInputs($images);if($images===array())return $messages;
+    $index=modelImageLastUserIndex($messages);$content=field($messages[$index],'content');
+    if(is_string($content))$content=array(array('type'=>'input_text','text'=>$content));
+    ensure(is_array($content)&&count($content)>0&&array_keys($content)===range(0,count($content)-1),'IMAGE_INPUT_INVALID','圖片訊息缺少原始文字。',409);
+    foreach($content as $part)ensure(is_array($part)&&count($part)===2&&field($part,'type')==='input_text'&&is_string(field($part,'text')),'IMAGE_INPUT_INVALID','圖片必須透過經驗證的位元組輸入，不接受網址或既有圖片欄位。',409);
+    foreach($images as $image){
+        $content[]=array('type'=>'input_text','text'=>$image['label']);
+        $content[]=array('type'=>'input_image','image_url'=>'data:image/png;base64,'.base64_encode($image['bytes']));
+    }
+    $messages[$index]['content']=$content;return $messages;
+}
+function ollamaImageMessages($messages,$images) {
+    $images=prepareModelImageInputs($images);if($images===array())return $messages;
+    $index=modelImageLastUserIndex($messages);$content=field($messages[$index],'content');
+    ensure(is_string($content)&&!array_key_exists('images',$messages[$index]),'IMAGE_INPUT_INVALID','圖片必須附在原始使用者文字，不能夾帶未驗證的圖片。',409);
+    $labels=array();$encoded=array();
+    foreach($images as $position=>$image){$labels[]=($position+1).'. '.$image['label'];$encoded[]=base64_encode($image['bytes']);}
+    $messages[$index]['content']=$content."\n\n本次圖片依序對應：\n".implode("\n",$labels);
+    $messages[$index]['images']=$encoded;return $messages;
+}
 class OpenAIAdapter
 {
     private $keyProvider;
@@ -23,15 +76,15 @@ class OpenAIAdapter
         ensure(!$tooLarge,'MODEL_RESPONSE_TOO_LARGE','OpenAI 回應過大，已停止。',502);
         if($ok===false)throw new AppError($code===CURLE_OPERATION_TIMEDOUT?'MODEL_TIMEOUT':'MODEL_UNAVAILABLE',$code===CURLE_OPERATION_TIMEDOUT?'OpenAI 回應逾時，無法確認是否已處理或計費。沒有自動重試；請先保留原文。':'無法安全連線 OpenAI。請檢查 PHP cURL、CA 憑證與網路；不要關閉憑證驗證。',502);
         if($status<200||$status>=300){
-            $hints=array(400=>'模型或結構化輸出參數不相容，請核對模型名稱。',401=>'API Key 無效或已失效，請清除後重新貼入。',403=>'此 API Key 或專案沒有使用權限。',404=>'找不到指定模型或此專案無權使用。',429=>'達到速率或帳戶額度限制，請查看 OpenAI 專案用量／帳務。');
+            $hints=array(400=>'模型、圖片輸入或結構化輸出參數不相容，請核對選定模型是否支援本次輸入。',401=>'API Key 無效或已失效，請清除後重新貼入。',403=>'此 API Key 或專案沒有使用權限。',404=>'找不到指定模型或此專案無權使用。',429=>'達到速率或帳戶額度限制，請查看 OpenAI 專案用量／帳務。');
             throw new AppError('OPENAI_HTTP_ERROR','OpenAI HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'上游服務未完成請求，請稍後由你決定是否重試。').' 未顯示上游原始回應，以免洩漏金鑰或使用者文字。',502);
         }
         try{return json_decode($body,false,128,JSON_THROW_ON_ERROR);}catch(JsonException $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 回應不是有效 JSON。',502);}
     }
-    public function generate($model,$messages,$schema,$maxOutputTokens=6000)
+    public function generate($model,$messages,$schema,$maxOutputTokens=6000,$images=array())
     {
         ensure(is_int($maxOutputTokens)&&$maxOutputTokens>=6000&&$maxOutputTokens<=24000,'MODEL_OUTPUT_BUDGET','輸出長度設定超出允許範圍。');
-        modelName($model);$this->actualModel=null;
+        modelName($model);$this->actualModel=null;$messages=openAIImageMessages($messages,$images);
         $payload=array('model'=>$model,'input'=>$messages,'store'=>false,'stream'=>false,'max_output_tokens'=>$maxOutputTokens,'text'=>array('format'=>array('type'=>'json_schema','name'=>'title_cocreation_result','strict'=>true,'schema'=>$schema)));
         $result=$this->request($payload);
         ensure(plain($result),'MODEL_OUTPUT_INVALID','OpenAI 回應格式不正確。',502);

@@ -18,7 +18,7 @@ function validateModuleItemDefinitions($items,$type) {
         $id=field($item,'id');ensure(is_string($id)&&preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/D',$id),'ITEMS_INVALID','段落識別碼格式不正確。');
         userTextValue($id,64,'段落識別碼');$label=userTextValue(field($item,'label'),120,'段落名稱');
         ensure(!in_array($id,$ids,true)&&!in_array($label,$labels,true),'ITEMS_INVALID','段落識別碼與名稱不可重複。');
-        if(artifactType($type))ensure($id==='document'&&$label===($type==='table'?'表格內容':($type==='mindmap'?'心智圖來源':($type==='vector'?'向量圖形來源':($type==='webpage'?'網頁來源':'圖表來源')))),'ITEMS_INVALID','此類型使用完整結構化內容，不以一般文字欄位取代。');
+        if(artifactType($type))ensure($id==='document'&&$label===($type==='table'?'表格內容':($type==='mindmap'?'心智圖來源':($type==='vector'?'向量圖形來源':($type==='webpage'?'網頁來源':($type==='image'?'圖片來源':'圖表來源'))))),'ITEMS_INVALID','此類型使用完整結構化內容，不以一般文字欄位取代。');
         if($type==='short_text')ensure($id==='body'&&$label==='全文','ITEMS_INVALID','短文只保存一個 id 為 body、名稱為全文的完整內容。');
         $ids[]=$id;$labels[]=$label;$out[]=array('id'=>$id,'label'=>$label);
     }

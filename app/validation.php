@@ -16,13 +16,13 @@ function modelName($value) { $value=userTextValue($value,120,'模型名稱');ens
 function validId($value) { ensure(is_string($value)&&preg_match('/^[a-f0-9]{32}$/D',$value),'INVALID_ID','作品識別碼不正確。');return $value; }
 function securityHeaders() {
     return array('Cache-Control'=>'no-store, max-age=0','Pragma'=>'no-cache','X-Content-Type-Options'=>'nosniff','X-Frame-Options'=>'DENY','Referrer-Policy'=>'no-referrer','Permissions-Policy'=>'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-    'Content-Security-Policy'=>"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
+    'Content-Security-Policy'=>"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
 }
 function operationOutcome($error) {
     if(!($error instanceof AppError)||$error->errorCode==='REQUEST_ALREADY_ATTEMPTED')return 'unknown';
     // Rejected means no valid result was saved, NOT that a provider charged nothing.
     // Never classify transport errors, generic 5xx or a failed journal write as safe.
-    $rejected=array('MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_CLARIFICATION_ARTIFACT','MODEL_MINDMAP_GENERATION','MODEL_MINDMAP_ACCEPTED_CHANGED','MODEL_MINDMAP_PENDING_CHANGED','MODEL_MINDMAP_PENDING_COUNT','MODEL_MINDMAP_FUSION_NODE','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
+    $rejected=array('IMAGE_RESOURCE_LIMIT','PNG_RUNTIME_UNAVAILABLE','PNG_RESOURCE_LIMIT','PNG_PROCESSING_FAILED','MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_CLARIFICATION_ARTIFACT','MODEL_MINDMAP_GENERATION','MODEL_MINDMAP_ACCEPTED_CHANGED','MODEL_MINDMAP_PENDING_CHANGED','MODEL_MINDMAP_PENDING_COUNT','MODEL_MINDMAP_FUSION_NODE','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
     return $error->status<500||in_array($error->errorCode,$rejected,true)?'rejected':'unknown';
 }
 function errorResponse($error) { return array('error'=>array('code'=>$error instanceof AppError?$error->errorCode:'INTERNAL_ERROR','message'=>$error instanceof AppError?$error->getMessage():'處理未完成。請先檢查最新狀態，再檢查伺服器環境；不要直接重複提交。','operationOutcome'=>operationOutcome($error))); }

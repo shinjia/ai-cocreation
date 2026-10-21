@@ -1,5 +1,6 @@
 <?php
 class CocreationApp {
+    use CocreationImageActions;
     private $store; private $config; private $owner; private $vault; private $model;
     public function __construct($store,$config,$owner,$adapter=null) {
         $this->store=$store;$this->config=$config;$this->owner=$owner;$this->vault=new SessionKeyVault($config['data_dir']);$this->model=$adapter;
@@ -30,7 +31,7 @@ class CocreationApp {
         if($connection['provider']==='ollama')return new OllamaAdapter($connection['ollamaUrl'],$this->config['model_timeout_ms']);
         $vault=$this->vault;$owner=$this->owner;return new OpenAIAdapter(function()use($vault,$owner){return $vault->get($owner);},$this->config['model_timeout_ms']);
     }
-    private function provenance($connection,$adapter,$requestedAt) { return array('memberId'=>$connection['memberId'],'memberNickname'=>$connection['memberNickname'],'provider'=>$connection['provider'],'requestedModel'=>$connection['model'],'actualModel'=>$adapter->actualModel(),'requestedAt'=>$requestedAt); }
+    private function provenance($connection,$adapter,$requestedAt) { $out=array('memberId'=>$connection['memberId'],'memberNickname'=>$connection['memberNickname'],'provider'=>$connection['provider'],'requestedModel'=>$connection['model'],'actualModel'=>$adapter->actualModel(),'requestedAt'=>$requestedAt);if(count($this->imageInputSnapshots)){$out['inputMode']='image_bytes';$out['imageInputs']=$this->imageInputSnapshots;}return $out; }
     private function checkApproval($input,$connection,$needsConsent=true) {
         ensure($connection['memberId']!==null,'AI_MEMBER_REQUIRED','請先在系統設定勾選並選取一位 AI 成員。',409);
         ensure(field($input,'approvedMemberId')===$connection['memberId'],'MEMBER_CHANGED','所選 AI 成員已變更，請檢查目前選擇後再送出；沒有自動換人。',409);
@@ -48,7 +49,7 @@ class CocreationApp {
     private function itemKeys() { return array('phase','lifecycle','brief','goalApprovedAt','summaryRevision','versions','archivedVersionIds','officialVersionId','comparisons','messages','finalizedVersionId','finalizedAt','finalizations','references','contextRevision'); }
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽及可展開問答，不含外部圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？'))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='image'?'可以先上傳外部圖片保存版本，再選定版本討論或比較配色、構圖與風格。上傳不呼叫 AI；本階段尚未開放圖片生成或像素修改。':($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽及可展開問答，不含外部圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -63,6 +64,7 @@ class CocreationApp {
         return $out;
     }
     private function normalizeRaw($raw) {
+        if(!array_key_exists('imageAnalysisConsent',$raw))$raw['imageAnalysisConsent']=null;
         if(!array_key_exists('aiBinding',$raw))$raw['aiBinding']=null; // No inferred model for existing projects.
         if($raw['aiBinding']!==null)$raw['aiBinding']=validateProjectAiBinding($raw['aiBinding']);
         $capabilities=array_column(moduleRegistry(),'enabled','id');
@@ -190,6 +192,8 @@ class CocreationApp {
         ensure(field($input,'expectedSettingsRevision')===$roster['settingsRevision'],'SETTINGS_CHANGED','另一個分頁已變更 AI 設定。請保留目前草稿，重新讀取設定後再操作；沒有覆寫較新的名單。',409);return $roster;
     }
     private function execute($action,$input,$requestConnection=null) {
+        $this->imageInputSnapshots=array();
+        if($action==='grant_image_analysis')return $this->grantImageAnalysis($input);
         if($action==='save_members') {
             $roster=$this->settingsLease($input);$this->store->setMemberRoster(field($input,'members'),field($input,'activeMemberId'),field($input,'usageConsent'),$this->owner,$roster['settingsRevision']);return $this->status();
         }
@@ -239,6 +243,7 @@ class CocreationApp {
             if($changed)$p['sharedContextRevision']++;$p['description']=$description;$p['title']=$title;return $this->save($p);
         }
         $this->activeInput($p,$input);ensure(!$p['activeItem']['archived'],'ITEM_ARCHIVED','請先還原封存項目。',409);ensure($p['activeItem']['enabled'],'CAPABILITY_UNAVAILABLE','這個創作類型目前只提供規劃及固定版本引用，尚未實作 AI 生成與定稿。',409);$module=moduleAdapter($p['module'],$adapter);
+        if($p['module']==='image')ensure(!in_array($action,array('generate','confirm_generate','fuse'),true),'IMAGE_GENERATION_UNAVAILABLE','目前圖片功能提供外部上傳、版本保存及實際圖片分析；尚未開放 AI 生成或像素修改，沒有呼叫 AI。',409);
         if($action==='reopen') {
             ensure($p['lifecycle']==='finalized','PROJECT_NOT_FINALIZED','此專案尚未定稿，不必重新開啟。',409);
             $p['lifecycle']='in_progress';$p['finalizedVersionId']=null;$p['finalizedAt']=null;
@@ -262,7 +267,7 @@ class CocreationApp {
                 // Legacy discussions may have cleared approval: editing an existing
                 // official bundle still works, without inventing new goal approval.
                 ensure(count($p['versions'])<60,'VERSION_LIMIT','此項目已達60個版本，請匯出保存後延續新項目；本次未呼叫AI。',409);
-                $official=$selection['base'];$refinementProject=$p;if($p['module']==='mindmap')$refinementProject['mindmapTargetNodeId']=$selection['targetNodeId'];$result=$module->refine($refinementProject,$official,$text,$model,$selection['targetItemIds']);$provenance=$this->provenance($connection,$adapter,$requestedAt);
+                $official=$selection['base'];$refinementProject=$p;if($p['module']==='mindmap')$refinementProject['mindmapTargetNodeId']=$selection['targetNodeId'];if($p['module']==='image')$this->prepareImageInputs($p,$module,array($official));$result=$module->refine($refinementProject,$official,$text,$model,$selection['targetItemIds']);$provenance=$this->provenance($connection,$adapter,$requestedAt);
                 $sourceMetadata=array('basedOnVersionId'=>$official['id']);if($p['module']==='mindmap')$sourceMetadata['targetNodeId']=$selection['targetNodeId'];
                 $p['messages'][]=$this->message('student',$text,'discussion',array_merge($sourceMetadata,$answerMetadata));
                 $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array_merge(array('basedOnVersionId'=>$official['id'],'targetItemIds'=>$selection['targetItemIds'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result,$selection)));
@@ -275,6 +280,7 @@ class CocreationApp {
                 }
                 $p['messages'][]=$message;return $this->save($p);
             }
+            if($p['module']==='image')$this->prepareImageInputs($p,$module,array());
             $result=$module->discuss($p,$text,$model);
             $ready=$result['directionStatus']==='ready';$p['brief']=$ready?$result['direction']:null;$p['phase']=$ready?'summary':'discussion';$p['goalApprovedAt']=null;$p['summaryRevision']=$ready?$p['revision']+1:null;if($ready)$p['contextRevision']=$p['sharedContextRevision'];
             $extra=array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references'],'directionStatus'=>$result['directionStatus']);if($ready)$extra['goalSnapshot']=$p['brief'];
@@ -282,6 +288,7 @@ class CocreationApp {
             return $this->save($p);
         }
         if($action==='summarize') {
+            if($p['module']==='image'){$source=field($input,'baseVersionId',$p['officialVersionId']);$this->prepareImageInputs($p,$module,$source===null?array():array($this->version($p,$source)));}
             $p['brief']=$module->summarize($p,$model);$p['contextRevision']=$p['sharedContextRevision'];$p['goalApprovedAt']=null;$p['phase']='summary';$p['summaryRevision']=$p['revision']+1;
             $p['messages'][]=$this->message('assistant','我把目前對話整理成右側的創作目標草案。請確認它是不是你的意思；還有不同之處就繼續聊。','goal_summary',array('goalSnapshot'=>$p['brief'],'provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));return $this->save($p);
         }
@@ -309,6 +316,7 @@ class CocreationApp {
         if($action==='snapshot') {
             $basedOn=field($input,'basedOnVersionId');if($p['officialVersionId']===null&&$basedOn===null)$this->goalRequired($p);if($basedOn!==null){$this->version($p,$basedOn);ensure(!versionArchived($p,$basedOn),'VERSION_ARCHIVED','請先還原來源版本，再編輯另存。',409);}$mode=field($input,'versionMode','major');ensure(in_array($mode,array('major','minor'),true),'VERSION_MODE','請選擇另存新版本或另存小修改。');if($mode==='minor')ensure($basedOn!==null,'VERSION_BASE_REQUIRED','請選擇小修改的來源版本。');
             $artifact=artifactType($p['module'])?validateArtifact(field($input,'artifact'),$p['module']):null;$items=$artifact===null?validateModuleContentItems(field($input,'items'),$p['module']):artifactItems($artifact);$base=$basedOn===null?null:$this->version($p,$basedOn);
+            if($p['module']==='image'){$this->resolveImageAsset($p,$p['activeItemId'],$artifact);ensure($base!==null&&isset($base['artifact'])&&$artifact['asset']===$base['artifact']['asset'],'IMAGE_METADATA_ONLY','手動編輯只能修改選定圖片版本的名稱、說明與來源。更換圖片請使用明確上傳，另存新版本。',409);}
             $goalDefault=$base===null?field($p['brief'],'summary',''):versionGoalText($base);
             if(array_key_exists('goalAndRationale',$input)){
                 $combined=validateCombinedVersionNote($input['goalAndRationale']);
@@ -353,6 +361,7 @@ class CocreationApp {
         $ids=field($input,'versionIds');ensure(is_array($ids)&&count($ids)>=2&&count($ids)<=5,'COMPARISON_SELECTION','請選取2至5個不同版本，可包含正式版與候選。');
         foreach($ids as $id)validId($id);ensure(count(array_unique($ids,SORT_STRING))===count($ids),'COMPARISON_SELECTION','不可重複選取同一版本。');
         $versions=array();foreach($ids as $id){ensure(!versionArchived($p,$id),'VERSION_ARCHIVED','比較包含封存版本，請先還原或取消選取。',409);$versions[]=$this->version($p,$id);}$question=userTextValue(field($input,'question',''),2000,'比較重點',true);
+        if($p['module']==='image')$this->prepareImageInputs($p,$module,$versions,false);
         $result=$module->compare($p,$versions,$question,$model);$message=$this->message('assistant',$result['summary'],'comparison',array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));$id=newId();
         $goalSnapshots=array();foreach($versions as $v)$goalSnapshots[]=versionComparisonSnapshot($v);
         $comparison=array('id'=>$id,'versionIds'=>$ids,'goalBasis'=>'version_snapshots','goalSnapshot'=>null,'versionGoalSnapshots'=>$goalSnapshots,'question'=>$question,'referencesSnapshot'=>$p['references'],'provenance'=>$this->provenance($connection,$adapter,$requestedAt),'items'=>$result['items'],'summary'=>$result['summary'],'messageId'=>$message['id'],'createdAt'=>nowIso());

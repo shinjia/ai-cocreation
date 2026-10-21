@@ -226,7 +226,7 @@ test('revision, clarification and fusion outputs are deeply detached from all in
 
 test('helper imports native validation and has no network, persistence, raster or script execution path',async()=>{
   const source=await readFile(new URL('../public/vector-demo.js',import.meta.url),'utf8');
-  assert.match(source,/import \{cloneVector\} from '\.\/vector\.js\?v=20261021-version12'/);
+  assert.match(source,/import \{cloneVector\} from '\.\/vector\.js\?v=20261021-version13'/);
   assert.doesNotMatch(source,/\b(?:fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB)\s*(?:\(|\.)/);
   assert.doesNotMatch(source,/\b(?:function\s+validateVector|innerHTML|eval\s*\(|setTimeout\s*\(|setInterval\s*\()/);
   assert.doesNotMatch(source,/data:image|<image\b|<foreignObject\b/);

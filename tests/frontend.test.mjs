@@ -89,7 +89,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version12"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version12"/);assert.match(html,/demo\.js\?v=20261021-version12/);assert.match(demo,/app\.js\?v=20261021-version12/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version13"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version13"/);assert.match(html,/demo\.js\?v=20261021-version13/);assert.match(demo,/app\.js\?v=20261021-version13/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -953,11 +953,11 @@ async function generatedItem(api,project,type){
  return call(api,'confirm_generate',p,{consent:true});
 }
 
-test('module registry preserves all twelve ordered choices and honestly enables three text modules and five structured artifacts',async()=>{
+test('module registry preserves all twelve ordered choices and honestly enables three text modules, five structured artifacts and uploaded images',async()=>{
  const registry=[['titles','標題名稱'],['short_text','短文'],['article','長篇文章'],['illustrated','圖文'],['table','表格'],['chart','圖表'],['mindmap','心智圖'],['vector','向量圖形'],['image','圖片創作'],['poster','海報設計'],['webpage','網頁'],['interactive','互動視覺程式']];
- assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart','mindmap','vector','webpage']);
+ assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart','mindmap','vector','image','webpage']);
  const api=createDemoAdapter({seed:false});let p=await boundProject(api);
- for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart','mindmap','vector','webpage'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
+ for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart','mindmap','vector','image','webpage'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
 });
 
 test('module content validation distinguishes full short text and bounded stable paragraphs without truncation',()=>{

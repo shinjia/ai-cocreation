@@ -33,7 +33,7 @@ test('fusion uses new major, complete direct snapshots and bounded ancestor line
  assert.match(fuse,/'fusion',null,\$message\['id'\],\$provenance,'major'/);assert.equal((fuse.match(/\$module->fuse\(/g)||[]).length,1);assert.doesNotMatch(fuse,/officialVersionId'\]=|finalizedVersionId'\]=/);
 });
 test('both provider adapters declare and validate the requested bounded output token budget',async()=>{
- for(const path of ['app/model.php','app/ollama.php']){const s=await read(path),g=method(s,'generate');assert.match(g,/generate\(\$model,\$messages,\$schema,\$maxOutputTokens=6000\)/);assert.match(g,/is_int\(\$maxOutputTokens\)&&\$maxOutputTokens>=6000&&\$maxOutputTokens<=24000/);assert.match(g,/(?:max_output_tokens|num_predict)'\s*=>\$maxOutputTokens/);assert.ok(g.indexOf('MODEL_OUTPUT_BUDGET')<g.indexOf('$this->request('));}
+ for(const path of ['app/model.php','app/ollama.php']){const s=await read(path),g=method(s,'generate');assert.match(g,/generate\(\$model,\$messages,\$schema,\$maxOutputTokens=6000,\$images=array\(\)\)/);assert.match(g,/is_int\(\$maxOutputTokens\)&&\$maxOutputTokens>=6000&&\$maxOutputTokens<=24000/);assert.match(g,/(?:max_output_tokens|num_predict)'\s*=>\$maxOutputTokens/);assert.ok(g.indexOf('MODEL_OUTPUT_BUDGET')<g.indexOf('$this->request('));}
 });
 test('article manual snapshots validate new full structure, while selected AI edits preserve original bytes',async()=>{
  const s=await read('app/app.php'),manual=s.split("if($action==='snapshot') {")[1].split("if($action==='promote')")[0],text=await read('app/modules/text.php');
