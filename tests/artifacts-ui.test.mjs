@@ -12,10 +12,10 @@ const expectInvalid=(value,pattern,type=value?.kind)=>assert.match(validateArtif
 
 test('native defaults contain no invented chart numbers and support only table/chart',()=>{
   assert.equal(isArtifactType('table'),true);assert.equal(isArtifactType('chart'),true);
-  for(const type of ['titles','svg','poster',null,{},'TABLE'])assert.equal(isArtifactType(type),false);
+  for(const type of ['titles','svg','interactive',null,{},'TABLE'])assert.equal(isArtifactType(type),false);
   assert.equal(validateArtifact(defaultArtifact('table')),'');
   const initial=defaultArtifact('chart');assert.equal(initial.chartType,'flowchart');assert.equal(initial.sourceText,'flowchart TD\nStart["開始"]');
-  assert.equal(validateArtifact(initial),'');assert.throws(()=>defaultArtifact('poster'),/不是可保存/);
+  assert.equal(validateArtifact(initial),'');assert.throws(()=>defaultArtifact('interactive'),/不是可保存/);
 });
 test('table validation preserves stable IDs, whitespace, empty cells and immutable clones',()=>{
   const original=table(),copy=cloneArtifact(original);assert.equal(validateArtifact(original),'');

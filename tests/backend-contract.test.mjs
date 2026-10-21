@@ -66,7 +66,7 @@ test('extensible stable-id naming bundles validated and generated only from appr
 test('project shell separates creative items, isolates active item actions, and pins explicit cross-item references',async()=>{
  const app=await read('app/app.php'),mod=await read('app/modules/titles.php'),registry=await read('app/modules.php');
  for(const token of ['creativeItems','activeItemId','create_item','select_item','ACTIVE_ITEM_CHANGED','attach_reference','targetItemId','versionSnapshot','referencesSnapshot','projectFinalizations','archive_item','restore_item'])assert.ok(app.includes(token));
- assert.match(app,/CAPABILITY_UNAVAILABLE/);assert.match(app,/ITEMS_UNFINISHED/);assert.match(mod,/pinnedReferences/);assert.match(registry,/'id'=>'poster','label'=>'海報設計','enabled'=>false/);
+ assert.match(app,/CAPABILITY_UNAVAILABLE/);assert.match(app,/ITEMS_UNFINISHED/);assert.match(mod,/pinnedReferences/);assert.match(registry,/'id'=>'interactive','label'=>'互動視覺程式','enabled'=>false/);
 });
 test('context changes invalidate projected approvals consistently and finalized metadata requires reopening',async()=>{
  const app=await read('app/app.php');

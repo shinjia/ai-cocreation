@@ -89,14 +89,14 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version13"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version13"/);assert.match(html,/demo\.js\?v=20261021-version13/);assert.match(demo,/app\.js\?v=20261021-version13/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version14"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version14"/);assert.match(html,/demo\.js\?v=20261021-version14/);assert.match(demo,/app\.js\?v=20261021-version14/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
  p=await call(api,'create_item',p,{type:'titles',title:'第二組名稱',description:'不同的命名任務'});assert.notEqual(p.activeItemId,originalId);assert.equal(p.versions.length,0);assert.equal(p.goalApprovedAt,null);
  await assert.rejects(api.request('discuss',{id:p.id,itemId:originalId,revision:p.revision,text:'錯誤的項目',consent:true}));
  p=await call(api,'select_item',p,{itemId:originalId});assert.deepEqual(p.activeItem,original);
- p=await call(api,'create_item',p,{type:'poster',title:'海報規劃',description:'尚未實作'});assert.equal(canCreate(p),false);
+ p=await call(api,'create_item',p,{type:'interactive',title:'互動程式規劃',description:'尚未實作'});assert.equal(canCreate(p),false);
  await assert.rejects(call(api,'discuss',p,{text:'不能生成圖片',consent:true}));await assert.rejects(call(api,'snapshot',p,{items:[item()]}));await assert.rejects(call(api,'finalize',p));
 });
 test('cross-item references are explicit immutable whole-version copies',async()=>{
@@ -164,7 +164,7 @@ test('real renderer DOM fixture preserves drafts on item switch and cancels setu
  try{
   const source=createDemoAdapter();const calls=[];const adapter={async request(action,payload){calls.push({action,payload});return source.request(action,payload);}};
   await createTitleApp({root,adapter,demo:true});assert.equal(doc.body.querySelectorAll('.creative-item-tab').length,2);assert.equal(doc.body.querySelectorAll('.tree-version').length,4);assert.ok(root.textContent.includes('腳本示範，不是真實 AI'));
-  await fixtureFill(doc,'editor-title','還沒保存的創作草稿');const tabs=doc.body.querySelectorAll('.creative-item-tab');void tabs[1].dispatchEvent('click');await settle();assert.equal(doc.body.querySelectorAll('.conversation').length,0);assert.ok(root.textContent.includes('這個類型尚未實作'));
+  await fixtureFill(doc,'editor-title','還沒保存的創作草稿');const tabs=doc.body.querySelectorAll('.creative-item-tab');void tabs[1].dispatchEvent('click');await settle();assert.equal(doc.body.querySelectorAll('.conversation').length,0);assert.ok(root.textContent.includes('圖文與海報腳本示範尚未提供'));
   void doc.body.querySelectorAll('.creative-item-tab')[0].dispatchEvent('click');await settle();assert.equal(doc.getElementById('editor-title').value,'還沒保存的創作草稿');
   const before=calls.length;await fixtureClick(doc,'AI 系統設定（示範）');assert.ok(doc.body.querySelector('dialog').open);await fixtureClick(doc,'取消');assert.equal(calls.length,before);assert.equal(doc.getElementById('editor-title').value,'還沒保存的創作草稿');
   await fixtureClick(doc,'＋ 新增創作項目');await fixtureFill(doc,'creative-item-name','第二個命名項目');await fixtureFill(doc,'creative-item-description','獨立任務');await fixtureClick(doc,'新增創作項目');assert.equal(doc.body.querySelectorAll('.creative-item-tab').length,3);assert.equal(doc.body.querySelectorAll('.tree-version').length,0);assert.equal(doc.getElementById('editor-title').value,'');
@@ -953,11 +953,11 @@ async function generatedItem(api,project,type){
  return call(api,'confirm_generate',p,{consent:true});
 }
 
-test('module registry preserves all twelve ordered choices and honestly enables three text modules, five structured artifacts and uploaded images',async()=>{
+test('module registry preserves all twelve ordered choices and honestly enables three text modules, seven structured artifacts and uploaded images',async()=>{
  const registry=[['titles','標題名稱'],['short_text','短文'],['article','長篇文章'],['illustrated','圖文'],['table','表格'],['chart','圖表'],['mindmap','心智圖'],['vector','向量圖形'],['image','圖片創作'],['poster','海報設計'],['webpage','網頁'],['interactive','互動視覺程式']];
- assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart','mindmap','vector','image','webpage']);
+ assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage']);
  const api=createDemoAdapter({seed:false});let p=await boundProject(api);
- for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart','mindmap','vector','image','webpage'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
+ for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
 });
 
 test('module content validation distinguishes full short text and bounded stable paragraphs without truncation',()=>{

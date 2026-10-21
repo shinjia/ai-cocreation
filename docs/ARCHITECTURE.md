@@ -1,6 +1,6 @@
 # AI共創工作室架構與開發契約
 
-本版里程碑：第三階段：外部圖片與實際圖片分析。前八類功能保留；圖片為第九類有界功能，不等於 AI 像素生成。
+本版里程碑：第四階段：圖文與海報原生排版。前九類功能保留，新增圖文與海報兩類原生排版；不等於 AI 像素生成。
 
 ## 模組與目錄
 
@@ -15,12 +15,13 @@
 - `app/image.php`、`app/modules/image.php`：嚴格圖片中繼資料與實際圖片討論／比較；`app/image-actions.php` 核對已保存來源、一次性同意、上傳與模型輸入來源。
 - `app/png-upload.php`：有界 PNG 驗證及正規化；`app/media-store.php`：同一 SQLite PDO 的私有 BLOB 與上傳收據；`public/media.php` 為同源 POST 端點。
 - `public/image-upload.js`：本機 PNG／JPEG 檢查、旋轉與縮圖；`public/media.js`：同源上傳／讀取；`public/image.js`：授權 Blob 預覽與純文字中繼資料編輯。
+- `app/composition.php`、`app/modules/composition.php`：圖文／海報完整原生結構、固定文字模型與 metadata-only 契約；`app/composition-actions.php` 驗證同專案固定引用、歷史來源與私人媒體。`public/composition.js` 提供原生編輯／預覽，`public/composition-export.js` 提供有界、逐圖驗證的 HTML 及 metadata-only JSON／文字 TXT 匯出。
 - `app/content.php`：各類型內容／段落定義及完整內容限制；驗證不默默截斷正文。
 - `app/versioning.php`：主／小版本、舊版讀取、封存、合併目標與比較快照。
 - `app/members.php`、`model.php`、`ollama.php`：非秘密成員設定及兩家 provider adapters。
 - `tests/`：來源契約、前端／示範、SQLite、PHP fixture；`phase1.php` 覆蓋第一階段流程，`artifacts.php` 為表格／圖表契約 fixture，`mindmap.php` 為心智圖契約 fixture，`vector.php` 為原生向量與數值 schema fixture，`webpage.php` 為原生網頁、完整版本與三部分方向確認 fixture。本次缺少原生 PHP，未執行 PHP fixture。
 
-`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。`titles`、`short_text`、`article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image` 共九個 enabled；圖片只提供上傳、分析與比較，不生成／修改／融合像素。其餘圖文、海報與互動視覺程式三個保留規劃／引用，沒有生成、比較、融合或定稿能力，不以文字替代媒體生成。「共聊」不在本次開發範圍。開發中的 composition 輔助程式不代表圖文／海報模組已啟用或完成。
+`moduleRegistry()` 的固定順序為 `titles` 標題名稱、`short_text` 短文、`article` 長篇文章、`illustrated` 圖文、`table` 表格、`chart` 圖表、`mindmap` 心智圖、`vector` 向量圖形、`image` 圖片創作、`poster` 海報設計、`webpage` 網頁、`interactive` 互動視覺程式。除 `interactive` 外共十一個 enabled；圖片只提供上傳、分析與比較，不生成／修改／融合像素。圖文與海報生成的是原生文字／既有圖片排版，非新圖片。互動視覺程式保留規劃／引用，尚無生成或定稿能力。「共聊」排除。
 
 ## 正規資料與相容讀取
 
@@ -28,7 +29,7 @@ SQLite `projects.body` 保存專案：`id`、`title`、`description`、`aiBindin
 
 每個 creative item 各自有類型、名稱、說明、封存狀態、phase／lifecycle、messages、brief、versions、officialVersionId、comparisons、finalizations、references 與 contextRevision。API 加上 activeItem 並把選取項目的工作欄位投影到頂層；頂層 id／title／description／revision 仍是專案，不得把投影寫成第二份持久內容。
 
-`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
+`normalizeRaw()` 將缺少的 `aiBinding` 讀為 null，不能從現行中央設定或舊 provenance 推測綁定。項目 enabled 依現在登錄重算，因此舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image`、`illustrated`、`poster` 規劃項目可開始使用對應模組，原訊息、版本、定稿、引用不因此重寫。舊版本 `number=n` 讀為主版 Vn，保留 ID、內容與實際來源；缺少的歷史資訊不補造。
 
 ## 一次性專案模型綁定
 
@@ -63,13 +64,13 @@ phase 為 discussion → summary → ready → work；項目及專案 lifecycle 
 - 長篇文章必須明確提供非空、無重複且屬於來源的 `targetItemIds`，不預設全選。模型取得完整 `sourceVersion.items` 及目標；schema 與伺服器限制它只回傳選取段落，id／label 必須保持。未選段落沿來源原陣列逐位元組保存，保持順序，再與選段合併為完整新文章並重新驗證。
 - AI 選段不可新增、刪除、改名或重排段落；手動 snapshot 可改結構，保存完整新版、既有 ID 與新段落新 ID，來源仍不變。
 
-`outcome=revision` 必須有實際內容或本版目標差異、完整可審閱內容與 metadata，question／choices 為空。追加來源 major 的下一 minor，保存 basedOnVersionId、revisionInstruction、targetItemIds、provenance 及來源對話。文字模組的 `outcome=clarification` 必須 items=[]，不建立假版本；有界說明 metadata 驗證後丟棄。表格／圖表／心智圖／向量圖形／網頁的模型 schema 則要求完整 artifact：釐清時必須原樣回傳來源 artifact，驗證與來源相同後捨棄，不建立版本或修改目標。多問、明顯假稱修改完成或畸形輸出拒收；有界文字檢查不是完整語意理解保證。
+`outcome=revision` 必須有實際內容或本版目標差異、完整可審閱內容與 metadata，question／choices 為空。追加來源 major 的下一 minor，保存 basedOnVersionId、revisionInstruction、targetItemIds、provenance 及來源對話。文字模組的 `outcome=clarification` 必須 items=[]，不建立假版本；有界說明 metadata 驗證後丟棄。表格／圖表／心智圖／向量圖形／網頁／圖文／海報的模型 schema 則要求完整 artifact：釐清時必須原樣回傳來源 artifact，驗證與來源相同後捨棄，不建立版本或修改目標。多問、明顯假稱修改完成或畸形輸出拒收；有界文字檢查不是完整語意理解保證。
 
-每版是不可覆寫的完整快照，不只保存差異。文字版保存 `items:[{id,label,content}]`；表格／圖表／心智圖／向量圖形／網頁另保存具型別的完整 `artifact`，items 僅是伺服器從 artifact 衍生的相容文字投影，不能取代原件。`id` 是識別碼；`major`／`minor` 是整數，V5.10 不是浮點數。主版取目前最大 major+1；小版取來源 major 下最大 minor+1，封存版也計入。`basedOnVersionId` 指實際來源，不以相鄰版號推測。
+每版是不可覆寫的完整快照，不只保存差異。文字版保存 `items:[{id,label,content}]`；表格／圖表／心智圖／向量圖形／網頁／圖文／海報另保存具型別的完整 `artifact`，items 僅是伺服器從 artifact 衍生的相容文字投影，不能取代原件。`id` 是識別碼；`major`／`minor` 是整數，V5.10 不是浮點數。主版取目前最大 major+1；小版取來源 major 下最大 minor+1，封存版也計入。`basedOnVersionId` 指實際來源，不以相鄰版號推測。
 
 `goalAndRationale` 為單一、非空、最多 12,000 UTF-8 bytes 的本版目標與修改意見；有此欄位就優先使用。舊 goalText／goalSnapshot／changeSummary／rationale 留作相容歷史，缺合併欄時才組合不同既有文字，不重寫舊快照或捏造紀錄。AI metadata 取自同一次回覆，手動輸入驗證後保留，不猜測拆分。
 
-只有 `promote` 改 officialVersionId；只有 `titles` 同步更改 creative item 名稱，不更改短文／文章／表格／圖表／心智圖／向量圖形／網頁項目名或專案 title／description。主名稱優先明確中文／主要標籤，再名稱／標題，最後第一項；導覽名稱最多取 59 個 Unicode code points 加省略號，正文不截短。生成、融合、修訂或手動另存不自動 promote。
+只有 `promote` 改 officialVersionId；只有 `titles` 同步更改 creative item 名稱，不更改短文／文章／表格／圖表／心智圖／向量圖形／網頁／圖片／圖文／海報項目名或專案 title／description。主名稱優先明確中文／主要標籤，再名稱／標題，最後第一項；導覽名稱最多取 59 個 Unicode code points 加省略號，正文不截短。生成、融合、修訂或手動另存不自動 promote。
 
 ## 比較、融合、引用與封存
 
@@ -195,7 +196,7 @@ AI 修訂只能以 2–12 個新待選子分支取代目標節點的原待選集
 
 `webpageContentFingerprint()` 保留標題、主題、導覽、完整文字、順序與重複數量；忽略區塊及條目 ID 的純改名，把按鈕目標轉為區塊位置以維持連結語意。融合必須與每一個來源的內容指紋不同，不能只改 ID 假稱整合；這是結構檢查，不代表模型的設計品質已驗證。每版自己的 goalAndRationale 優先於舊目標欄；比較與明確融合分離，融合增加完整主版候選與全部直接來源，不自動採用。
 
-同專案其他項目僅在使用者明確釘選特定版本後作引用材料，保存完整內容及模型來源，不隨來源改版或正式版更換而同步。即使引用圖文，也不能取得未提供的圖片、嵌入外部資源或把未實作的圖文生成當成已可用。修訂、手動主／小版、比較、融合、引用、正式版與定稿都保存完整原生作品，不改已保存來源或專案固定模型。
+同專案其他項目僅在使用者明確釘選特定版本後作引用材料，保存完整內容及模型來源，不隨來源改版或正式版更換而同步。即使引用已保存的圖文或海報，網頁模組仍只讀固定文字／原生資料，不取得圖片像素，也不因此新增網頁圖片嵌入、外部資源或生圖能力。修訂、手動主／小版、比較、融合、引用、正式版與定稿都保存完整原生作品，不改已保存來源或專案固定模型。
 
 ### 草稿、原生互動與匯出
 
@@ -245,7 +246,7 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 `grant_image_analysis` 只在可編輯圖片項目核對固定模型後保存專案層 `{bindingHash,acceptedAt}`，不取 Key、不推論。bindingHash 綁定完整既有 aiBinding；普通 usageConsent 仍必要，不能把圖片上傳當作同意送給模型。確認後使用者明確送出討論／整理方向／比較便執行，不新增逐次確認視窗。模型必須同時支援視覺與所需結構化輸出；模型清單與文字成功都不是此能力的驗收，失敗不換模型、服務或以描述代替像素。
 
-圖片模組的討論／整理方向由選定已保存來源（未指定時依既有正式版規則）與固定圖片引用建立輸入；比較只提供明確所選 2–5 版的圖片，不包含 pinned references 的像素。文字脈絡仍可保留固定引用，因此提示明確區分「文字來源存在」與「本次確實提供像素」。其他八類模組目前不因圖片引用而自動取得圖片像素，也不因此具有圖片嵌入／生成能力。
+圖片模組的討論／整理方向由選定已保存來源（未指定時依既有正式版規則）與固定圖片引用建立輸入；比較只提供明確所選 2–5 版的圖片，不包含 pinned references 的像素。文字脈絡仍可保留固定引用，因此提示明確區分「文字來源存在」與「本次確實提供像素」。其他模組不因圖片引用而自動傳送圖片像素。圖文／海報的本機預覽與明確 HTML 匯出可讀取固定圖片，但其 AI 排版請求仍只有中繼資料；網頁尚不嵌入圖片。
 
 每次最多 5 個不同 asset ID、原始 PNG 合計最多 12 MiB；同資產只傳一次但保留每個版本與標籤對應。所有圖片先依確切已保存 owner／project／item／version 解析，核對 BLOB/hash，沒有 URL 載入。`imageInputSnapshots` 在結果 provenance 保存 itemId、versionId、assetId、sha256、label 與 inputMode=image_bytes，不保存圖片本體；每次請求先清空，模組 ask 消耗一次後清除，包含錯誤路徑，避免下一次沿用圖片。
 
@@ -257,7 +258,43 @@ JSON 保留完整可編輯原生資料，TXT 是同一份正規 JSON 的純文�
 
 已保存版本可個別下載最終 PNG 或匯出單件 metadata JSON；單件 JSON 不含歷史，專案 JSON 另保存完整 metadata／歷史／來源，不內嵌 PNG，不是完整圖片備份，也沒有還原／匯入完整媒體的介面。完整離線備份須在程式停止寫入時保存整個私有資料夾（包括 SQLite 及可能存在的 journal／WAL 檔）與 config.local.php；內含 Session／暫存 Key 時須按敏感資料保管，不分享。
 
-固定腳本示範不開放圖片上傳、私人圖片讀取或真正圖片分析，不使用假圖片或固定描述冒充看圖。圖文、海報、互動視覺程式仍未啟用；開發中的輔助檔案不是可用作品能力。
+固定腳本示範不開放圖片上傳、私人圖片讀取或真正圖片分析，不使用假圖片或固定描述冒充看圖。圖文與海報已在本機版啟用；離線腳本未提供這兩類示範。互動視覺程式仍未啟用。
+
+## 原生圖文／海報契約
+
+`CompositionModule` 沿用專案固定文字／結構化模型，`illustrated`／`poster` 各次生成恰一份完整 artifact，不生成圖片像素、不新增圖片 provider。原件接受精確欄位、真正物件／密集陣列與純文字；不接受 HTML、CSS、JS、SVG、圖片位元組、URL、路徑或任意額外欄位代替原件。
+
+- illustrated 精確為 `{kind:"illustrated",title,theme,blocks}`；theme 為 paper／night／meadow。1–24 區塊，每個精確為 `{id,heading,body,layout,imageRefId,caption}`；body 非空，最多 12,000 bytes；heading／caption 可空，各最多 600 bytes。layout 僅 text／above／left／right；text 必須空 imageRefId，其餘必須有固定圖片引用。
+- poster 精確為 `{kind:"poster",title,format,theme,blocks}`；format 為 portrait／square／landscape，theme 為 paper／night／festival。2–16 區塊且至少一個 headline 加一個 text 或 image；每個精確為 `{id,type,text,imageRefId,alignment}`。type 為 headline／text／image，alignment 為 left／center／right；前兩者文字非空、最多 2,000 bytes 且 imageRefId 空；image 必須有引用，text 為可空圖說、最多 600 bytes。
+- 兩類 title 非空且最多 600 bytes。區塊 ID 全件唯一，ASCII 英數開頭，只含英數／底線／連字號，最多 64 字元；原文字、空白及換行保留。imageRefId 為空字串或 32 位小寫十六進位引用 ID，不是 assetId、versionId、URL 或授權憑證。完整正規 artifact JSON 最多 60,000 UTF-8 bytes，超限整筆拒收；`compositionItems()` 從原件產生固定 `document／圖文來源` 或 `document／海報來源` 的完整 JSON 投影，不接受摘要代替作品。
+
+### 海報三部分方向與模型邊界
+
+海報 brief.tone／message／constraints 分別是「視覺風格」「完整文字內容」「圖文排列」。`confirm_generate`／相容 `approve_goal` 須送精確有序 `confirmedDirections=["style","text","layout"]`，整數 `directionRevision` 必須等於當前 summaryRevision。勾選只是頁面暫態，不推論、不建作品；新方向使舊確認失效，通過後才由明確生成操作呼叫模型。確認文字及 revision 保存在 directionConfirmation，不能與網頁 `["style","content","functions"]` 混用。
+
+模型只收圖片標題、替代文字、來源註記、width／height／mime、固定來源 ID 與 `pixelsProvided:false`；整體另標 `imagePixelsProvided:false`。allowlist 不傳 asset descriptor、raw／base64、data URL、路徑或 transport 附件。來源驗證可在伺服器讀取私人 PNG，但該讀取不等於模型收到像素；只有 image 模組及其另行明確同意的分析流程可傳實際像素。沒有可用圖片仍可產生純文字排版，不能捏造圖片、網址或占位資產。
+
+模型說明中的明顯「已看見／檢視圖片」假宣稱有有界文字拒收檢查（MODEL_PIXEL_CLAIM），不改寫作品本文，也不是完整語意、視覺品質或所有語言的保證；未測試真實 API 遵循率。完整模型回覆另限 90,000 bytes，生成／修訂／融合請求 24,000 output tokens，比較 6,000，不保證能產出最大作品。
+
+### 固定引用、完整歷史與預先授權核對
+
+`compositionReferencePool()` 先合併所選來源版本 referencesSnapshot 與目前引用。引用須屬目前專案，targetItemId／versionId 及快照 ID 一致；經目前 owner 的專案定位確切已保存項目／版本，圖片 artifact 必須等於保存版本，並以既有私人媒體路徑核對資產、descriptor、長度與 SHA-256。這是推論／保存前的程式核對，不另要求使用者逐次彈窗。模型回傳的 metadata 或合法形狀本身不授權讀取。
+
+同一引用 ID 出現不同 targetItemId、versionId 或完整快照即 COMPOSITION_REFERENCE_CONFLICT，停止推論／保存；前端也阻擋這種來源的編輯器，不任選一方。跨 owner／專案／項目、缺失／變造圖片資產與來源型別不符均拒絕，不換成最新版本。來源封存不改原固定快照；新加入引用仍須走既有明確、未封存來源流程。合併參考池最多 256 筆，超限不截斷。
+
+生成、手動主／小版、AI 修訂與融合的新 referencesSnapshot 保存「目前全部引用＋結果實際使用但目前已移除的歷史圖片引用」，不持續累積未使用祖先。比較保留目前及全部所選來源的引用聯集，讓每版可追溯各自固定圖片。舊來源、舊正式版與定稿不可變；預覽／單版匯出只讀該保存版本 referencesSnapshot，不能借用目前引用補缺漏。
+
+修訂以完整已保存 artifact 為唯一起點，不讀頁面草稿、不接受文章選段。釐清須回傳完全相同原件後捨棄，不存假版本；實際修訂另存完整小版及本版目標，只有目標改變時 artifact 必須原樣。內容指紋忽略單純區塊 ID 改名及同一圖片版本的引用別名，不能以這些變動冒充修訂。比較與融合明確選 2–5 版，依各版自己的目標；融合另存一個完整新主版，拒絕照抄任一來源指紋，不自動採用，也不是圖片像素融合。
+
+### 草稿、預覽與本機檔案匯出
+
+編輯器分開作品設定欄位、逐區塊欄位與已套用草稿。須明確套用或放棄未套用欄位，才可新增／移除／上下移動區塊或外層另存。既有區塊 ID 保留，新區塊用新 ID；不允許破壞海報至少一標題與一內容的結構。欄位可跨同頁區塊切換／busy 重畫／重新讀狀態保留，過期回呼不能修改新來源；整頁重整或關閉不保存草稿，沒有 composition 復原堆疊。保存都是完整主／小版，不覆寫來源或正式版。
+
+固定 DOM／scoped CSS 只顯示純文字與已驗證私人圖片，無 innerHTML／iframe 執行作者程式。night 使用專屬亮文字、圖說及私人圖片說明樣式，但數值／來源檢查不等於全頁無障礙實測。海報畫幅是可延展預覽，不承諾固定印刷尺寸或單頁列印。頂端正式版可自動讀圖；候選／歷史／比較需明確載入排版圖片，編輯草稿另有明確載入按鈕。
+
+`exportCompositionHtml()` 只處理已保存版本及其確切引用，藉 caller 的既有授權 POST 讀取 PNG。先按每個區塊的內嵌次數累加 raw PNG，總量最多 20 MiB，每張最多 4 MiB；同圖重複可去重讀取但不可少算內嵌容量，HTML 因 base64 與文字可更大。前置核對重複／缺失引用、snapshot.id、完整 image artifact；讀取後核對 Blob MIME、長度、PNG 標頭／尺寸與 SHA-256。每次 await 前後核對當前渲染狀態，缺圖、改動、讀取失敗、取消或 stale 均整筆拒絕，未完成不建立下載，不產生部分缺圖成品。
+
+HTML 僅含固定 CSS、安全跳脫完整文字及程式內部建立的 `data:image/png;base64,`。早期 CSP 使用 default-src none、img-src data:、固定 style-src unsafe-inline，禁用 script／connect／object／frame／base／form；沒有腳本、外部 URL／網路請求或表單。匯出準備仍需讀取本機私人媒體，不等於輸出的 HTML 會連線，也不改主頁 CSP。JSON 是 `{notice,artifact}`，只含可編輯排版與引用 ID；TXT 是警語與完整文字投影，不含圖片或視覺排版。兩者不含引用來源完整快照，HTML 也不是完整專案備份；沒有檔案匯入／自動還原介面。離線固定腳本不支援圖文／海報，不拿假結果代替真實能力。
 
 ## API、請求保護與錯誤
 
@@ -283,9 +320,10 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 - mindmap：1–80 個 nodes、0–24 個 proposals；各 label 240、description 2,000 bytes；完整 artifact JSON 與文字投影各最多 60,000。初次 1 個根與 2–12 個待選分支；子分支修訂若有待選變動，目標集合為 2–12 個，仍受全圖總量限制。生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
 - vector：1–100 個 shapes，整數畫布 1–4096；title 600、label 120、text 4,000 bytes，最多 80 個局部頂點。原生 artifact JSON 與精確緊湊投影各最多 60,000 bytes，數值最多三位小數；具體幾何及伺服器序列化差異見上節。生成／修訂／融合請求 24,000 output tokens，不保證產出最大作品。
 - webpage：1–20 區塊，cards／faq 每區 1–12 條目；網頁／區塊／條目標題 600、眉標／按鈕文字 240、區塊內文 12,000、條目內文 6,000 bytes。完整正規 JSON 與投影各最多 60,000 bytes，總量包含欄位結構與跳脫字元；生成／修訂／融合請求 24,000 output tokens，不保證完整產出最大作品。
+- illustrated／poster：完整 JSON／投影最多 60,000 bytes；圖文 1–24、海報 2–16 區塊，title 600，圖文 heading／caption 600、body 12,000，海報文字 2,000、圖說 600 bytes；具體結構與含圖 HTML 配額見上節。
 - image：title 600、alt 3,000、attribution 2,000 bytes；PNG、傳輸、儲存及分析配額依圖片契約，像素不計入專案 JSON 本體。
 - 本版合併意見 12,000；版本 goalText 6,000；對談輸入 4,000；比較／融合問題及生成方向 2,000。其他結構欄位另有限制，不因合併輸入而解除。
-- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage／image 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
+- 序列化模型資料上限：titles 240,000，short_text／article／table／chart／mindmap／vector／webpage／image／illustrated／poster 600,000；全文及歷史不默默截斷。短文／文章／表格／圖表／心智圖／向量圖形／網頁／圖文／海報模組以版本索引代替未選取的歷史全文，但保留對話與固定引用，選取修訂／比較／融合時帶完整來源。
 - 每 owner 最多 100 專案，每專案 30 項目（含封存），每項目 60 版本（含封存）、60 比較、60 輪討論、400 則訊息、12 筆固定引用。專案序列化內容最多 2,000,000 bytes。
 
 推論前按操作保守預留完整結果、引用、來源快照與 JSON 跳脫空間，接近容量可提前拒絕，即使名義版本數尚未滿；不保證磁碟或 SQLite 故障時可保存。資料保存上限、HTTP 限制、模型脈絡及 output tokens 是不同界線，不能互相當作可生成長度保證。
@@ -296,4 +334,4 @@ OpenAI 固定 HTTPS `/v1/responses`、Responses JSON Schema、store=false、stre
 
 結構化單選 2–6 答案，ID 最多 64、label 120、value 1,000 bytes；只接受最新 assistant discussion／clarification。choiceContext 綁定項目、正式版、共同脈絡、項目名稱／說明、baseVersionId 及 targetItemIds，心智圖指定來源另綁定 targetNodeId；伺服器解析已保存答案並核對 input.text，失效或篡改於推論前拒絕。按鈕以 textContent 顯示，不清除文字草稿，不從舊 prose 補造選項。
 
-本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version13`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
+本機限定、同源／CSRF、私有資料與 Session／Key 位於 Web root 外的邊界不變。Key 最長 30 分鐘，不進 SQLite、設定或匯出。前端快取標籤為 `20261021-version14`；同系列更新保留 config.local.php、私有資料、原 Cookie／Session 及仍有效暫存 Key，不重新安裝或重設資料庫。來源檢查不等於 PHP／Apache／XAMPP／瀏覽器或真實模型驗收；開發檢查命令見 [README](../README.md)。
