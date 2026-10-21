@@ -30,9 +30,23 @@ class OllamaAdapter {
         ensure(plain($value),'MODEL_OUTPUT_INVALID','Ollama 輸出必須為 JSON 物件。',502);return $value;
     }
     public function actualModel() { return $this->actualModel; }
+    private function installedModelNames($data) {
+        $entries=field($data,'models');
+        ensure((plain($data)||is_array($data))&&is_array($entries)&&count($entries)<=1000&&($entries===array()||array_keys($entries)===range(0,count($entries)-1)),'OLLAMA_TAGS_INVALID','服務有回應，但不是安全上限內的 Ollama 模型清單。',502);
+        $names=array();
+        foreach($entries as $entry){
+            try{$name=ollamaModelName(field($entry,'name'));ensure($name===field($entry,'name'),'OLLAMA_TAGS_INVALID','模型名稱不可含多餘空白。',502);}catch(AppError $error){throw new AppError('OLLAMA_TAGS_INVALID','Ollama 模型清單包含無法使用的模型名稱。',502);}
+            $names[]=$name;
+        }
+        $names=array_values(array_unique($names));sort($names,SORT_STRING);return $names;
+    }
+    public function listModels() {
+        // GET /api/tags only: never start chat, download, pull or infer a model.
+        $names=$this->installedModelNames($this->request('/api/tags'));
+        return array('models'=>$names,'fetchedAt'=>nowIso(),'provider'=>'ollama','message'=>'已讀取此 PHP 主機上 Ollama 已安裝的模型清單，沒有執行推論或下載模型。列在清單中不保證支援結構化輸出，也不代表具備 OpenAI Responses 相容性，仍須實際操作驗收。');
+    }
     public function checkConnection($model) {
-        ollamaModelName($model);$data=$this->request('/api/tags');$models=field($data,'models');ensure(is_array($models),'OLLAMA_TAGS_INVALID','服務有回應，但不是 Ollama 模型清單。',502);
-        $names=array();foreach($models as $entry){$name=field($entry,'name');if(is_string($name))$names[]=$name;}
+        ollamaModelName($model);$names=$this->installedModelNames($this->request('/api/tags'));
         $found=in_array($model,$names,true)||strpos($model,':')===false&&in_array($model.':latest',$names,true);
         ensure($found,'OLLAMA_MODEL_MISSING','已連到 Ollama，但尚未找到設定的模型。請先在 Ollama 安裝該模型，或將設定改成已安裝的完整名稱。此檢查不會下載模型。',409);
         return array('ok'=>true,'message'=>'已連到本機 Ollama，且找到模型。只讀取模型清單，沒有執行推論；結構化回覆品質仍需實際操作驗收。');

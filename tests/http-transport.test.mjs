@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {createApiAdapter,ApiError} from '../public/app.js';
 
 // These tests run the REAL browser transport and capture the exact serialized
@@ -36,7 +37,7 @@ test('real fetch transport creates project with required body action, CSRF and J
 test('every mutation route serializes authoritative action alongside unchanged payload',async t=>{
  fixture(t,async(url,options)=>options.method==='POST'?phpEnvelopeContract(options):response({csrf}));
  const api=createApiAdapter();await api.request('state');
- const actions=['new','edit_project','create_item','select_item','edit_item','archive_item','restore_item','attach_reference','remove_reference','finalize_project','reopen_project','discuss','summarize','approve_goal','generate','snapshot','promote','compare','finalize','reopen','save_settings','set_key','clear_key','test_connection'];
+ const actions=['new','edit_project','create_item','select_item','edit_item','archive_item','restore_item','attach_reference','remove_reference','finalize_project','reopen_project','discuss','summarize','approve_goal','generate','snapshot','promote','archive_version','restore_version','compare','finalize','reopen','save_settings','save_members','select_member','list_models','set_key','clear_key','test_connection'];
  for(const action of actions){
    const payload={id:'project-fixture',itemId:'item-fixture',revision:2,text:'測試文字',requestId:'test-request',consent:true};
    const result=await api.request(action,payload);
@@ -57,4 +58,13 @@ test('missing action control reproduces exact PHP rejection and adapter surfaces
  let count=0;fixture(t,async()=>{count++;return response({error:{code:'INVALID_INPUT',message:'請求格式不正確。'}},400);});
  await assert.rejects(createApiAdapter().request('new',{title:'fixture'}),e=>e instanceof ApiError&&e.message==='請求格式不正確。'&&e.status===400&&e.uncertain===false);
  assert.equal(count,1);
+});
+test('maximum valid whole-bundle metadata survives bounded JSON transport even with escaped text',async t=>{
+ fixture(t,async(url,options)=>options.method==='POST'?phpEnvelopeContract(options):response({csrf}));
+ const source=await readFile(new URL('../public/api.php',import.meta.url),'utf8');
+ const cap=Number(source.match(/strlen\(\$raw\)<=(\d+)/)[1]);assert.equal(cap,262144);
+ const api=createApiAdapter();await api.request('state');
+ const payload={id:'a'.repeat(32),itemId:'b'.repeat(32),revision:7,basedOnVersionId:'c'.repeat(32),versionMode:'minor',goalText:'\u0001'.repeat(6000),rationale:'\u0001'.repeat(2000),items:Array.from({length:12},(_,i)=>({id:String(i).padStart(64,'x'),label:String(i).padStart(120,'\u0001'),content:'\u0001'.repeat(2000)}))};
+ const result=await api.request('snapshot',payload),bytes=Buffer.byteLength(JSON.stringify(result.accepted));
+ assert.ok(bytes>32768);assert.ok(bytes<=cap);assert.deepEqual(result.accepted.items,payload.items);assert.equal(result.accepted.action,'snapshot');
 });

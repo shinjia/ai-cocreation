@@ -70,10 +70,10 @@ function bundleDisplayTitle($items) { $chars=preg_split('//u',$items[0]['content
 function inferenceGrowthBudget($project,$action) {
     $references=strlen(jsonEncode($project['references']));$brief=strlen(jsonEncode($project['brief']));
     $context=strlen(jsonEncode(array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision'])));
-    if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+250000; // Revision + assistant, full bundle and instruction twice.
+    if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+350000; // Revision + assistant, full bundle and instruction twice.
     if($action==='discuss')return $references+50000;
     if($action==='summarize')return $references+150000; // New brief is stored twice.
-    if($action==='generate')return 6*$references+5*$brief+5*$context+900000;
-    if($action==='compare')return 2*$references+$brief+180000;
+    if($action==='generate')return 6*$references+5*$brief+5*$context+1400000;
+    if($action==='compare'){$goals=array();foreach(field($project,'versions',array()) as $v)$goals[]=strlen(jsonEncode(versionComparisonSnapshot($v)));rsort($goals,SORT_NUMERIC);return 2*$references+$brief+array_sum(array_slice($goals,0,5))+180000;} // Each selected historical goal is saved separately.
     throw new AppError('UNKNOWN_ACTION','未知的容量檢查操作。');
 }

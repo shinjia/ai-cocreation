@@ -6,18 +6,18 @@ $checks=0;
 function verifyRevision($ok,$label){global $checks;if(!$ok)throw new Exception('FAIL: '.$label);$checks++;echo 'PASS '.$label."\n";}
 function revisionReject($fn,$expected){try{$fn();throw new Exception('Expected '.$expected);}catch(AppError $e){verifyRevision($e->errorCode===$expected,'reject '.$expected);}}
 function removeRevisionFixture($dir){if(!is_dir($dir))return;foreach(scandir($dir) as $name)if($name!=='.'&&$name!=='..'){is_dir($dir.'/'.$name)?removeRevisionFixture($dir.'/'.$name):unlink($dir.'/'.$name);}rmdir($dir);}
-function revisionInput($app,$p,$action,$extra=array()){$status=$app->status();return array_merge(array('action'=>$action,'id'=>$p['id'],'itemId'=>$p['activeItemId'],'revision'=>$p['revision'],'consent'=>true,'approvedProvider'=>$status['provider'],'approvedSettingsRevision'=>$status['settingsRevision'],'approvedModel'=>$status['model'],'requestId'=>newId()),$extra);}
+function revisionInput($app,$p,$action,$extra=array()){$status=$app->status();return array_merge(array('action'=>$action,'id'=>$p['id'],'itemId'=>$p['activeItemId'],'revision'=>$p['revision'],'consent'=>true,'approvedMemberId'=>$status['memberId'],'approvedProvider'=>$status['provider'],'approvedSettingsRevision'=>$status['settingsRevision'],'approvedModel'=>$status['model'],'requestId'=>newId()),$extra);}
 class RevisionFixtureAdapter {
  public $calls=0;public $data=null;public $mode='revision';public $actual='fixture-local-v1';
  public function actualModel(){return $this->actual;}
  public function generate($model,$messages,$schema){
   $this->calls++;$this->data=json_decode($messages[1]['content'],true);$props=$schema['properties'];$data=$this->data;
   if(isset($props['outcome'])){
-   if($this->mode==='clarification')$out=array('outcome'=>'clarification','reply'=>'可以先聚焦一個方向。','question'=>'你想改哪一項？','items'=>array(),'rationale'=>'');
-   else {$items=$data['officialVersion']['items'];if($this->mode!=='unchanged')$items[0]['content']=$data['latestStudentMessage'];if($this->mode==='missing')array_pop($items);if($this->mode==='renamed')$items[0]['label']='不應改名';$out=array('outcome'=>'revision','reply'=>'已準備一份待審閱的修訂。','question'=>'','items'=>$items,'rationale'=>'只改指定內容，其餘完整保留。');}
+   if($this->mode==='clarification')$out=array('outcome'=>'clarification','reply'=>'可以先聚焦一個方向。','question'=>'你想改哪一項？','items'=>array(),'rationale'=>'','goalText'=>'','changeSummary'=>'');
+   else {$items=$data['officialVersion']['items'];if($this->mode!=='unchanged')$items[0]['content']=$data['latestStudentMessage'];if($this->mode==='missing')array_pop($items);if($this->mode==='renamed')$items[0]['label']='不應改名';$out=array('outcome'=>'revision','reply'=>'已準備一份待審閱的修訂。','question'=>'','items'=>$items,'rationale'=>'只改指定內容，其餘完整保留。','goalText'=>versionGoalText($data['officialVersion']),'changeSummary'=>'依本次討論更新指定內容，其餘不變。');}
   }elseif(isset($props['question']))$out=array('reply'=>'我了解這個方向。','question'=>'讀者最需要記住什麼？');
   elseif(isset($props['purpose']))$out=array('purpose'=>'影展命名','audience'=>'同學','message'=>'發現日常','tone'=>'溫暖','constraints'=>'不誇張','summary'=>'用清楚溫暖的名稱邀請同學參加影展。','items'=>array(array('id'=>'name','label'=>'中文名稱')));
-  else{$out=array('candidates'=>array());foreach(array('日常的光','一起看見','故事之間') as $content)$out['candidates'][]=array('items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>$content)),'rationale'=>'對應創作目標。');}
+  else{$out=array('candidates'=>array());foreach(array('日常的光','一起看見','故事之間') as $content)$out['candidates'][]=array('items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>$content)),'rationale'=>'對應創作目標。','goalText'=>'邀請同學一起發現日常故事。','changeSummary'=>'初次候選，整理已確認的影展方向。');}
   return json_decode(jsonEncode($out));
  }
 }
@@ -26,6 +26,7 @@ $dir=sys_get_temp_dir().'/cocreation-revision-'.bin2hex(random_bytes(6));mkdir($
 try{
  $_SESSION=array('csrf'=>str_repeat('b',64));$owner=str_repeat('a',64);$config=validateConfig(array('app_url'=>'http://localhost/studio/public/','data_dir'=>$dir,'openai_model'=>'fixture','model_timeout_ms'=>120000));$store=new Store($dir);$model=new RevisionFixtureAdapter();$app=new CocreationApp($store,$config,$owner,$model);
  $app->action(array('action'=>'save_settings','provider'=>'ollama','model'=>'fixture-local','ollamaUrl'=>'http://127.0.0.1:11434'));
+ $status=$app->status();$app->action(array('action'=>'save_members','expectedSettingsRevision'=>$status['settingsRevision'],'members'=>$status['members'],'activeMemberId'=>$status['activeMemberId'],'usageConsent'=>true));
  $p=$app->action(array('action'=>'new','title'=>'持續修訂','description'=>'測試專案脈絡'))['project'];$other=$app->action(array('action'=>'new','title'=>'另一專案'))['project'];
  for($i=0;$i<3;$i++)$p=$app->action(revisionInput($app,$p,'discuss',array('text'=>'構思'.$i)))['project'];
  $p=$app->action(revisionInput($app,$p,'summarize'))['project'];$p=$app->action(revisionInput($app,$p,'approve_goal'))['project'];$p=$app->action(revisionInput($app,$p,'generate'))['project'];

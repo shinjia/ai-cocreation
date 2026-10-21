@@ -51,18 +51,34 @@ class OpenAIAdapter
         try{return json_decode($text,false,128,JSON_THROW_ON_ERROR);}catch(JsonException $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 文字未符合 JSON 格式，未保存為有效回饋。',502);}
     }
     public function actualModel() { return $this->actualModel; }
-    public function checkConnection($model) {
-        modelName($model);$url='https://api.openai.com/v1/models/'.rawurlencode($model);
+    private function metadata($url,$limit) {
+        // Constructor-injected metadata fixtures never retrieve a real credential.
+        if($this->transport!==null)return call_user_func($this->transport,$url,null);
         $key=validateApiKey(call_user_func($this->keyProvider));ensure(extension_loaded('curl'),'CURL_REQUIRED','請啟用 PHP cURL。',503);
         $curl=curl_init($url);$body='';$large=false;
-        curl_setopt_array($curl,array(CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_PROXY=>'',CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_CONNECTTIMEOUT_MS=>5000,CURLOPT_TIMEOUT_MS=>15000,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_HTTPHEADER=>array('Accept: application/json','Authorization: Bearer '.$key),CURLOPT_WRITEFUNCTION=>function($handle,$chunk)use(&$body,&$large){if(strlen($body)+strlen($chunk)>100000){$large=true;return 0;}$body.=$chunk;return strlen($chunk);}));
+        curl_setopt_array($curl,array(CURLOPT_HTTPGET=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,CURLOPT_PROXY=>'',CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_CONNECTTIMEOUT_MS=>5000,CURLOPT_TIMEOUT_MS=>15000,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_HTTPHEADER=>array('Accept: application/json','Authorization: Bearer '.$key),CURLOPT_WRITEFUNCTION=>function($handle,$chunk)use(&$body,&$large,$limit){if(strlen($body)+strlen($chunk)>$limit){$large=true;return 0;}$body.=$chunk;return strlen($chunk);}));
         unset($key);$ok=curl_exec($curl);$code=curl_errno($curl);$status=(int)curl_getinfo($curl,CURLINFO_HTTP_CODE);curl_close($curl);
-        ensure(!$large,'MODEL_RESPONSE_TOO_LARGE','模型資訊回應過大。',502);
-        if($ok===false)throw new AppError('OPENAI_CONNECTION','OpenAI 連線檢查未完成（cURL '.$code.'）。請檢查網路與 CA 憑證；勿關閉 TLS 驗證。',502);
+        ensure(!$large,'MODEL_RESPONSE_TOO_LARGE','OpenAI 模型資訊回應過大。',502);
+        if($ok===false)throw new AppError('OPENAI_CONNECTION','OpenAI 模型資訊讀取未完成（cURL '.$code.'）。請檢查網路與 CA 憑證；勿關閉 TLS 驗證。',502);
         $hints=array(401=>'金鑰無效或已過期。',403=>'金鑰沒有模型資訊讀取權限；這不一定表示無法生成，請查看專案金鑰權限。',404=>'此模型不存在或目前專案無權存取。',429=>'服務正在限制請求，請稍後手動再查。');
-        if($status<200||$status>=300)throw new AppError('OPENAI_HTTP_ERROR','OpenAI HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'服務無法完成模型存取檢查。'),502);
-        try{$data=json_decode($body,true,32,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 模型資訊格式不正確。',502);}
-        ensure(is_array($data)&&isset($data['id'])&&is_string($data['id']),'MODEL_OUTPUT_INVALID','OpenAI 未提供有效模型資訊。',502);
+        if($status<200||$status>=300)throw new AppError('OPENAI_HTTP_ERROR','OpenAI HTTP '.$status.'：'.(isset($hints[$status])?$hints[$status]:'服務無法完成模型資訊讀取。').' 未顯示上游原始回應。',502);
+        try{return json_decode($body,false,32,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 模型資訊格式不正確。',502);}
+    }
+    public function listModels() {
+        // Explicit metadata-only GET. No Responses request, inference or auto-fetch.
+        $data=$this->metadata('https://api.openai.com/v1/models',2000000);$entries=field($data,'data');
+        ensure((plain($data)||is_array($data))&&is_array($entries)&&count($entries)<=1000&&($entries===array()||array_keys($entries)===range(0,count($entries)-1)),'MODEL_CATALOG_INVALID','OpenAI 未提供有效且在安全上限內的模型清單。',502);
+        $names=array();
+        foreach($entries as $entry){
+            try{$name=modelName(field($entry,'id'));ensure($name===field($entry,'id'),'MODEL_CATALOG_INVALID','模型名稱不可含多餘空白。',502);}catch(AppError $error){throw new AppError('MODEL_CATALOG_INVALID','OpenAI 模型清單包含無法使用的模型名稱。',502);}
+            $names[]=$name;
+        }
+        $names=array_values(array_unique($names));sort($names,SORT_STRING);
+        return array('models'=>$names,'fetchedAt'=>nowIso(),'provider'=>'openai','message'=>'已讀取此金鑰可見的模型清單，沒有執行生成。清單存取成功不代表每個模型都支援 Responses 或結構化輸出，仍須在實際使用時確認。');
+    }
+    public function checkConnection($model) {
+        modelName($model);$data=$this->metadata('https://api.openai.com/v1/models/'.rawurlencode($model),100000);
+        ensure((plain($data)||is_array($data))&&is_string(field($data,'id')),'MODEL_OUTPUT_INVALID','OpenAI 未提供有效模型資訊。',502);
         return array('ok'=>true,'message'=>'金鑰與模型資訊存取正常。只讀取模型資料，沒有生成內容或推論費用；Responses／結構化輸出仍需由你實際操作確認。');
     }
 }

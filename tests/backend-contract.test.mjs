@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const read = file => readFile(new URL('../' + file, import.meta.url), 'utf8');
 test('local-only HTTP boundary includes loopback, proxy rejection, CSRF, Origin and body cap',async()=>{
  const [api,config,session,key]=await Promise.all(['public/api.php','app/config.php','app/session.php','app/credential.php'].map(read));
- assert.match(api,/HTTP_ORIGIN/);assert.match(api,/HTTP_X_CSRF_TOKEN/);assert.match(api,/32768/);assert.match(config,/LOCAL_ONLY/);assert.match(session,/requireKeyContext/);assert.match(session,/HTTP_HOST/);assert.match(key,/HTTP_X_FORWARDED_FOR/);assert.match(key,/REMOTE_ADDR/);
+ assert.match(api,/HTTP_ORIGIN/);assert.match(api,/HTTP_X_CSRF_TOKEN/);assert.match(api,/262144/);assert.match(config,/LOCAL_ONLY/);assert.match(session,/requireKeyContext/);assert.match(session,/HTTP_HOST/);assert.match(key,/HTTP_X_FORWARDED_FOR/);assert.match(key,/REMOTE_ADDR/);
 });
 test('temporary vault never lives in config or SQLite, does not echo secret, expires and can clear',async()=>{
  const [vault,store,config]=await Promise.all(['app/credential.php','app/store.php','config.example.php'].map(read));
@@ -87,11 +87,12 @@ test('inference storage budgets bound all copied references and six-byte JSON es
  const context={title:'\u0001'.repeat(240),description:'\u0001'.repeat(4000),revision:999};
  const bundle=definitions.map(d=>({...d,content:'\u0001'.repeat(2000)}));
  const version={items:bundle,rationale:'\u0001'.repeat(1200),title:'\u0001'.repeat(60),referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context};
- const comparison={referencesSnapshot:refs,goalSnapshot:brief,items:Array.from({length:5},()=>Object.fromEntries(['fit','strength','tradeoff','suggestion'].map(k=>[k,'\u0001'.repeat(1000)]))),summary:'\u0001'.repeat(2000)};
+ const historicalGoals=Array.from({length:5},(_,i)=>({versionId:'v'+i,goalSnapshot:brief,goalText:'\u0001'.repeat(6000),changeSummary:'\u0001'.repeat(2000),rationale:'\u0001'.repeat(2000)}));
+ const comparison={referencesSnapshot:refs,goalSnapshot:null,versionGoalSnapshots:historicalGoals,items:Array.from({length:5},()=>Object.fromEntries(['fit','strength','tradeoff','suggestion'].map(k=>[k,'\u0001'.repeat(1000)]))),summary:'\u0001'.repeat(2000)};
  const saved={discuss:[{text:'\u0001'.repeat(4000)},{text:'\u0001'.repeat(1200),referencesSnapshot:refs}],summarize:{brief,message:{goalSnapshot:brief,referencesSnapshot:refs}},generate:{versions:Array.from({length:5},()=>version),message:{referencesSnapshot:refs},instruction:'\u0001'.repeat(2000)},compare:{comparison,message:{referencesSnapshot:refs,text:comparison.summary},question:'\u0001'.repeat(2000)}};
  for(const action of Object.keys(saved)){
-   const expression=source.match(new RegExp("if\\(\\$action==='"+action+"'\\)return ([^;]+);"))?.[1];assert.ok(expression,action);
-   const arithmetic=expression.replaceAll('$references','references').replaceAll('$brief','brief').replaceAll('$context','context');
+   const expression=(action==='compare'?source.match(/return (2\*\$references\+\$brief\+array_sum\(array_slice\(\$goals,0,5\)\)\+180000);/) : source.match(new RegExp("if\\(\\$action==='"+action+"'\\)return ([^;]+);")))?.[1];assert.ok(expression,action);
+   const arithmetic=expression.replace('array_sum(array_slice($goals,0,5))',String(historicalGoals.reduce((sum,g)=>sum+size(g),0))).replaceAll('$references','references').replaceAll('$brief','brief').replaceAll('$context','context');
    assert.match(arithmetic,/^[0-9+* referencesbifcontx]+$/);
    const budget=Function('references','brief','context','return '+arithmetic)(size(refs),size(brief),size(context));
    assert.ok(budget>size(saved[action])+5000,action+' includes JSON and metadata overhead');
@@ -124,9 +125,81 @@ test('existing official allows manual save without falsely restoring approval; i
 });
 test('revision growth budget includes two reference copies and worst-case full bundle plus repeated instruction',async()=>{
  const source=await read('app/validation.php');
- assert.match(source,/if\(\$action==='discuss'&&field\(\$project,'officialVersionId'\)!==null\)return 2\*\$references\+\$brief\+\$context\+250000/);
+ assert.match(source,/if\(\$action==='discuss'&&field\(\$project,'officialVersionId'\)!==null\)return 2\*\$references\+\$brief\+\$context\+350000/);
  const size=x=>Buffer.byteLength(JSON.stringify(x));const refs=[{versionSnapshot:{content:'x'.repeat(50000)}}],brief={summary:'\u0001'.repeat(9000)},context={title:'\u0001'.repeat(240),description:'\u0001'.repeat(4000)};
  const items=Array.from({length:12},(_,i)=>({id:'i'+i,label:'\u0001'.repeat(120),content:'\u0001'.repeat(2000)}));const instruction='\u0001'.repeat(4000);
- const stored={version:{items,title:'\u0001'.repeat(60),rationale:'\u0001'.repeat(1200),revisionInstruction:instruction,referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context},student:{text:instruction},assistant:{text:'\u0001'.repeat(1200),referencesSnapshot:refs}};
- const budget=2*size(refs)+size(brief)+size(context)+250000;assert.ok(budget>size(stored)+5000);assert.ok((2000000-budget+1)+budget>2000000);
+ const goalText='\u0001'.repeat(6000),changeSummary='\u0001'.repeat(1200);
+ const stored={version:{items,goalText,goalSnapshot:{summary:goalText},changeSummary,title:'\u0001'.repeat(60),rationale:'\u0001'.repeat(1200),revisionInstruction:instruction,referencesSnapshot:refs,goalSnapshot:brief,projectContextSnapshot:context},student:{text:instruction},assistant:{text:'\u0001'.repeat(1200),referencesSnapshot:refs}};
+ const budget=2*size(refs)+size(brief)+size(context)+350000;assert.ok(budget>size(stored)+5000);assert.ok((2000000-budget+1)+budget>2000000);
+});
+
+test('two-level version metadata migrates without changing snapshot identities and allocates from all versions',async()=>{
+ const [v,app,boot]=await Promise.all(['app/versioning.php','app/app.php','app/bootstrap.php'].map(read));
+ assert.match(boot,/versioning\.php/);assert.match(v,/normalizeItemVersions/);assert.match(v,/\$reserved\[\$key\]/);
+ assert.match(v,/\$v\['major'\]=\$n\['major'\]/);assert.match(v,/\$v\['minor'\]=\$n\['minor'\]/);
+ assert.doesNotMatch(v,/\$v\['(?:id|items|provenance|createdAt)'\]\s*=/);
+ assert.match(v,/\$minor=max\(\$minor,\$n\['minor'\]\)/);assert.match(v,/'minor'=>\$minor\+1/);
+ assert.match(app,/nextVersionCoordinates\(\$project\['versions'\],\$mode,\$base\)/);assert.match(app,/field\(\$input,'versionMode','major'\)/);
+ assert.match(app,/'major'=>\$coordinates\['major'\],'minor'=>\$coordinates\['minor'\]/);
+ assert.match(app,/\$raw=\$this->normalizeRaw\(\$this->store->project\(\$p\['id'\],\$this->owner\)\)/);
+});
+test('candidate archives are reversible metadata, block official archival and retain immutable versions',async()=>{
+ const app=await read('app/app.php');const branch=app.split("if($action==='archive_version'||$action==='restore_version'){")[1].split("ensure(count($p['comparisons'])")[0];
+ assert.ok(branch);assert.match(branch,/OFFICIAL_ARCHIVE/);assert.match(branch,/archivedVersionIds/);assert.match(branch,/array_filter/);
+ assert.doesNotMatch(branch,/unset\(\$p\['versions'\]|\$p\['versions'\]\s*=/);
+ assert.match(app,/\$action==='restore_version'\|\|count\(\$p\['messages'\]\)<400/);assert.match(branch,/if\(count\(\$p\['messages'\]\)<400\)/);
+ for(const part of [app.split("if($action==='snapshot')")[1].split("if($action==='promote')")[0],app.split("if($action==='promote')")[1].split("if($action==='archive_version'")[0]])assert.match(part,/VERSION_ARCHIVED/);
+});
+test('comparison uses each selected version goal and changes, never current shared-goal approval',async()=>{
+ const [app,mod]=await Promise.all(['app/app.php','app/modules/titles.php'].map(read));
+ const compare=app.split("ensure(count($p['comparisons'])<60")[1];assert.doesNotMatch(compare,/goalRequired\(/);
+ assert.match(compare,/'goalBasis'=>'version_snapshots','goalSnapshot'=>null/);assert.match(compare,/versionComparisonSnapshot\(\$v\)/);
+ assert.match(compare,/VERSION_ARCHIVED/);assert.doesNotMatch(compare,/\$p\['(?:goalApprovedAt|officialVersionId)'\]\s*=/);
+ const prompt=mod.split('private function runCompare')[1];assert.match(prompt,/'creativeGoal'=>null,'goalApprovedAt'=>null/);
+ assert.match(prompt,/creativeItemTitle/);assert.match(prompt,/creativeItemDescription/);assert.match(prompt,/不以任何目前共用目標統一評分/);
+ assert.match(prompt,/\['versionId'\]\['enum'\]=array_column\(\$versions,'id'\)/);assert.match(prompt,/'minItems'=>count\(\$versions\),'maxItems'=>count\(\$versions\)/);
+});
+test('new per-version goals and discussion summaries are generated in the existing call and manual notes preserved',async()=>{
+ const [app,mod,v]=await Promise.all(['app/app.php','app/modules/titles.php','app/versioning.php'].map(read));
+ const refine=mod.split('private function runRefine')[1].split('private function runSummarize')[0];assert.equal((refine.match(/\$this->ask\(/g)||[]).length,1);
+ assert.match(refine,/count\(\$v\)===7/);assert.match(refine,/\|\|\$goalText!==versionGoalText\(\$official\)/);
+ const generate=mod.split('private function runGenerate')[1].split('private function runCompare')[0];assert.equal((generate.match(/\$this->ask\(/g)||[]).length,1);assert.match(generate,/count\(\$candidate\)===4/);
+ for(const key of ['goalText','goalSource','changeSummary','discussionMessageIds']){assert.ok(app.includes(key));assert.ok(mod.includes(key));}
+ assert.match(app,/field\(\$input,'goalText',\$goalDefault\)/);assert.match(app,/'goalSnapshot'=>array\('summary'=>\$goalText\)/);
+ assert.match(app,/\$source==='revision'&&\$last\['kind'\]==='discussion'/);assert.match(app,/\$source==='generated'&&\$last\['kind'\]==='generation_request'/);
+ assert.doesNotMatch(v,/\$v\['(?:goalText|changeSummary|discussionMessageIds)'\]\s*=/); // Legacy history is not fabricated.
+});
+test('AI member settings are non-secret allowlisted owner-scoped records with explicit opt-in and no fallback',async()=>{
+ const [members,store,app]=await Promise.all(['app/members.php','app/store.php','app/app.php'].map(read));
+ assert.match(members,/count\(\$member\)===6/);assert.match(members,/array\('id','nickname','enabled','provider','model','ollamaUrl'\)/);
+ assert.match(members,/count\(\$members\)<=20/);assert.match(members,/MEMBER_DUPLICATE/);assert.match(members,/MEMBER_DISABLED/);assert.match(members,/\$activeFound=\$activeMemberId===null/);
+ assert.match(store,/'members\.'\.\$owner/);assert.match(store,/'usageConsent'=>false,'consentAt'=>null/);assert.match(store,/ON CONFLICT\(name\) DO NOTHING/);
+ assert.match(app,/AI_MEMBER_REQUIRED/);assert.match(app,/AI_USAGE_OPT_IN/);assert.match(app,/approvedMemberId/);assert.match(app,/MEMBER_CHANGED/);
+ const legacy=app.split("if($action==='save_settings')")[1].split("if($action==='set_key')")[0];assert.match(legacy,/setMemberRoster\(\$roster\['members'\],\$roster\['activeMemberId'\],false/);
+});
+test('paid member configuration is frozen at dispatch and provenance stores nickname and stable member ID',async()=>{
+ const app=await read('app/app.php');assert.match(app,/\$result=\$this->execute\(\$action,\$input,\$connection\)/);
+ assert.match(app,/\$connection=\$requestConnection===null\?\$this->connection\(\):\$requestConnection/);
+ assert.match(app,/'memberId'=>\$connection\['memberId'\],'memberNickname'=>\$connection\['memberNickname'\]/);
+ assert.match(app,/selectMember\(field\(\$input,'memberId'\)/);assert.match(app,/approvedSettingsRevision/);assert.match(app,/approvedKeyRevision/);
+});
+test('available model catalog uses explicit metadata-only fixed destinations without invented inventory',async()=>{
+ const [openai,ollama,store,app]=await Promise.all(['app/model.php','app/ollama.php','app/store.php','app/app.php'].map(read));
+ const listed=openai.split('public function listModels()')[1].split('public function checkConnection')[0];assert.match(listed,/https:\/\/api\.openai\.com\/v1\/models'/);assert.doesNotMatch(listed,/responses|generate\(/);
+ const meta=openai.split('private function metadata')[1].split('public function listModels')[0];assert.match(meta,/CURLOPT_HTTPGET=>true/);assert.match(meta,/CURLOPT_SSL_VERIFYPEER=>true/);assert.match(meta,/CURLOPT_FOLLOWLOCATION=>false/);assert.match(meta,/\$this->transport!==null/);
+ const local=ollama.split('public function listModels()')[1].split('public function checkConnection')[0];assert.match(local,/request\('\/api\/tags'\)/);assert.doesNotMatch(local,/\/api\/chat|generate\(|Authorization/);
+ assert.match(listed,/count\(\$entries\)<=1000/);assert.match(store,/array\('openai'=>array\(\),'ollama'=>array\(\)\)/);
+ const route=app.split("if($action==='list_models')")[1].split("if($action==='save_settings')")[0];assert.match(route,/providerName/);assert.match(route,/validateOllamaUrl/);assert.match(route,/->listModels\(\)/);
+});
+
+test('member editing and switching require revision lease and explicit null selection never falls back',async()=>{
+ const [app,store]=await Promise.all(['app/app.php','app/store.php'].map(read));
+ assert.match(app,/field\(\$input,'expectedSettingsRevision'\)===\$roster\['settingsRevision'\]/);
+ for(const action of ['save_members','select_member'])assert.match(app.split(`if($action==='${action}')`)[1].split("if($action===")[0],/settingsLease\(\$input\)/);
+ assert.match(store,/\$expectedRevision===null\|\|\$expectedRevision===\$out\['settingsRevision'\]/);
+ assert.match(store,/\$found=\$id===null/);assert.match(store,/WHERE name=\? AND value=\?/);
+ assert.match(app,/\$this->connection\(\$roster\)/);
+ const legacy=app.split("if($action==='save_settings')")[1].split("if($action==='set_key')")[0];
+ assert.ok(legacy.indexOf('validateMemberRosterInput(')<legacy.indexOf('setMemberRoster('));
+ assert.ok(legacy.indexOf('validateMemberRosterInput(')<legacy.indexOf('setConnection('));
 });

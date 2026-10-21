@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__.'/validation.php';
+require_once __DIR__.'/versioning.php';
 require_once __DIR__.'/config.php';
+require_once __DIR__.'/members.php';
 require_once __DIR__.'/store.php';
 require_once __DIR__.'/credential.php';
 require_once __DIR__.'/model.php';

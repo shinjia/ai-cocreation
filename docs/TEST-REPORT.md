@@ -1,32 +1,45 @@
 # 測試報告
 
-日期：2026-10-21。範圍：本機原始碼包與模擬／來源檢查，非已部署服務。沒有使用真實 API Key、OpenAI 付費呼叫或真實 Ollama 模型，沒有公開部署。
+日期：2026-10-21。範圍：兩層版本、各版目標／變更、比較修正及 AI 成員設定這次整合。這是本機原始碼與模擬／來源檢查，不是已部署服務驗收。未讀取或設定真實 API Key，未呼叫真實 OpenAI／Ollama，未公開部署。
 
-## 已通過
+## 本次實際通過
 
-- **53項 Node 自動測試，0失敗、0跳過。**
-  - 21項後端來源契約：local-only／Host／Origin／CSRF、暫存Key、付費確認與重放、目標門檻、官方HTTPS、Ollama目的地限制、metadata-only連線檢查、模型來源快照、可擴充內容組、創作項目隔離與固定引用、共享脈絡過期及生成前容量檢查（含近上限與JSON跳脫膨脹的序列化容量fixture）。
-  - 28項前端／固定腳本測試：三輪及確認分離、完整內容組快照、版本與專案隔離、定稿／重開、固定引用、封存還原、模型標籤、秘密排除匯出、拒絕真實連線、Unicode／欄位驗證及Unix秒時間。
-  - 其中5項DOM fixture直接執行實際前端renderer與事件：初始化、創作項目切換與草稿保留、取消確認不送出、新增項目、設定與模型切換不改歷史、Key在傳送前清空；新增專案經真實fetch adapter送出後，重新bootstrap以GET載入專案；正式版持續修訂經真實renderer與fetch adapter進入模擬接收器，覆蓋採用、取消、二輪修訂、釐清、重新載入、定稿／重開與舊資料目標失效情境。
-- **4項HTTP傳輸回歸測試通過。** 直接執行實際createApiAdapter並攔截fetch序列化結果，驗證24條寫入路由、body.action、CSRF、JSON Content-Type、GET讀取、衝突action不可覆寫與錯誤傳遞。接收器為PHP契約的JavaScript模擬，並非PHP伺服器。修補前其中2項重現「請求格式不正確。」；修補後全部通過。
-- **Python SQLite實際執行SQL：7項檢查通過。** 建表、owner隔離、防跨owner覆寫、限定讀取、重複request唯一性、模型設定隔離、非破壞重建。這不是PHP PDO驗證。
-- **18份PHP文件詞法與括號結構檢查通過。** 使用Pygments；不是PHP parser、php -l或runtime測試。
-- JavaScript語法檢查通過。
-- 獨立後端來源審查，已修正：已定稿項目仍可改metadata、共享脈絡變更後投影不一致、專案／項目改名不使目標失效、金鑰到期實體刪除措辭、資料格式升級邊界、固定引用各處快照複製的完整容量預留、共享脈絡旗標清理與安裝說明一致性。
+- **87 項 Node 自動測試，0 失敗、0 跳過。**
+  - 29 項後端來源契約：local-only／Host／Origin／CSRF、Key 到期、請求重放、供應者目的地、固定引用、容量預留、整數主／小版號、舊資料不捏造歷史、封存獨立於版本、逐版目標比較、一次呼叫內產生目標與變更摘要、成員六欄 allowlist、選擇與保存代次、明確清除選擇、dispatch 來源快照及 metadata-only 清單。
+  - 53 項前端／固定腳本回歸：直接執行實際 renderer、DOM 事件及 fetch adapter 的 fixture，涵蓋新增專案、正式版反覆修訂／採用、V5.9 → V5.10、整組大／小版保存、個別版本目標與手動意見、封存還原、正式與候選 2–5 版比較、目前共用目標失效時仍可比較、就地停用原因及錯誤、設定一次同意、enabled-only 成員、不可自動換人、明確讀取真實清單的介面／失敗顯示、歷史稱呼不被改名重標、設定衝突保留草稿、Unicode 邊界、Key 傳送前清空與匯出排除；新引用排除封存版本，已固定引用保持可讀。
+  - 5 項 HTTP 傳輸回歸：實際 createApiAdapter 攔截 fetch 序列化結果，覆蓋 **29 條 POST 路由**、body.action、CSRF、JSON Content-Type、GET 讀取、錯誤傳遞和整組 metadata 的 256 KiB body 上限。接收端是契約模擬，不是 PHP HTTP 伺服器。
+- **Python SQLite 實際執行 SQL，12 項檢查。** 原 7 項建表／owner 隔離／請求唯一性／非破壞初始化，加上 5 項成員遷移與 compare-and-swap 檢查：先存資料不被遷移覆蓋、正確代次成功、舊代次拒絕、跨 owner 拒絕、較新設定保留。這不是 PHP PDO 驗證。
+- **22 份 PHP 文件通過 Pygments 詞法與括號結構檢查。** 不是 PHP parser、php -l 或 runtime。
+- JavaScript 語法檢查通過。作品文字／標籤與四種背景色的數值對比至少 4.5:1；這不是整頁視覺或無障礙認證。
+- 原始碼與檔案掃描：無 config.local.php、真實金鑰、私有資料庫、session vault、安裝鎖、runtime log 或 ZIP；範例設定和 .gitignore 保留。
+
+完整可重現測試輸出見 `test-results.txt`。Node 的 DOM 是測試替身；固定腳本產生的內容不是 AI 品質測試。後端來源契約只能證明所檢查程式片段存在，不能代替執行。
+
+## 已確認並修正的問題
+
+- 「選了 2 個版本仍無法比較」：介面曾把比較與目前共用目標核准綁在一起，按鈕被停用。現在比較使用各個選取版本自己的目標與修改紀錄，不要求重新核准共同目標。選取數、唯讀、封存、設定、字數限制均顯示原因；請求錯誤在畫面顯示。
+- 比較請求只允許選定 ID，輸出必須完整涵蓋 2–5 版，不能重複或捏造版本；不指定唯一贏家，也不改正式版。
+- 新的整組內容與目標／意見可能超過舊 32 KiB body 限制，已調整至有界 256 KiB，逐欄上限仍保留。
+- 新 AI 設定保存／切換檢查代次，拒絕舊分頁覆寫；清除選擇是明確 null，不自動換成另一位；舊相容設定先驗證完整名單再寫入。
+- 修訂與候選在原本同一次回覆內產生 goalText／changeSummary，沒有多一次自動收費摘要。舊版缺資料保持缺漏。
 
 ## 未執行／未驗證
 
-- **PHP 7.4/8實際parser、PHP PDO、HTTP安裝與API流程、Apache/XAMPP、Windows ACL：未執行。** 此工作環境沒有PHP binary。
-- **真實瀏覽器視覺／互動QA：未完成。** Chromium因執行器socket／sandbox限制無法啟動；另一路徑在執行前遇到read-only sandbox設定錯誤，雲端瀏覽器無法連到此執行器localhost。沒有以其他方法繞過存取限制。
-- **真正OpenAI／Ollama連線、模型權限、結構化輸出品質、記憶體需求、生成品質、實際費用：未執行。** 文件核對不代表實際服務測試。
-- 沒有公開網站、多人帳號、班級權限、KML Hub登入、付費額度資助或正式安全認證。
-- 文章／海報／網頁／互動程式只實作規劃位置，不是生成器。
+- **PHP 7.4／8 parser、PHP PDO、HTTP 安裝與 API 工作流程、Apache／XAMPP、Windows ACL：未執行。** 此環境沒有 PHP binary；沒有把詞法掃描說成 PHP 測試。
+- **真實瀏覽器視覺／互動 QA：未完成。** 先前 Chromium 受執行器 socket／sandbox 限制，其他瀏覽器無法連到此執行器 localhost；未繞過限制。DOM fixture 不等同瀏覽器。
+- **真實模型清單、OpenAI／Ollama 連線、權限、結構化輸出支援、生成品質與實際費用：未驗證。** 模型名稱清單不保證適用 Responses／JSON schema。本版沒有下載 Ollama 模型，也沒有自動重試或 fallback。
+- 沒有公開網站、多人帳號、班級權限、KML Hub 登入、付費額度資助或正式安全認證。文章／海報／網頁／互動程式仍只是規劃位置。
 
-## 隨包開發者fixture
+## 隨包原生 PHP fixture（本次全部未執行）
 
-`tests/run.php` 是原生PHP fixture，使用合成金鑰與注入式假transport；包含loopback、Key期限、資料流程、候選／正式／手動保存、比較、provider/model provenance、設定變動、超時不重試、跨創作項目引用與占位能力限制。**此檔在本次環境未執行。** 它不是要求一般使用者必須跑CLI；一般安裝與驗收都透過網頁。
+- `tests/run.php`：原本完整工作流程、合成測試 Key、注入式 transport、owner／引用隔離、供應者與模型來源。
+- `tests/revision.php`：真實應用與模組的正式版修訂、釐清、完整自訂欄位、採用再修訂、重放、容量與版本上限。
+- `tests/versioning.php`：真實 CocreationApp／TitleModule 搭配 in-memory Store 與注入式假模型；涵蓋舊版遷移、版號碰撞、主／小保存、各版目標、目標單獨修訂、封存還原、2–5 比較與無效回覆原子性、固定引用，以及成員設定／呼叫來源一致性。無 PDO、網路或金鑰。
+- `tests/members.php`：名單驗證、metadata 注入式回應、無假清單、Store 遷移／owner 隔離／代次及選擇；部分需 PDO SQLite。
 
-因此，本包是可供目標本機驗收的階段原型，不應稱為已完成PHP／XAMPP／跨瀏覽器實測或可公開上線的系統。完整測試輸出見同目錄 `test-results.txt`。
+這些 fixture 是供開發者在具備 PHP 的目標環境執行，不是要求一般使用者以 CLI 安裝。一般安裝及驗收仍透過網頁。現階段可供目標本機驗收，不能宣稱已通過 PHP／XAMPP／實際模型整合或可公開上線。
+
+## 先前修補紀錄（歷史範圍）
 
 ## 2026-10-21 修補01
 

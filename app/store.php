@@ -32,9 +32,44 @@ class Store {
     public function setConnection($values,$owner) {
         $out=validateConnection($values);$out['settingsRevision']=randomToken();$q=$this->db->prepare('INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value');$q->execute(array('connection.'.$owner,jsonEncode($out)));return $out;
     }
+    public function memberRoster($default,$owner) {
+        $name='members.'.$owner;$q=$this->db->prepare('SELECT value FROM settings WHERE name=?');$q->execute(array($name));$raw=$q->fetchColumn();
+        if($raw===false){
+            $connection=validateConnection($this->connection($default,$owner));$id=substr(hash('sha256','member-migration-v1:'.$owner),0,32);
+            $member=array_merge(array('id'=>$id,'nickname'=>'原有設定','enabled'=>true),$connection);
+            $record=array('members'=>array($member),'activeMemberId'=>$id,'settingsRevision'=>hash('sha256','member-roster-v1:'.$owner.jsonEncode($member)),'usageConsent'=>false,'consentAt'=>null);
+            // A concurrent explicit save must win over first-read migration.
+            $insert=$this->db->prepare('INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO NOTHING');$insert->execute(array($name,jsonEncode($record)));
+            $q->execute(array($name));$raw=$q->fetchColumn();
+        }
+        try{$record=json_decode($raw,true,32,JSON_THROW_ON_ERROR);}catch(Throwable $error){throw new AppError('INVALID_SETTINGS','AI 成員設定無法讀取，請重新保存設定。',500);}
+        return validateStoredMemberRoster($record);
+    }
+    public function setMemberRoster($members,$activeMemberId,$usageConsent,$owner,$expectedRevision=null) {
+        $input=validateMemberRosterInput($members,$activeMemberId,$usageConsent);
+        $out=array('members'=>$input['members'],'activeMemberId'=>$input['activeMemberId'],'settingsRevision'=>randomToken(),'usageConsent'=>$input['usageConsent'],'consentAt'=>$input['usageConsent']?nowIso():null);
+        if($expectedRevision!==null){
+            $read=$this->db->prepare('SELECT value FROM settings WHERE name=?');$read->execute(array('members.'.$owner));$previous=$read->fetchColumn();
+            $record=$previous===false?null:json_decode($previous,true,32,JSON_THROW_ON_ERROR);
+            ensure(is_array($record)&&field($record,'settingsRevision')===$expectedRevision,'SETTINGS_CHANGED','AI 設定剛剛有變更，請保留草稿並重新讀取設定。',409);
+            $q=$this->db->prepare('UPDATE settings SET value=? WHERE name=? AND value=?');$q->execute(array(jsonEncode($out),'members.'.$owner,$previous));
+            ensure($q->rowCount()===1,'SETTINGS_CHANGED','AI 設定剛剛有變更，沒有覆寫較新的設定。',409);
+        }else{$q=$this->db->prepare('INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value');$q->execute(array('members.'.$owner,jsonEncode($out)));}return $out;
+    }
+    public function selectMember($id,$default,$owner,$expectedRevision=null) {
+        ensure($id===null||(is_string($id)&&preg_match('/^[a-f0-9]{32}$/D',$id)),'MEMBER_INVALID','AI 成員識別碼不正確。');
+        $out=$this->memberRoster($default,$owner);ensure($expectedRevision===null||$expectedRevision===$out['settingsRevision'],'SETTINGS_CHANGED','AI 設定剛剛有變更，請重新整理後再選擇成員。',409);$found=$id===null;
+        foreach($out['members'] as $member)if($member['id']===$id){ensure($member['enabled'],'MEMBER_DISABLED','此 AI 成員未啟用，請先在系統設定勾選。',409);$found=true;break;}
+        ensure($found,'MEMBER_NOT_FOUND','找不到此 AI 成員，請重新整理設定。',404);
+        $previous=jsonEncode($out);$out['activeMemberId']=$id;$out['settingsRevision']=randomToken();
+        // Preserve the exact roster and consent; do not overwrite a concurrent edit.
+        $q=$this->db->prepare('UPDATE settings SET value=? WHERE name=? AND value=?');$q->execute(array(jsonEncode($out),'members.'.$owner,$previous));
+        ensure($q->rowCount()===1,'SETTINGS_CHANGED','AI 設定剛剛有變更，請重新整理後再選擇成員。',409);return $out;
+    }
     public function modelCatalog($owner) {
         $q=$this->db->prepare('SELECT value FROM settings WHERE name=?');$q->execute(array('catalog.'.$owner));$value=$q->fetchColumn();
-        return $value===false?array('openai'=>array('gpt-5.4-mini'),'ollama'=>array('qwen3:8b')):json_decode($value,true,16,JSON_THROW_ON_ERROR);
+        // This is recent local entry history, not an inventory of available models.
+        return $value===false?array('openai'=>array(),'ollama'=>array()):json_decode($value,true,16,JSON_THROW_ON_ERROR);
     }
     public function rememberModel($provider,$model,$owner) {
         $catalog=$this->modelCatalog($owner);$catalog[$provider]=array_values(array_unique(array_merge(array($model),$catalog[$provider])));$catalog[$provider]=array_slice($catalog[$provider],0,20);
