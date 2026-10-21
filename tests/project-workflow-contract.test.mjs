@@ -28,7 +28,7 @@ test('candidate refinement pins selected source and article selection into quest
 });
 test('fusion uses new major, complete direct snapshots and bounded ancestor lineage, without adoption',async()=>{
  const s=await read('app/app.php'),pin=method(s,'pinnedVersion'),fuse=s.split("if($action==='fuse'){")[1].split("ensure(count($p['comparisons'])")[0];
- assert.match(pin,/unset\(\$version\['fusionSourceSnapshots'\]\)/);assert.doesNotMatch(pin,/unset\(\$version\['(?:items|provenance|fusionSourceVersionIds)'\]\)/);
+ assert.match(pin,/unset\(\$version\['fusionSourceSnapshots'\],\$version\['imageSourceSnapshots'\]\)/);assert.doesNotMatch(pin,/unset\(\$version\['(?:items|provenance|fusionSourceVersionIds)'\]\)/);
  assert.match(fuse,/count\(\$ids\)>=2&&count\(\$ids\)<=5/);assert.match(fuse,/fusionSourceSnapshots'\]=\$snapshots/);assert.match(fuse,/fusionSourceVersionIds'\]=\$ids/);
  assert.match(fuse,/'fusion',null,\$message\['id'\],\$provenance,'major'/);assert.equal((fuse.match(/\$module->fuse\(/g)||[]).length,1);assert.doesNotMatch(fuse,/officialVersionId'\]=|finalizedVersionId'\]=/);
 });

@@ -101,7 +101,7 @@ test('FromItems rejects wrong collection and item shapes, malformed JSON, arrays
   for(const mutate of [v=>v.asset=[],v=>v.asset.url='https://bad.invalid',v=>v.alt=null])assert.throws(()=>imageArtifactFromItems([{...item,content:JSON.stringify(changed(mutate))}]));
 });
 test('preview without loader or object-URL support is honest, inert, and does not invent a placeholder image',async()=>{
-  const {document}=fixture(),root=createImagePreview(document,sample());assert.equal(root.tagName,'FIGURE');assert.equal(root.querySelectorAll('img').length,0);assert.match(root.textContent,/目前無法預覽/);assert.match(root.textContent,/外部上傳圖片（不是 AI 生圖）/);assert.equal(typeof root.disposeImagePreview,'function');root.disposeImagePreview();root.disposeImagePreview();
+  const {document}=fixture(),root=createImagePreview(document,sample());assert.equal(root.tagName,'FIGURE');assert.equal(root.querySelectorAll('img').length,0);assert.match(root.textContent,/目前無法預覽/);assert.match(root.textContent,/已保存圖片版本；原始來源請見版本紀錄/);assert.equal(typeof root.disposeImagePreview,'function');root.disposeImagePreview();root.disposeImagePreview();
   let calls=0;document.defaultView.URL={createObjectURL(){throw new Error('must not run without revoke');}};
   const unavailable=createImagePreview(document,sample(),{loadImage(){calls++;return pngBlob();}});await tick();assert.equal(calls,0);assert.match(unavailable.textContent,/不支援/);
 });

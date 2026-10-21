@@ -75,11 +75,15 @@ class Store {
         $catalog=$this->modelCatalog($owner);$catalog[$provider]=array_values(array_unique(array_merge(array($model),$catalog[$provider])));$catalog[$provider]=array_slice($catalog[$provider],0,20);
         $q=$this->db->prepare('INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value');$q->execute(array('catalog.'.$owner,jsonEncode($catalog)));
     }
-    public function requestStart($owner,$id,$action,$fingerprint) {
+    public function requestLookup($owner,$id,$action,$fingerprint) {
         ensure(is_string($id)&&preg_match('/^[a-zA-Z0-9-]{20,64}$/D',$id),'REQUEST_ID_REQUIRED','請重新送出有效的請求編號。');
         $q=$this->db->prepare('SELECT * FROM requests WHERE owner=? AND id=?');$q->execute(array($owner,$id));$old=$q->fetch(PDO::FETCH_ASSOC);
         if($old){ensure($old['action']===$action&&hash_equals($old['fingerprint'],$fingerprint),'REQUEST_ID_CONFLICT','這個請求編號已用於不同內容。請重新確認後再操作。',409);ensure($old['status']==='completed','REQUEST_ALREADY_ATTEMPTED','此請求已送出或失敗，可能已計費，因此不會再次呼叫。先重新整理確認結果；要再試請重新確認費用後建立新請求。',409);return json_decode($old['response'],true,128,JSON_THROW_ON_ERROR);}
+        return null;
+    }
+    public function requestStart($owner,$id,$action,$fingerprint) {
+        $previous=$this->requestLookup($owner,$id,$action,$fingerprint);if($previous!==null)return $previous;
         $q=$this->db->prepare('INSERT INTO requests(owner,id,action,fingerprint,status,created_at) VALUES(?,?,?,?,?,?)');$q->execute(array($owner,$id,$action,$fingerprint,'running',time()));return null;
     }
-    public function requestFinish($owner,$id,$response,$success) {$q=$this->db->prepare('UPDATE requests SET status=?,response=? WHERE owner=? AND id=?');$q->execute(array($success?'completed':'failed',$success?jsonEncode($response):null,$owner,$id));}
+    public function requestFinish($owner,$id,$response,$success) {$q=$this->db->prepare("UPDATE requests SET status=?,response=? WHERE owner=? AND id=? AND status='running'");$q->execute(array($success?'completed':'failed',$success?jsonEncode($response):null,$owner,$id));if($success)ensure($q->rowCount()===1,'REQUEST_JOURNAL_CONFLICT','無法確認本次操作收據，請先讀取最新狀態；不要直接重複提交。',503);}
 }

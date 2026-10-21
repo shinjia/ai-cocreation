@@ -1,8 +1,9 @@
-import {exportWebpageHtml,webpageImageReferenceIds,validateWebpageImageReferences} from './webpage.js?v=20261021-version16';
-import {exportCompositionHtml} from './composition-export.js?v=20261021-version16';
-import {createMediaAdapter} from './media.js?v=20261021-version16';
-import {normalizeImageFile,IMAGE_UPLOAD_HELP_TEXT} from './image-upload.js?v=20261021-version16';
-import {isArtifactType,defaultArtifact,validateArtifact,artifactItems,cloneArtifact,renderArtifact,renderArtifactEditor,exportArtifact} from './artifacts.js?v=20261021-version16';
+import {chatMembers,imageMembers,projectImageMember,imageGenerationSetupReason,currentImageGenerationReferences,imageGenerationPayloadError,imageVersionOrigin,IMAGE_GENERATION_NOTICE,IMAGE_REFERENCE_ROLES} from './image-generation.js?v=20261021-version17';
+import {exportWebpageHtml,webpageImageReferenceIds,validateWebpageImageReferences} from './webpage.js?v=20261021-version17';
+import {exportCompositionHtml} from './composition-export.js?v=20261021-version17';
+import {createMediaAdapter} from './media.js?v=20261021-version17';
+import {normalizeImageFile,IMAGE_UPLOAD_HELP_TEXT} from './image-upload.js?v=20261021-version17';
+import {isArtifactType,defaultArtifact,validateArtifact,artifactItems,cloneArtifact,renderArtifact,renderArtifactEditor,exportArtifact} from './artifacts.js?v=20261021-version17';
 /** AI共創工作室: local PHP-backed UI. No key or project content is written to browser storage. */
 export const DEFAULT_MODEL = 'gpt-5.4-mini';
 export const MODULES = [
@@ -19,11 +20,11 @@ export const MODULES = [
   {id:'webpage',label:'網頁',enabled:true},
   {id:'interactive',label:'互動視覺程式',enabled:true}
 ];
-const CREATIVE = new Set(['discuss','summarize','approve_goal','confirm_generate','generate','fuse','snapshot','promote','compare','archive_version','restore_version','grant_image_analysis']);
+const CREATIVE = new Set(['discuss','summarize','approve_goal','confirm_generate','generate','fuse','snapshot','promote','compare','archive_version','restore_version','grant_image_analysis','generate_image']);
 export const LIFECYCLE_LABELS = {created:'已建立',in_progress:'討論中',finalized:'已定稿'};
 export function contentType(project) { return project?.activeItem?.type || project?.module || 'titles'; }
 export function canCreate(project) { return !!project && project.lifecycle !== 'finalized' && project.projectLifecycle !== 'finalized' && !project.activeItem?.archived && (!('creativeItems' in project) || MODULES.some(module=>module.id===project.activeItem?.type && module.enabled)); }
-const PAID = new Set(['discuss','summarize','confirm_generate','generate','compare','fuse']);
+const PAID = new Set(['discuss','summarize','confirm_generate','generate','compare','fuse','generate_image']);
 export function memberRosterError(members) {
   if(!Array.isArray(members) || members.length>20)return '最多可保存 20 位 AI 成員。';
   const names=new Set();
@@ -183,7 +184,7 @@ export function revisionChanges(base,version) {
   const before=versionItems(base),after=versionItems(version),ids=[...new Set([...before,...after].map(item=>item.id))];
   return ids.map(id=>{const from=before.find(item=>item.id===id),to=after.find(item=>item.id===id);return {id,before:from,after:to,kind:!from?'added':!to?'removed':from.label!==to.label || from.content!==to.content?'changed':'unchanged'};});
 }
-export function versionSourceLabel(version,demo=false) { if(['external_upload','upload','uploaded'].includes(version.source))return '外部上傳 · 非 AI';return version.source==='fusion'?(demo?'腳本融合候選':'AI 融合候選'):version.source==='revision'?(demo?'腳本修改版':'AI 討論修改版'):version.source==='generated'?(demo?'腳本候選':'AI 候選'):'手動保存'; }
+export function versionSourceLabel(version,demo=false) { if(['external_upload','upload','uploaded'].includes(version.source))return '外部上傳 · 非 AI';if(version.source==='image_generated')return 'AI 圖片生成候選';if(version.source==='image_revision')return 'AI 圖片重繪候選';if(version.source==='image_fusion')return 'AI 圖片融合候選';return version.source==='fusion'?(demo?'腳本融合候選':'AI 融合候選'):version.source==='revision'?(demo?'腳本修改版':'AI 討論修改版'):version.source==='generated'?(demo?'腳本候選':'AI 候選'):'手動保存'; }
 export function isArchivedVersion(project,id) { return (project?.archivedVersionIds || project?.activeItem?.archivedVersionIds || []).includes(id); }
 export function validComparison(ids, project) {
   return Array.isArray(ids) && ids.length >= 2 && ids.length <= 5 && new Set(ids).size === ids.length && ids.every(id => project?.versions.some(v => v.id === id) && !isArchivedVersion(project,id));
@@ -246,10 +247,10 @@ export function projectHasImages(project){
 }
 export function exportProject(project) {
   // An explicit allowlist prevents accidentally exporting connection/session fields.
-  const {id,title,description,lifecycle,projectLifecycle,aiBinding,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons} = project;
-  return {format:'ai-cocreation-project',formatVersion:1,...(projectHasImages(project)?{imageExportNotice:'圖片僅含中繼資料，未包含 PNG 圖片檔；不是完整圖片備份，請另外下載圖片並備份私人媒體資料。'}:{}),exportedAt:new Date().toISOString(),project:{id,title,description,lifecycle,projectLifecycle,aiBinding,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons}};
+  const {id,title,description,lifecycle,projectLifecycle,aiBinding,imageBinding,imageGenerationConsent,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons} = project;
+  return {format:'ai-cocreation-project',formatVersion:1,...(projectHasImages(project)?{imageExportNotice:'圖片僅含中繼資料，未包含 PNG 圖片檔；不是完整圖片備份，請另外下載圖片並備份私人媒體資料。'}:{}),exportedAt:new Date().toISOString(),project:{id,title,description,lifecycle,projectLifecycle,aiBinding,imageBinding,imageGenerationConsent,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons}};
 }
-export const IMAGE_GENERATION_UNAVAILABLE='圖片生成、重繪與融合尚未開放，需另外核准圖片生成模型；目前可上傳自己的圖片、修改文字中繼資料，並請固定模型看圖討論或比較。';
+export const IMAGE_GENERATION_UNAVAILABLE='一般對談操作不提供圖片生成、重繪與融合；請使用專用圖片生成工作區及專案固定圖片模型。';
 export function imageAnalysisReason(project,demo=false){
   const usesImages=contentType(project)==='image';
   if(!usesImages)return '';
@@ -281,6 +282,13 @@ export function createApiAdapter(base = './api.php') {
       const outcome=data.error?.operationOutcome;
       const ambiguous=outcome==='unknown' || (outcome!=='rejected' && response.status>=500);
       throw new ApiError(detail || data.message || '操作未完成，請稍後檢查。',response.status,data,PAID.has(action) && ambiguous);
+    }
+    if(action==='generate_image'){
+      // An exact-ID receipt may return a project whose current item changed in
+      // another tab. Validate the original item's saved result, not today's view.
+      const originalItem=data.project?.creativeItems?.find(item=>item.id===payload?.itemId);
+      const versions=originalItem?.versions || (data.project?.activeItemId===payload?.itemId?data.project?.versions:null);
+      if(!data.project || data.project.id!==payload?.id || !Array.isArray(data.project.versions) || !Array.isArray(data.project.comparisons) || typeof data.generatedVersionId!=='string' || !Array.isArray(versions) || !versions.some(version=>version.id===data.generatedVersionId && version.artifact?.kind==='image' && version.generationMetadata?.requestId===payload?.requestId))throw new ApiError('圖片請求已送出，但回傳的保存結果不完整。請先檢查最新狀態，沒有自動重試。',response.status,data,true);
     }
     if (data.csrf) csrf=data.csrf;
     return data;
@@ -370,11 +378,13 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   const aiOperationReason=()=>demo && contentType(project)==='interactive'?'互動視覺程式腳本示範尚未提供，不會呼叫任何服務。':demo && isCompositionType(contentType(project))?'圖文與海報腳本示範尚未提供，不會讀取私人圖片或呼叫任何服務。':aiSetupReason(state,demo,project) || imageAnalysisReason(project,demo);
   async function mutate(action,payload={},success='',options={}) {
     if(busy)return false;
+    const imageReceiptRetry=action==='generate_image' && options.retry && uncertain?.action===action && uncertain.checked && payload.requestId===uncertain.payload.requestId;
+    if(action==='generate_image' && options.retry && !imageReceiptRetry)return false;
     if(demo && contentType(project)==='interactive' && CREATIVE.has(action)){flash('互動視覺程式腳本示範尚未提供，不會呼叫任何服務。');return false;}
     if(demo && isCompositionType(contentType(project)) && CREATIVE.has(action)){flash('圖文與海報腳本示範尚未提供，不會呼叫任何服務。');return false;}
     if(pendingImageUpload() && !options.allowImageReturn){flash('請先保存或取消本機圖片副本，再進行其他操作。');return false;}
     if(contentType(project)==='image' && ['generate','confirm_generate','fuse'].includes(action)){flash(IMAGE_GENERATION_UNAVAILABLE);return false;}
-    if(CREATIVE.has(action) && !canCreate(project)){flash('目前創作項目不可修改，請確認類型已開放，且專案與項目都已開啟討論。');return false;}
+    if(CREATIVE.has(action) && !imageReceiptRetry && !canCreate(project)){flash('目前創作項目不可修改，請確認類型已開放，且專案與項目都已開啟討論。');return false;}
     if(uncertain && !options.retry) {flash('請先檢查上次未確認的操作。');return false;}
     busy=true;error='';render();
     let body={...payload};
@@ -382,20 +392,22 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const paid=PAID.has(action);
     try {
       if(paid) {
-        const setup=aiOperationReason();if(setup){error=setup;return false;}
+        const setup=imageReceiptRetry?'':action==='generate_image'?imageGenerationSetupReason(state,project,demo):aiOperationReason();if(setup){error=setup;return false;}
         if(options.retry) body={...uncertain.payload};
-        else {const member=projectMember(state,project);body={...body,consent:true,approvedMemberId:member.id,approvedProvider:member.provider,approvedModel:member.model,approvedSettingsRevision:state.settingsRevision,requestId:createRequestId()};if(member.provider==='openai')body.approvedKeyRevision=state.keyRevision;}
+        else {const member=action==='generate_image'?projectImageMember(state,project):projectMember(state,project);body={...body,consent:true,approvedMemberId:member.id,approvedProvider:member.provider,approvedModel:member.model,approvedSettingsRevision:state.settingsRevision,requestId:createRequestId()};if(member.provider==='openai')body.approvedKeyRevision=state.keyRevision;}
       }
       const result=await adapter.request(action,body);
       if(result.project)applyProject(result.project);
       else state={...state,...result};
+      if(action==='generate_image'){const owner=drafts.get(`${body.id}:${body.itemId}`);if(owner?.imageGeneration)owner.imageGeneration.dirty=false;}
       uncertain=null;
       if(result.connection)flash(result.connection.message || (result.connection.ok?'連線檢查通過。':'連線檢查未通過。'));
       else if(success){const message=typeof success==='function'?success(result):success;if(message)flash(message);}
       return true;
     } catch (e) {
       error=e.message || '操作未完成。';
-      if(paid && e.status>=500 && e.data?.error?.operationOutcome==='rejected' && e.data?.error?.code!=='IMAGE_RESOURCE_LIMIT')error+=' 本次服務可能已計費；沒有自動重試，再次送出會是新請求。';
+      const knownUncalled=e.data?.error?.code==='IMAGE_RESOURCE_LIMIT' || (action==='generate_image' && ['IMAGE_GENERATION_RESOURCE_LIMIT','PNG_RUNTIME_UNAVAILABLE','PNG_RESOURCE_LIMIT'].includes(e.data?.error?.code));
+      if(paid && e.status>=500 && e.data?.error?.operationOutcome==='rejected' && !knownUncalled)error+=' 本次服務可能已計費；沒有自動重試，再次送出會是新請求。';
       if(paid && e.uncertain) uncertain={action,payload:body,checked:false};
       else if(paid && options.retry && e.data?.error?.operationOutcome==='rejected')uncertain=null;
       if(e.status===409) {
@@ -417,15 +429,22 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const form=el('form');form.addEventListener('submit',e=>e.preventDefault());
     const input=el('input','',null,{id:'project-name',maxlength:'80',required:true,placeholder:'例如：社區影像展主標題'});
     const description=el('textarea','',null,{id:'project-description',maxlength:'4000',rows:'4',placeholder:'這次創作的背景、用途或想完成的事…'});
-    const memberSelect=el('select','',null,{id:'project-member',required:!edit && enabledMembers(state).length>0,disabled:edit || !enabledMembers(state).length});
-    memberSelect.append(el('option','',enabledMembers(state).length?'請選定這個專案的 AI 成員':'尚無已啟用成員，建立後先完成 AI 設定',{value:''}));
-    enabledMembers(state).forEach(member=>memberSelect.append(el('option','',`${member.nickname} · ${member.provider==='openai'?'OpenAI':'Ollama'} · ${member.model}`,{value:member.id})));
+    const memberSelect=el('select','',null,{id:'project-member',required:!edit && chatMembers(state).length>0,disabled:edit || !chatMembers(state).length});
+    memberSelect.append(el('option','',chatMembers(state).length?'請選定這個專案的 AI 成員':'尚無已啟用成員，建立後先完成 AI 設定',{value:''}));
+    chatMembers(state).forEach(member=>memberSelect.append(el('option','',`${member.nickname} · ${member.provider==='openai'?'OpenAI':'Ollama'} · ${member.model}`,{value:member.id})));
+    const imageSelect=el('select','',null,{id:'project-image-member',disabled:edit || !imageMembers(state).length});
+    imageSelect.append(el('option','','暫不選用圖片模型（之後可一次設定）',{value:''}));
+    imageMembers(state).forEach(member=>imageSelect.append(el('option','',`${member.nickname} · OpenAI · ${member.model}`,{value:member.id})));
+    const imageConsent=el('input','',null,{id:'project-image-consent',type:'checkbox'});
+    imageSelect.addEventListener('change',()=>{imageConsent.checked=false;});
     if(edit){input.value=project.title;description.value=project.description || '';}
     append(form,field('專案名稱（不是創作內容）',input),field('專案說明',description),el('p','privacy-note',edit?'修改專案名稱或說明後，各創作項目都需要重新整理並確認目標。已有的對話、版本與定稿紀錄都會保留。':'每個專案分開保存對話、候選、正式版與比較。建立專案不會呼叫 AI。專案說明會作為後續 AI 討論的背景。'));
-    if(!edit)append(form,field('專案固定 AI 模型',memberSelect),el('p','privacy-note','一次選好，這個專案的所有創作項目都使用同一模型。之後不在對話間切換；建立專案不會呼叫 AI。'));
-    if(!await showDialog({title:edit?'編輯專案資料':'建立新的創作專案',form,confirmLabel:edit?'保存專案資料':'建立專案'}))return;
+    if(!edit)append(form,field('專案固定對談模型',memberSelect),el('p','privacy-note','對談一次選好，不逐句切換。圖片像素另用下方固定圖片模型；圖文與海報仍只做文字排版。建立專案不會呼叫 AI。'));
+    if(!edit)append(form,field('專案固定圖片模型（選填）',imageSelect),el('p','privacy-note',IMAGE_GENERATION_NOTICE),append(el('label','consent-row'),imageConsent,el('span','','我同意上述固定圖片模型的傳送範圍與額外費用。未勾選不開啟圖片生成。')));
+    if(!await showDialog({title:edit?'編輯專案資料':'建立新的創作專案',form,confirmLabel:edit?'保存專案資料':'建立專案',validate:()=>{if(!edit && imageSelect.value && !imageConsent.checked){flash('請先勾選固定圖片模型的傳送與額外費用同意，或選擇暫不選用。');return false;}return true;}}))return;
     const payload={title:input.value.trim(),description:description.value.trim()};
     if(edit){payload.id=project.id;payload.revision=project.revision;}else if(memberSelect.value){payload.memberId=memberSelect.value;payload.expectedSettingsRevision=state.settingsRevision;}
+    if(!edit){payload.imageMemberId=imageSelect.value || null;payload.imageUsageConsent=!!imageSelect.value && imageConsent.checked;if(imageSelect.value)payload.expectedSettingsRevision=state.settingsRevision;}
     if(await mutate(edit?'edit_project':'new',payload,edit?'專案資料已保存。':'新專案已建立，先從一個問題開始。')){if(!edit){selected.clear();selectedComparison=null;}render();}
   }
   const newProject=()=>projectMetadata(false);
@@ -623,14 +642,15 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     if(await mutate('fuse',{id:project.id,revision:project.revision,versionIds:ids,question:draft().fusionQuestion.trim()},'融合已保存成一個新的大版本候選。來源版本與正式版都沒有變更。')){revealVersion(project.versions.at(-1)?.id);}
   }
   function choose(id,value) {
+    if(busy || uncertain || pendingImageUpload())return;
     if(value && isArchivedVersion(project,id)){flash('已封存版本需先還原，才能加入比較。');render();return;}
     if(value && selected.size>=5){flash('一次最多比較 5 個版本。');render();return;}
     if(value)selected.add(id);else selected.delete(id);render();
   }
   function selection(version) {
     const label=el('label','selection-label');
-    const check=el('input','',null,{type:'checkbox',checked:selected.has(version.id),'aria-label':`選取 ${versionLabel(version)} ${version.title} 加入比較`,disabled:busy || isArchivedVersion(project,version.id)});
-    check.addEventListener('change',()=>choose(version.id,check.checked));append(label,check,el('span','','加入比較'));return label;
+    const check=el('input','',null,{type:'checkbox',checked:selected.has(version.id),'aria-label':`選取 ${versionLabel(version)} ${version.title} 加入比較`,disabled:busy || !!uncertain || pendingImageUpload() || isArchivedVersion(project,version.id)});
+    check.addEventListener('change',()=>choose(version.id,check.checked));append(label,check,el('span','',contentType(project)==='image'?'加入比較／圖片融合':'加入比較'));return label;
   }
   function linkMessage(messageId,label='查看討論') {
     return button(label,()=>{
@@ -772,12 +792,12 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   function renderProjectModel() {
     const section=el('div','project-model'),binding=project.aiBinding;
     if(binding){
-      append(section,el('p','field-label','專案固定模型'),el('p','fixed-model',`${binding.memberNickname} · ${binding.provider==='ollama'?'Ollama':'OpenAI'} · ${binding.model}`),el('p','composer-hint','此專案所有項目共用這個模型，不在對話間切換。歷史來源完整保留。'));
+      append(section,el('p','field-label','專案固定對談模型'),el('p','fixed-model',`${binding.memberNickname} · ${binding.provider==='ollama'?'Ollama':'OpenAI'} · ${binding.model}`),el('p','composer-hint','此專案所有項目共用這個對談模型，不在對話間切換。圖片生成另用專案固定圖片模型。歷史來源完整保留。'));
     }else{
-      const select=el('select','',null,{id:'bind-project-member','aria-label':'為這個專案一次選定 AI 模型',disabled:busy || !!uncertain || !enabledMembers(state).length});
+      const select=el('select','',null,{id:'bind-project-member','aria-label':'為這個專案一次選定 AI 模型',disabled:busy || !!uncertain || !chatMembers(state).length});
       select.append(el('option','','請選定專案模型',{value:''}));
-      enabledMembers(state).forEach(member=>select.append(el('option','',`${member.nickname} · ${member.provider} · ${member.model}`,{value:member.id})));
-      append(section,field('舊專案需先一次選定 AI 模型',select),button('選定模型，開始共創',async()=>{if(!select.value){flash('請先選擇這個專案的 AI 成員。');return;}await mutate('bind_project_model',{id:project.id,revision:project.revision,memberId:select.value,expectedSettingsRevision:state.settingsRevision},'此專案模型已固定，原有討論與版本都保留。');},'small',busy || !!uncertain || !enabledMembers(state).length || project.projectLifecycle==='finalized'));
+      chatMembers(state).forEach(member=>select.append(el('option','',`${member.nickname} · ${member.provider} · ${member.model}`,{value:member.id})));
+      append(section,field('舊專案需先一次選定 AI 模型',select),button('選定模型，開始共創',async()=>{if(!select.value){flash('請先選擇這個專案的 AI 成員。');return;}await mutate('bind_project_model',{id:project.id,revision:project.revision,memberId:select.value,expectedSettingsRevision:state.settingsRevision},'此專案模型已固定，原有討論與版本都保留。');},'small',busy || !!uncertain || !chatMembers(state).length || project.projectLifecycle==='finalized'));
     }
     append(section,el('p','ai-setup-status',aiSetupReason(state,demo,project) || (demo?'固定腳本示範，非真實 AI。':'傳送範圍已同意。只有按下操作按鈕才會執行 AI。'),{id:'ai-setup-status',role:'status'}),button('AI 系統設定',keySettings,'subtle small',busy || !!uncertain));return section;
   }
@@ -829,7 +849,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     });panel.append(list);
     const form=el('form','chat-composer');form.addEventListener('submit',e=>{e.preventDefault();sendDiscussion();});
     const input=el('textarea','',null,{id:'chat-input',maxlength:'6000',rows:'3',placeholder:contentType(project)==='image'?'描述你想討論的圖片、構圖或改進方向；只回覆文字建議…':draft().basedOnVersionId?'描述對所選來源版本的修改，未選段落保持原文…':'寫下你的想法，或回應上一個問題…',disabled:busy || !canCreate(project)});input.value=draft().chat;
-    input.addEventListener('input',()=>{draft().chat=input.value;const send=document.getElementById('send-chat');if(send)send.disabled=discussionBlocked() || !input.value.trim();});
+    input.addEventListener('input',()=>{draft().chat=input.value;if(contentType(project)==='image')updateImageGenerationActions();const send=document.getElementById('send-chat');if(send)send.disabled=discussionBlocked() || !input.value.trim();});
     const source=project.versions.find(version=>version.id===(draft().basedOnVersionId || project.officialVersionId));
     append(form,el('label','field-label',source?`以 ${versionLabel(source)} 為來源繼續討論`:'你的想法',{for:'chat-input'}),input,el('p','composer-hint',!canCreate(project)?'目前項目為唯讀，對話完整保留。請先還原或重新開啟。':contentType(project)==='image'?'只會對已保存的圖片提供分析與文字建議，不會修改像素、生成新版圖片或自動採用。':source?'明確修改會另存完整的小版本，不會自動採用。可直接選擇候選作為來源，不必先設為正式版。':project.phase==='summary'?'方向已準備好，可以確認並生成；你也可以繼續輸入補充，不會自動開始生成。':'方向足夠時，AI 會主動整理。你也可以隨時按「整理目前方向」，不必固定聊滿幾次。'));
     if(source)append(form,el('p','composer-hint',`目前修改來源：${versionLabel(source)}${source.id===project.officialVersionId?' · 正式版':' · 候選'}。在下方工作區的來源選單或版本樹可更換。`),button('選擇來源與修改範圍',()=>{document.getElementById('editor-source')?.focus();document.getElementById('editor-source')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy));
@@ -859,8 +879,73 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     append(box,el('h2','','圖片創作方向',{id:'goal-heading'}),el('p','goal-summary',project.brief?.summary || '可先上傳自己的圖片並填寫本版目標；討論整理出方向後，再明確確認目標以便定稿。'));
     if(project.goalApprovedAt)box.append(el('p','goal-note','目前目標已確認。每次圖片另存仍需填寫該版本的目標與修改意見。'));
     const approve=button('確認圖片方向（不生成圖片）',()=>goalEpoch===artifactRenderEpoch && mutate('approve_goal',{id:project.id,revision:project.revision},'圖片方向已確認，沒有生成圖片或呼叫 AI。'),'primary',busy || !!uncertain || pendingImageUpload() || !ready);approve.id='approve-image-goal';
-    const generate=button('圖片生成尚未開放',()=>{},'',true);generate.id='confirm-generate';
-    append(box,approve,generate,el('p','composer-hint',IMAGE_GENERATION_UNAVAILABLE));return box;
+    append(box,approve,el('p','composer-hint','確認方向不會花費圖片生成費用。確認後仍須在下方專用工作區按下「生成新圖候選」。既有圖片的重繪與融合不必重新確認此目標。'));return box;
+  }
+  function updateImageGenerationActions(){for(const [mode,id] of [['generate','generate-image'],['revise','revise-image'],['fuse','fuse-image']]){const submit=document.getElementById(id),status=document.getElementById(`${id}-status`);if(!submit)continue;const reason=imageGenerationReason(mode);submit.disabled=!!reason;if(status)status.textContent=reason || (mode==='revise'?'只重繪明確選取的已保存版本，另存小修改候選。':'一次只生成一個大版本候選，仍由你決定是否採用。');}}
+  function imageGenerationDraft(){
+    const d=draft();if(!d.imageGeneration)d.imageGeneration={instruction:'',title:'',alt:'',goalAndRationale:'',sourceVersionId:'',references:{},dirty:false};return d.imageGeneration;
+  }
+  function imageGenerationPayload(mode){
+    const g=imageGenerationDraft();
+    return {id:project.id,revision:project.revision,mode,sourceVersionIds:mode==='generate'?[]:mode==='revise'?(g.sourceVersionId?[g.sourceVersionId]:[]):[...selected],references:Object.entries(g.references).map(([referenceId,role])=>({referenceId,role})),instruction:g.instruction,title:g.title,alt:g.alt,goalAndRationale:g.goalAndRationale};
+  }
+  function imageGenerationReason(mode){
+    if(busy)return '正在處理操作，請稍候。';
+    if(uncertain)return '請先檢查上次未確認的操作，避免重複計費。';
+    if(!canCreate(project) || contentType(project)!=='image')return '目前圖片項目不可修改，請先重新開啟或還原。';
+    if(pendingImageUpload())return '請先保存或取消本機圖片副本。';
+    if(draft().dirty || draft().artifactPending)return '手動編輯草稿尚未保存，請先另存或明確放棄後，再生成圖片。';
+    if(draft().chat.trim())return '對談仍有尚未送出的文字。請先送出或清空，再使用已保存方向生成圖片。';
+    return imageGenerationSetupReason(state,project,demo) || imageGenerationPayloadError(project,imageGenerationPayload(mode));
+  }
+  async function generateImage(mode){
+    const reason=imageGenerationReason(mode);if(reason){flash(reason);return false;}
+    const g=imageGenerationDraft();let generatedId=null;
+    const ok=await mutate('generate_image',imageGenerationPayload(mode),result=>{generatedId=result.generatedVersionId;g.dirty=false;return '已保存一個 AI 圖片候選。來源圖片與正式版都保留，尚未採用或定稿。';});
+    if(ok && generatedId)revealVersion(generatedId);return ok;
+  }
+  function renderImageGeneration(){
+    const epoch=artifactRenderEpoch,section=el('section','panel image-generation-panel',null,{'aria-labelledby':'image-generation-heading'}),g=imageGenerationDraft(),binding=project.imageBinding;
+    const current=()=>epoch===artifactRenderEpoch && !busy && !uncertain && contentType(project)==='image' && canCreate(project) && !pendingImageUpload();
+    append(section,el('p','step-label','獨立圖片 API · 明確操作才計費'),el('h2','','圖片生成、重繪與融合',{id:'image-generation-heading'}),el('p','image-generation-warning',IMAGE_GENERATION_NOTICE));
+    if(binding)append(section,el('p','fixed-image-model',`專案固定圖片模型：${binding.memberNickname} · ${binding.provider==='openai'?'OpenAI':binding.provider} · ${binding.model}`),el('p','composer-hint','此模型與對談模型各自固定，不能在每次操作切換；以建立時的稱呼保存歷史來源。'));
+    else {
+      const choices=imageMembers(state),select=el('select','',null,{id:'bind-project-image-member',disabled:!current() || !choices.length}),check=el('input','',null,{id:'bind-project-image-consent',type:'checkbox',disabled:!current()}),settingsRevision=state.settingsRevision;
+      select.append(el('option','','請一次選定固定圖片模型（不預選）',{value:''}));choices.forEach(member=>select.append(el('option','',`${member.nickname} · OpenAI · ${member.model}`,{value:member.id})));
+      const bind=button('同意並固定圖片模型（不生成圖片）',async()=>{if(!current() || !select.value || !check.checked)return;await mutate('bind_project_image_model',{id:project.id,revision:project.revision,imageMemberId:select.value,expectedSettingsRevision:settingsRevision,imageUsageConsent:true},'專案圖片模型與同意已固定。對談模型未變更，尚未呼叫圖片 API。');},'small',true);bind.id='bind-project-image-model';
+      const update=()=>{bind.disabled=!current() || !select.value || !check.checked;};select.addEventListener('change',()=>{if(!current())return;check.checked=false;update();});check.addEventListener('change',update);
+      append(section,field('此專案尚未綁定圖片模型',select),append(el('label','consent-row'),check,el('span','','我同意上述 OpenAI 圖片像素與文字傳送範圍、額外費用，以及失敗仍可能計費。')),bind);
+      if(!choices.length)section.append(el('p','composer-hint','尚無已啟用且受支援的 OpenAI 圖片成員。請到 AI 系統設定配置；這裡不會預設你帳戶可用的模型。'));
+    }
+    const setup=imageGenerationSetupReason(state,project,demo);append(section,el('p','image-generation-setup',setup || '固定圖片模型與傳送同意已就緒。只有下方三個明確操作按鈕會呼叫圖片 API。',{role:'status'}));
+    const disabled=!current(),source=el('select','',null,{id:'image-generation-source',disabled});source.append(el('option','','請明確選擇 1 個重繪來源（不預選）',{value:''}));
+    project.versions.filter(v=>v.contentType==='image' && v.artifact?.kind==='image' && !isArchivedVersion(project,v.id)).forEach(v=>source.append(el('option','',`${versionLabel(v)} · ${v.title}`,{value:v.id})));source.value=g.sourceVersionId;
+    source.addEventListener('change',()=>{if(!current())return;g.sourceVersionId=source.value;g.dirty=true;updateActions();});
+    append(section,field('重繪來源（只使用已保存的圖片，不使用手動草稿）',source),el('p','composer-hint','生成新圖不傳來源版本；重繪只傳上面選的 1 版；融合只傳版本樹勾選的 2–5 版。三種操作都不覆寫來源，也不會自動採用。'));
+    const selectedLabels=[...selected].map(id=>{const v=project.versions.find(v=>v.id===id);return v?`${versionLabel(v)} · ${v.title}`:id;});
+    section.append(el('p','image-fusion-selection',selectedLabels.length?`融合已選：${selectedLabels.join('、')}`:'融合尚未選擇來源。請在下方版本樹勾選 2–5 個版本。'));
+    const refs=el('fieldset','image-generation-references');refs.append(el('legend','','本次另外傳送的固定圖片參考（最多 5 份，預設不選）'));
+    const references=currentImageGenerationReferences(project);
+    for(const reference of references){
+      const wrap=el('div','image-generation-reference'),check=el('input','',null,{id:`image-generation-reference-${reference.id}`,type:'checkbox',checked:Object.hasOwn(g.references,reference.id),disabled}),role=el('select','',null,{id:`image-generation-role-${reference.id}`,'aria-label':`圖片參考 ${reference.versionSnapshot.title} 的用途`,disabled:disabled || !check.checked});
+      Object.entries(IMAGE_REFERENCE_ROLES).forEach(([value,label])=>role.append(el('option','',label,{value})));role.value=g.references[reference.id] || 'general';
+      check.addEventListener('change',()=>{if(!current())return;if(check.checked){if(Object.keys(g.references).length>=5){check.checked=false;flash('最多選擇 5 份固定圖片參考。');return;}g.references[reference.id]=role.value;}else delete g.references[reference.id];g.dirty=true;role.disabled=!check.checked;updateActions();});
+      role.addEventListener('change',()=>{if(!current() || !check.checked || !Object.hasOwn(IMAGE_REFERENCE_ROLES,role.value))return;g.references[reference.id]=role.value;g.dirty=true;updateActions();});
+      append(wrap,append(el('label'),check,el('span','',`${reference.versionSnapshot.title} · ${versionLabel(reference.versionSnapshot)}`)),role);refs.append(wrap);
+    }
+    if(!references.length)refs.append(el('p','composer-hint','沒有可選的固定圖片引用。若需要參考圖，請先使用本項目的「引用其他成果」保存同專案圖片版本；不會自動傳送所有專案圖片。'));
+    const stale=Object.keys(g.references).some(id=>!references.some(ref=>ref.id===id));if(stale)refs.append(el('p','inline-error','先前選取的引用已移除或變更。請清除參考選取後，重新勾選目前引用。'));
+    const clear=button('清除本次圖片參考選取',()=>{if(!current())return;g.references={};g.dirty=true;render();},'subtle small',disabled || !Object.keys(g.references).length);refs.append(clear);section.append(refs);
+    for(const [key,label,max,rows] of [['instruction','本次圖片指示（重繪與融合必填，最多 4,000 位元組）',4000,4],['title','新候選圖片標題（必填，最多 600 位元組）',600,2],['alt','替代文字（最多 3,000 位元組）',3000,3],['goalAndRationale','本版目標與修改意見（選填，最多 12,000 位元組）',12000,4]]){
+      const input=el('textarea','',null,{id:`image-generation-${key}`,maxlength:max,rows,disabled});input.value=g[key];input.addEventListener('input',()=>{if(!current())return;g[key]=input.value;g.dirty=true;updateActions();});section.append(field(label,input));
+    }
+    section.append(el('p','composer-hint','本版目標可留空，不必重複填寫。新圖會由伺服器使用已確認方向；重繪與融合會使用所選來源版本各自保存的目標，加上本次圖片指示，不套用無關的共用方向。'));
+    const actions=[];
+    for(const [mode,label,id] of [['generate','生成新圖候選（另計費）','generate-image'],['revise','重繪所選圖片為小修改（另計費）','revise-image'],['fuse','融合所選圖片為新候選（另計費）','fuse-image']]){
+      const row=el('div','image-generation-action'),submit=button(label,()=>current() && generateImage(mode),mode==='generate'?'primary':'',true),status=el('p','composer-hint',null,{id:`${id}-status`,role:'status'});submit.id=id;submit.setAttribute('aria-describedby',status.id);actions.push({mode,submit,status});append(row,submit,status);section.append(row);
+    }
+    function updateActions(){if(epoch!==artifactRenderEpoch)return;for(const {mode,submit,status} of actions){const reason=imageGenerationReason(mode);submit.disabled=!!reason;status.textContent=reason || (mode==='revise'?'只重繪明確選取的已保存版本，另存小修改候選。':'一次只生成一個大版本候選，仍由你決定是否採用。');}}
+    updateActions();return section;
   }
   function uploadReason(upload,mode='major'){
     if(!upload)return '請先選擇本機圖片。';
@@ -1003,13 +1088,13 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const context=el('details','official-details',null,{id:'official-details'});append(context,el('summary','','本版目標、修改意見與模型來源'),renderVersionContext(official),official.provenance?el('p','model-provenance',provenanceLabel(official.provenance)):null);
     append(card,append(el('div','official-top'),el('span','badge official',`正式版 · ${versionLabel(official)}`),selection(official)),content,context);
     if(newestPendingRevision(project))card.append(el('p','pending-revision-hint','有待審閱的修改，尚未取代目前正式版。請在下方查看差異，再決定是否採用。'));
-    append(card,el('p','composer-hint',contentType(project)==='image'?'圖片 AI 僅提供分析與文字建議，不修改像素。手動編輯只改圖片文字中繼資料；更換圖片請另行上傳新版本。':'想請 AI 改內容：在對話中提出具體修改，閱讀新修改版後再採用。想自己改：按「手動編輯這一版」，修改後另存。兩種方式都會保留原版。'),append(el('div','card-actions'),button(contentType(project)==='image'?'請 AI 分析這張圖片':'請 AI 繼續修改',()=>editVersion(official,{focus:'chat-input'}),'primary small',busy || !!uncertain || !canCreate(project)),button('手動編輯這一版',()=>editVersion(official),'subtle small',busy || !!uncertain || !canCreate(project)),linkMessage(official.messageId)));
+    append(card,el('p','composer-hint',contentType(project)==='image'?'圖片對談只提供分析與文字建議；像素重繪請使用專用圖片工作區。手動編輯只改文字中繼資料；所有修改都另存候選，不自動改正式版。':'想請 AI 改內容：在對話中提出具體修改，閱讀新修改版後再採用。想自己改：按「手動編輯這一版」，修改後另存。兩種方式都會保留原版。'),append(el('div','card-actions'),button(contentType(project)==='image'?'請 AI 分析這張圖片':'請 AI 繼續修改',()=>editVersion(official,{focus:'chat-input'}),'primary small',busy || !!uncertain || !canCreate(project)),button('手動編輯這一版',()=>editVersion(official),'subtle small',busy || !!uncertain || !canCreate(project)),linkMessage(official.messageId)));
     section.append(card);return section;
   }
   function renderVersions() {
     const section=el('section','versions-section',null,{'aria-labelledby':'versions-heading'});
     append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','03 候選'),append(el('h2','',null,{id:'versions-heading'}),document.createTextNode('候選與版本樹'),el('span','counter',`${project.versions.length} 個版本`))),el('span','badge','保存後不覆寫')));
-    if(!project.versions.length)append(section,append(el('div','empty-state'),el('div','empty-symbol','✧',{'aria-hidden':'true'}),el('h3','','方向清楚，就能開始創作'),el('p','',contentType(project)==='image'?'先上傳自己的圖片並明確保存為候選；目前不提供 AI 圖片生成。只有你可以指定正式版。':'閱讀主軸後按「確認方向並生成候選」。所有候選都會保留，只有你可以指定正式版。')));
+    if(!project.versions.length)append(section,append(el('div','empty-state'),el('div','empty-symbol','✧',{'aria-hidden':'true'}),el('h3','','方向清楚，就能開始創作'),el('p','',contentType(project)==='image'?'可以上傳自己的圖片，或在圖片生成工作區明確生成候選。只有你可以指定正式版。':'閱讀主軸後按「確認方向並生成候選」。所有候選都會保留，只有你可以指定正式版。')));
     const tree=el('div','version-tree',null,{id:'version-tree','aria-label':'依大版本分組的完整版本歷程'}),groups=new Map(),pending=newestPendingRevision(project);
     project.versions.forEach(version=>{const {major}=versionCoordinates(version);if(!groups.has(major))groups.set(major,[]);groups.get(major).push(version);});
     [...groups].sort(([a],[b])=>b-a).forEach(([major,versions])=>{
@@ -1032,12 +1117,13 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       });tree.append(group);
     });section.append(tree);
     if(project.versions.length>=2) {
-      const toolbar=el('div','compare-toolbar'),prompt=el('div');append(prompt,el('p','',`已選 ${selected.size} 個版本`),el('small','',contentType(project)==='image'?'可選 2–5 個未封存圖片版本請 AI 看圖比較；目前不提供融合。':'比較與融合是獨立操作，都需選 2–5 個未封存版本。'));
+      const toolbar=el('div','compare-toolbar'),prompt=el('div');append(prompt,el('p','',`已選 ${selected.size} 個版本`),el('small','',contentType(project)==='image'?'可選 2–5 個未封存圖片版本請對談模型看圖比較；圖片融合需另外到專用圖片工作區按下付費操作。':'比較與融合是獨立操作，都需選 2–5 個未封存版本。'));
       const question=el('input','',null,{id:'compare-question',maxlength:'2000','aria-label':'本次比較想特別注意什麼','aria-describedby':'comparison-status',placeholder:'比較重點（最多 2,000 位元組，可留空）',disabled:busy});question.value=draft().question;
       question.addEventListener('input',()=>{draft().question=question.value;comparisonError='';const reason=comparisonDisabledReason(project,[...selected],{busy:busy || pendingImageUpload(),uncertain:!!uncertain,question:question.value}) || aiOperationReason(),status=document.getElementById('comparison-status'),submit=document.getElementById('compare-versions');if(submit)submit.disabled=!!reason;if(status){status.textContent=reason || comparisonReadyNote();status.className=`comparison-status ${reason?'blocked':''}`;}question.setAttribute('aria-invalid',comparisonQuestionError(question.value)?'true':'false');});
       const reason=comparisonDisabledReason(project,[...selected],{busy:busy || pendingImageUpload(),uncertain:!!uncertain,question:draft().question}) || aiOperationReason();
       const compareButton=button(demo?'執行腳本比較示範 ↗':'請 AI 提供比較意見 ↗',compare,'',!!reason);compareButton.id='compare-versions';compareButton.setAttribute('aria-describedby','comparison-status');
       append(toolbar,prompt,el('p','comparison-basis-note',COMPARISON_SNAPSHOT_NOTE),question,compareButton,el('p',`comparison-status ${reason || comparisonError?'blocked':''}`,[...new Set([comparisonError,reason].filter(Boolean))].join(' ') || comparisonReadyNote(),{id:'comparison-status',role:'status'}));
+      if(contentType(project)==='image'){append(toolbar,el('p','composer-hint','所選版本也會列在上方圖片生成工作區。比較不會自動融合；請另外填寫圖片指示並按「融合所選圖片為新候選」。'));section.append(toolbar);return section;}
       const fusionBox=el('div','fusion-controls');const fusionQuestion=el('input','',null,{id:'fuse-question',maxlength:'2000','aria-label':'融合方向','aria-describedby':'fusion-status',placeholder:'想保留哪些優點、如何融合（可留空）',disabled:busy});fusionQuestion.value=draft().fusionQuestion;
       const fusionReason=()=>contentType(project)==='image'?IMAGE_GENERATION_UNAVAILABLE:comparisonDisabledReason(project,[...selected],{busy:busy || pendingImageUpload(),uncertain:!!uncertain,question:draft().fusionQuestion}) || aiOperationReason();
       const fuseButton=button('融合所選版本為新候選 ↗',()=>fuse(),'primary',!!fusionReason());fuseButton.id='fuse-versions';fuseButton.setAttribute('aria-describedby','fusion-status');
@@ -1101,6 +1187,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
           currentPreview?.disposeImagePreview?.();
           try{
             currentPreview=renderArtifact(version.artifact,{document,loadImage:load?()=>{if(!identity.itemId || !identity.versionId || typeof adapter.readImage!=='function')throw new Error('沒有可驗證的私人圖片來源。');return adapter.readImage(identity);}:undefined});
+            const origin=currentPreview.querySelector('.image-preview-origin');if(origin)origin.textContent=imageVersionOrigin(version);
             if(!load){const status=currentPreview.querySelector('.image-preview-status');if(status)status.textContent=demo?'腳本示範不讀取私人圖片。':'尚未載入圖片位元組。按「載入此圖片預覽」才會從此網站讀取，不呼叫 AI。';}
             previewSlot.replaceChildren(currentPreview);
           }catch(e){previewSlot.replaceChildren(el('p','inline-error',e.message || '圖片中繼資料無法預覽。'));}
@@ -1110,7 +1197,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
         started=official && !demo;mountPreview(started);
         if(!official && !demo){const load=button('載入此圖片預覽',()=>{if(disposed || started || previewEpoch!==artifactRenderEpoch || identity.id!==project?.id)return;started=true;load.disabled=true;mountPreview(true);},'subtle small');load.setAttribute('aria-label',`載入 ${versionLabel(version)} ${version.artifact.title} 的圖片預覽`);wrap.append(load);}
         const download=button('下載本版 PNG',async()=>{if(download.disabled || demo)return;download.disabled=true;try{if(typeof adapter.readImage!=='function')throw new Error('目前連線未提供私人圖片讀取介面。');const blob=await adapter.readImage(identity),url=URL.createObjectURL(blob),a=el('a','',null,{href:url,download:`${versionLabel(version)}-image.png`});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){flash(e.message || 'PNG 下載未完成。');}finally{download.disabled=demo;}},'subtle small',demo);
-        append(wrap,append(el('div','artifact-downloads'),download,button('匯出圖片中繼資料 JSON',()=>downloadArtifact(version,'json'),'subtle small')),el('p','image-export-warning','PNG 為已保存的外部圖片副本，不是 AI 生圖。JSON 僅含文字與圖片中繼資料，不含圖片檔，不能單獨還原圖片。'));return wrap;
+        append(wrap,append(el('div','artifact-downloads'),download,button('匯出圖片中繼資料 JSON',()=>downloadArtifact(version,'json'),'subtle small')),el('p','image-export-warning',imageVersionOrigin(version)+'。下載 PNG 只讀取本版已保存的副本，不會再次呼叫 AI。JSON 僅含文字與圖片中繼資料，不含圖片檔，不能單獨還原圖片。'));return wrap;
       }
       if(version.artifact.kind==='interactive'){
         const invalid=validateArtifact(version.artifact,'interactive');if(invalid){wrap.append(el('p','inline-error',invalid));return wrap;}
@@ -1165,18 +1252,19 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       append(range,el('p','composer-hint',`已選 ${d.targetItemIds.length} 段。沒有預設全選；未選段落保持原文。這個範圍只控制 AI 微調，下方手動欄位仍是完整版本。`,{id:'refinement-range-note'}));section.append(range);
     }
     if(base)append(section,button('回到對談提出修改',()=>{document.getElementById('chat-input')?.focus();document.getElementById('chat-input')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy || !canCreate(project)));
-    const contentError=()=>compositionReferenceError || (type==='webpage'?webpageImageReferenceError(d.artifact,compositionReferences):'') || (type==='image' && !d.artifact?'請先保存外部圖片，或選擇已有圖片來源版本。':isArtifactType(type) && d.artifactPending?'請先套用或放棄尚未套用的欄位文字，再保存完整版本。':isArtifactType(type)?validateArtifact(d.artifact,type):contentItemsError(d.items,type));
+    const contentError=()=>compositionReferenceError || (type==='webpage'?webpageImageReferenceError(d.artifact,compositionReferences):'') || (type==='image' && !d.artifact?'請先上傳或生成圖片候選，並選擇已保存的圖片來源版本。':isArtifactType(type) && d.artifactPending?'請先套用或放棄尚未套用的欄位文字，再保存完整版本。':isArtifactType(type)?validateArtifact(d.artifact,type):contentItemsError(d.items,type));
     const blocked=()=>busy || pendingImageUpload() || !!uncertain || !!combinedMetadataError(d.goalAndRationale) || !!contentError() || !canSnapshot(project,d.basedOnVersionId) || (!!base && isArchivedVersion(project,base.id));
-    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || contentError() || '草稿尚未保存。重新整理頁面會遺失草稿。';};
+    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || contentError() || '草稿尚未保存。重新整理頁面會遺失草稿。';if(type==='image')updateImageGenerationActions();};
     if(type==='image' && !d.artifact){
-      section.append(el('p','composer-hint','還沒有圖片來源。請先在上方選擇本機圖片並明確保存，再編輯已保存圖片的文字中繼資料。'));
+      section.append(el('p','composer-hint','還沒有圖片來源。請先上傳或生成圖片候選，再選擇該版本編輯文字中繼資料。'));
     }else if(compositionReferenceError){section.append(el('p','artifact-error',compositionReferenceError,{role:'alert'}));
     }else if(isArtifactType(type)){
       const editorEpoch=artifactRenderEpoch,editorProjectId=project.id,editorItemId=project.activeItemId,editorCurrent=()=>editorEpoch===artifactRenderEpoch && project?.id===editorProjectId && project?.activeItemId===editorItemId && draft()===d;
       mountedArtifactUi=d.artifactUi;
       const editor=renderArtifactEditor(d.artifact,{document,references:compositionReferences,loadImage:(isCompositionType(type) || type==='webpage') && !demo && d.artifactUi.compositionPreviewLoaded?reference=>{if(!editorCurrent())throw new Error('編輯來源已變更，未載入圖片。');return readCompositionImage(editorProjectId,reference);}:undefined,disabled:busy || pendingImageUpload() || !!uncertain || !canCreate(project),idPrefix:'artifact-editor',uiState:d.artifactUi,onPendingChange:pending=>{if(!editorCurrent())return;const changed=d.artifactPending!==pending;d.artifactPending=pending;if(changed)update();},onChange:value=>{if(!editorCurrent())return;d.artifact=cloneArtifact(value);if(!validateArtifact(d.artifact,type))d.items=artifactItems(d.artifact);update();}});
+      if(type==='image'){const origin=editor.querySelector('.image-preview-origin');if(origin)origin.textContent=imageVersionOrigin(base);}
       section.append(editor);if(type==='interactive')interactiveResources.add(editor);if(isCompositionType(type) || type==='webpage'){imagePreviews.add(editor);if((type==='webpage'?(webpageImageReferenceIds(d.artifact).length>0 || compositionReferences.some(reference=>reference?.versionSnapshot?.contentType==='image')):d.artifact.blocks.some(block=>!!block.imageRefId)) && !d.artifactUi.compositionPreviewLoaded)section.append(button('載入編輯草稿圖片預覽',()=>{if(!editorCurrent() || busy || demo)return;d.artifactUi.compositionPreviewLoaded=true;render();},'subtle small',busy || demo));}
-      section.append(el('p','composer-hint',type==='image'?'只可修改已保存圖片的標題、替代文字與來源註記，不會修改像素或生成圖片。要更換圖片，請另行上傳並保存新版本。':type==='interactive'?'主程式圖層與參數提案分開編輯。只有選用的參數可調整或亂數；目前值與前次值隨完整版本保存。復原及套用都只影響草稿，不會自動保存、採用或呼叫 AI。':isCompositionType(type)?'可編輯完整文字、區塊順序、固定風格與已保存的圖片引用。套用至草稿後，明確另存才保存完整版本；不生成或分析圖片，無任意 HTML、CSS 或外部網址。':type==='webpage'?'網頁由可編輯的內容區塊組成，可手動選用固定圖片、頁內導覽與可展開問答。圖片只使用目前明確引用或來源版本保存的固定快照，不自動連動最新正式版。套用只改草稿，另存才保存；不含外部圖片網址、表單送出、自訂程式或部署。':type==='vector'?'向量由獨立圖形物件組成，可選取並修改位置、尺寸、色彩、文字及圖層順序。套用至草稿後仍須明確另存；目前不支援任意 SVG 匯入、曲線或外部圖片。':type==='mindmap'?'AI 提供的分支預設不加入圖中。選取節點可編輯或整理；勾選想要的建議再加入草稿，最後明確另存新版本。':type==='table'?'表格是獨立的列、欄、儲存格資料；每次保存保留完整結構，不把它當一般文字欄位。':'圖表由下方文字資料即時預覽。可修改來源，再保存完整新版本；不自動同步任何外部工具，圖坊的匯入規格尚未核對。'));
+      section.append(el('p','composer-hint',type==='image'?'此編輯器只改標題、替代文字與來源註記，不改像素。要更換圖片，請另行上傳或使用上方專用圖片生成工作區。':type==='interactive'?'主程式圖層與參數提案分開編輯。只有選用的參數可調整或亂數；目前值與前次值隨完整版本保存。復原及套用都只影響草稿，不會自動保存、採用或呼叫 AI。':isCompositionType(type)?'可編輯完整文字、區塊順序、固定風格與已保存的圖片引用。套用至草稿後，明確另存才保存完整版本；不生成或分析圖片，無任意 HTML、CSS 或外部網址。':type==='webpage'?'網頁由可編輯的內容區塊組成，可手動選用固定圖片、頁內導覽與可展開問答。圖片只使用目前明確引用或來源版本保存的固定快照，不自動連動最新正式版。套用只改草稿，另存才保存；不含外部圖片網址、表單送出、自訂程式或部署。':type==='vector'?'向量由獨立圖形物件組成，可選取並修改位置、尺寸、色彩、文字及圖層順序。套用至草稿後仍須明確另存；目前不支援任意 SVG 匯入、曲線或外部圖片。':type==='mindmap'?'AI 提供的分支預設不加入圖中。選取節點可編輯或整理；勾選想要的建議再加入草稿，最後明確另存新版本。':type==='table'?'表格是獨立的列、欄、儲存格資料；每次保存保留完整結構，不把它當一般文字欄位。':'圖表由下方文字資料即時預覽。可修改來源，再保存完整新版本；不自動同步任何外部工具，圖坊的匯入規格尚未核對。'));
     }else{
     const items=el('div','editor-items');
     d.items.forEach((item,index)=>{
@@ -1270,7 +1358,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       append(shell,append(el('main','placeholder-workspace',null,{id:'workspace'}),append(el('section','empty-state'),el('h2','',project.activeItem.archived?'這個規劃項目已封存':'這個類型尚未實作'),el('p','','目前只保存項目規劃與引用。尚未提供此類型的 AI 對話、生成、比較或定稿功能，不會假裝已能產生這類成果。')),renderReferences()));
     } else {
       const main=el('main','item-workspace',null,{id:'workspace','aria-busy':String(busy)}),layout=el('div','workspace-layout');
-      const work=el('div','work-column');append(work,renderRevisionReview(),renderReferences(),renderGoal(),contentType(project)==='image'?renderImageUpload():null,renderVersions(),renderEditor(),renderComparison());append(layout,renderConversation(),work);append(main,renderOfficial(),layout);shell.append(main);
+      const work=el('div','work-column');append(work,renderRevisionReview(),renderReferences(),renderGoal(),contentType(project)==='image'?renderImageGeneration():null,contentType(project)==='image'?renderImageUpload():null,renderVersions(),renderEditor(),renderComparison());append(layout,renderConversation(),work);append(main,renderOfficial(),layout);shell.append(main);
     }
     const footer=el('footer','footer');append(footer,el('p','',demo?'SCRIPTED DEMO · 示範內容只在本頁記憶體，重整即重設。':'專案保存在這個安裝網站的 SQLite 資料庫；編輯草稿需按「另存為新版本」才會保存。'));
     if(project){append(footer,button('匯出此專案 JSON',downloadProject,'subtle small',busy));if(projectHasImages(project))footer.append(el('p','image-export-warning','圖片專案 JSON 僅匯出文字與圖片中繼資料，不含 PNG 圖片檔，也不是完整圖片備份。請另外下載各版本 PNG，並妥善備份伺服器私人媒體資料。'));}shell.append(footer);
@@ -1288,7 +1376,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   }
   globalThis.addEventListener('pagehide',()=>{artifactRenderEpoch++;imagePreviews.forEach(preview=>preview.disposeImagePreview?.());imagePreviews.clear();interactiveResources.forEach(resource=>{resource.disposeInteractive?.();resource.disposeInteractiveEditor?.();});interactiveResources.clear();activeHistoricalInteractive=null;});
   globalThis.addEventListener('beforeunload',event=> {
-    if([...drafts.values()].some(d=>d.dirty || d.imageUpload || d.chat.trim()) || busy || uncertain){event.preventDefault();event.returnValue='';}
+    if([...drafts.values()].some(d=>d.dirty || d.imageUpload || d.imageGeneration?.dirty || d.chat.trim()) || busy || uncertain){event.preventDefault();event.returnValue='';}
   });
   await boot();
   return {reload:async()=>{if(busy || pendingImageUpload() || uncertain)return;await refresh();render();},getProject:()=>project};

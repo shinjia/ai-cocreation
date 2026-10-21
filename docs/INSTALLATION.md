@@ -8,7 +8,7 @@
 - 保留合理的 `memory_limit`。程式會保守預留 PNG 解壓／壓縮及模型 raw／base64／JSON／cURL 副本空間，可用記憶體不足或無法確認時拒絕，不自動提高限制。符合 4 MiB／2048 像素也不保證每台主機能處理；請縮小圖片／減少分析張數，不要關閉限制。
 - Apache 可服務完整資料夾；`public/` 是入口，`app/`、`docs/`、`tests/` 附拒絕存取規則。其他主機必須只公開 `public/`。
 - 僅能在 PHP 主機同一台電腦使用 localhost、127.0.0.1 或 [::1]，不支援公開部署、區網多人、代理或隧道。
-- 本文件描述第六階段：網頁固定圖片引用的本機來源，不代表已部署；遠端版本與 GitHub ZIP 內容請以實際 commit 核對。
+- 本文件描述第七階段：固定雙模型與圖片生成、重繪、融合的本機來源，不代表已部署；遠端版本與 GitHub ZIP 內容請以實際 commit 核對。
 - 本次沒有原生 PHP runtime，以下是安裝／待驗收步驟，不是 PHP、Apache／XAMPP、實機瀏覽器或真實模型已通過紀錄。
 
 ## 全新安裝，不需命令列
@@ -26,7 +26,7 @@
 
 在「系統設定」配置成員稱呼、服務、模型與啟用狀態，閱讀並勾選資料傳送／費用說明。新增啟用成員或更換服務、模型、網址需重新核對同意；保存設定本身不推論。
 
-建立專案時一次選定 AI 成員／模型，專案內所有項目固定使用，不提供對話間切換。沒有啟用成員時可先建立未綁定空專案，完成設定後須明確綁定一次；舊未綁定專案同樣處理。已綁定後，原成員停用／移除或服務、模型、網址不符會阻擋，須恢復原設定；需要另一模型請另建專案，不自動 fallback。歷史與固定綁定不隨中央改名而重標。
+建立專案時一次選定固定對談成員／模型，另可選擇固定圖片成員，不預選、不強制純文字專案綁定圖片。兩者在專案內各自共用，不提供逐句／逐次切換。沒有啟用成員時可先建立未綁定空專案，完成設定後須明確綁定一次；舊未綁定專案同樣處理。已綁定後，原成員停用／移除或服務、模型、網址不符會阻擋，須恢復原設定；需要另一模型請另建專案，不自動 fallback。歷史與固定綁定不隨中央改名而重標。
 
 有使用同意後，明確送出、生成、比較或融合即使用固定模型，不逐次彈窗；建立／綁定專案、開頁面及保存設定不推論。模型清單及連線檢查需明確按鈕操作，只讀中繼資訊，不下載或推論，也不證明格式、品質、效能可用。
 
@@ -36,11 +36,19 @@
 
 模型查詢讀取目前 Key 可見資訊。受限 Key 的中繼資訊查詢可能出現 403，不代表所有生成權限都無效；請核對專案權限，不關閉 TLS 驗證。查到模型不保證它支援 Responses／結構化輸出或圖片視覺輸入。
 
+### 固定圖片模型與付費前的設定檢查
+
+圖片模型是專案的另一份固定綁定，不替換對談模型。中央成員須已啟用、服務為 OpenAI，且 ID 精確符合 [README 六個受支援模型](../README.md#固定雙模型與支援的圖片模型)。宜自行選帶日期 ID；別名可由供應商更新。支援清單與模型查詢不保證這份 Key 的帳號權限、配額或實際可用性，不自動補造清單、下載模型或付費試跑。
+
+新專案的圖片成員預設不選，可留空；舊專案／未綁定專案須在圖片工作區明確選一次，核對真正 PNG、相關文字送往 OpenAI 及額外費用，再按「同意並固定圖片模型（不生成圖片）」。綁定與保存同意不呼叫 AI，不改 `aiBinding`；圖片分析同意與生成同意不可互代。原成員改動／停用／移除會阻擋原圖片綁定，不能暗換另一模型。
+
+原有 Key vault、30 分鐘期限與本機邊界不變，不新增長期儲存或要求把 Key 寫進設定。Images API 每次固定單張 1024×1024、low、不透明 PNG；PNG 最多 4 MiB，只接受既有非交錯 8-bit RGB／RGBA 正規化。服務合法但不支援的 PNG 格式或本機存取失敗仍可能已計費，請先閱讀[使用指南](USER-GUIDE.md)與[安全限制](SECURITY.md)。本次沒有取得或使用真實 Key，沒有付費測試。
+
 ### Ollama
 
-須已在 PHP 主機同機啟動並安裝模型，預設網址 `http://127.0.0.1:11434`，模型欄填實際名稱。localhost 指 PHP 執行機。本包不安裝 Ollama、不下載模型、不調整系統網路權限。
+須已在 PHP 主機同機啟動並安裝模型，預設網址 `http://127.0.0.1:11434`，模型欄填實際名稱。localhost 指 PHP 執行機。本包不安裝 Ollama、不下載模型、不調整系統網路權限，也尚未接上其實驗性圖片生成；不代表 Ollama 永遠不能產圖，既有固定 Ollama 對談不變。
 
-查詢／檢查使用 `/api/tags`，推論固定 `/api/chat`、JSON Schema、非串流，只允許 loopback HTTP。OpenAI Key 不會傳給 Ollama。不相容或截斷輸出明確拒收、保留舊資料，不換模型或填示範答案。兩家 6,000–24,000 output tokens 是路徑請求預算，不保證模型一定支援或產出指定字數。
+查詢／檢查使用 `/api/tags`，推論固定 `/api/chat`、JSON Schema、非串流，只允許 loopback HTTP。OpenAI Key 不會傳給 Ollama。不相容或截斷輸出明確拒收、保留舊資料，不換模型或填示範答案。文字／結構化作品的兩家 6,000–24,000 output tokens 是路徑請求預算，不保證模型一定支援或產出指定字數。
 
 ### 圖片分析的額外同意與模型能力
 
@@ -50,7 +58,7 @@
 
 ## 第一次本機驗收清單
 
-以下推論步驟需自行決定是否執行，OpenAI 可能產生費用；不是本次已完成的實測。第 3–7 步的生成／AI 修改／融合適用文字與原生作品類型；圖片依下方專用清單，不得當成完整生圖流程驗收。
+以下推論步驟需自行決定是否執行，OpenAI 可能產生費用；不是本次已完成的實測。第 3–7 步的共用流程適用文字與原生作品；圖片生成、重繪、融合依下方獨立專用清單驗收，不能把 mock 或文字分析當成真實生圖通過。
 
 1. 查看固定腳本示範並辨識其標示；正式頁建立兩個專案，選定模型，確認名稱、說明、模型綁定互相獨立。
 2. 同一專案建立各類項目，確認十二類功能各有獨立歷史。圖片只開放上傳與分析；圖文／海報提供原生排版而不產圖；互動視覺提供受限幾何、動畫／游標互動與參數選用，不是任意程式執行。
@@ -118,9 +126,22 @@
 - 中斷：上傳失敗或未知結果時保留同頁本機副本及文字；先讀最新紀錄，再明確重試同一請求。不在背景重送、不宣稱已失敗就必然沒存；切換項目／專案前須保存或取消，其他分頁切換後不得把副本存到錯誤項目。
 - 固定模型分析：先核對一次圖片傳送範圍，同意不呼叫 AI；之後普通送出直接使用專案固定模型，不重複彈窗。討論來源加固定圖片引用會傳真正 PNG；比較只傳所選 2–5 版，引用像素不混入。每次最多 5 個不同資產、合計 12 MiB raw PNG，超限或記憶體不足應於傳送前拒絕。
 - 分析來源：核對結果 provenance 含 item／version／asset／SHA-256，實際 request 的 PNG 與已保存版本一致。純圖片分析只增加討論／比較，不建假圖片版；不支援 vision 的模型應失敗且不換模型。其他類型的固定圖片引用目前只有 metadata 脈絡，不假稱已傳像素。
-- 方向與能力：按「確認圖片方向（不生成圖片）」不推論、不生成。生成／像素修訂／融合按鈕不可執行，直接 API 也拒絕；可明確採用與定稿外部圖片。圖文／海報請另按下方排版清單驗收；互動程式依後方受限視覺清單驗收。
+- 方向與能力：按「確認圖片方向（不生成圖片）」不推論、不生成；共用 generate／fuse API 仍拒收，只有專用 generate_image 可依下列清單生成像素。外部上傳與 AI 圖片都須自行採用／定稿。圖文／海報與互動程式仍依各自排版／受限視覺清單驗收。
 - 匯出與備份：個別下載 PNG 並核對最終雜湊；專案 JSON 的圖片只含中繼資料，須有不完整圖片備份警語，不含 raw／base64。要保留全歷史媒體，程式停止寫入後離線備份整個私有資料夾及設定，不只複製執行中的 SQLite 主檔；敏感備份不分享。
 - 示範：固定腳本不得提供圖片上傳、私人圖片讀取或真正看圖分析，不用固定圖片描述冒充模型成功。
+
+圖片生成專用人工驗收（尚非本次 PHP／瀏覽器／真實 Images API 測試結果；真的送出會另計費）：
+
+- 雙模型：新專案圖片空白可建立，不能預選第一位；已有對談綁定（含 Ollama）的舊專案只新增一次圖片綁定／同意，原對談 ID／模型／目的地／歷史完全不變。設定中的啟用、六個精確支援 ID、改名、停用／移除及模型不符須分別核對；不接受 1 系列、前綴仿冒或對談模型作圖片綁定。
+- 無暗中請求：開頁、查詢清單、選模／同意、確認圖片方向、勾選引用、比較、普通「請改圖」對談都不呼叫 Images API。一般使用同意、圖片生成同意及有效 Key 缺一時阻擋；分析同意不替代生成同意。Ollama 實驗性圖片生成未在本包接線，不能把未實作說成平台永遠不支援。
+- 初次／重繪／融合：初次須有效方向、0 來源，保存 1 主版；重繪明確 1 個未封存來源、修改指示，保存來源主版下的小版；融合明確 2–5 個不同未封存版、融合指示，保存 1 主版及所有直接來源／各自目標。正式版、來源及定稿不變，不自動下一張；重繪／融合不強迫初次方向流程。
+- 真正輸入：所有參考圖預設不勾，只能選目前項目固定引用，逐張 palette／composition／style／general。來源加參考最多 5 個不同資產、12 MiB raw PNG、每張 4 MiB，重複去重且保留所有角色；跨 owner／專案／錯版／錯 SHA-256／已移除引用必須拒絕，不看最新正式版或未選圖。不能用文字描述冒充送出像素。
+- 確定性提示：核對已確認方向、本次指示、來源各自目標、專案／項目文字與固定文字引用，完整最多 32,000 bytes，不截斷、不額外呼叫文字模型。0 張輸入走 generations JSON；有圖走 edits JSON images data URL，不另取外部網址／檔案路徑。
+- 固定參數與 PNG：恆為 n=1、1024x1024、low、PNG、opaque、moderation=auto、stream=false。回應有界 6 MiB／PNG 4 MiB；錯數量、URL-only、非 canonical base64、錯尺寸／CRC、灰階／palette／交錯／非 8-bit、解壓超限應拒收。合法供應商格式不一定符合本機限制，拒存可能已計費，不應自動降級、重試或保存假圖。
+- 日誌及中斷：付費前 running／request ID 已記；成功同 ID 回原版，不再發送；running／failed 同 ID 拒重送；相同 ID 異內容拒收。以測試替身驗證 API 逾時、過大回應、PNG 拒收、交易回滾、revision 競爭與回應丟失；資產、完整版本及 completed receipt 原子保存，不把本機無版本誤認為供應商未收費。先查狀態再由使用者決定新付費請求，不宣稱 exactly-once。
+- 追溯與隱私：保存成員／稱呼、requestedModel、回應提供才有的 actualModel（否則 null）、request IDs、固定 options、完整 prompt、來源快照／精確 SHA-256／角色。不保存原始供應商回應、Key、PNG base64 或 data URL 到 JSON／日誌／匯出；PNG 保存到既有私有 BLOB。含圖 HTML 仍須明確讀同一保存資產，圖文／海報／網頁／互動視覺不自動生圖。
+- 前端中斷：未保存手動草稿、待上傳本機副本、未送出對談、busy 或結果未知時阻擋圖片按鈕；重複點擊、讀取狀態、切換來源／項目及過期回呼不得多送請求或套用到錯項目。真正瀏覽器、PNG 色彩、下載、圖片品質與費用必須另驗，mock 不等於通過。
+
 
 圖文與海報另請人工驗收（尚非本次 PHP／瀏覽器／真實模型測試結果）：
 
@@ -148,17 +169,17 @@
 - AI 範圍：只讀已保存來源與圖片中繼資料，不讀草稿、不傳圖片像素、不執行模型 JS。新參數未選用，既有選用／目標不得被模型改動；已選值只應按本次要求修改並保存精確前次值。AI 不可移除已選控制項；需先由使用者取消選用、套用並另存。
 - 比較／融合：各版依自己的目標比較，未選參數不可當成畫面已生效。融合前同 ID 的目標、選用、值／前次值、範圍／步進衝突，或同目標不同 ID，應在呼叫模型前拒絕，仍可比較。僅換名稱、ID、標籤或未選參數不應冒充融合；指紋不是像素等價或創意品質驗收。
 - p5 匯出：匯出已保存版 JS／JSON／TXT，不採用未保存草稿。JS 是可信任產生器輸出的 p5.js 主程式，不含模型可執行碼、CDN／import／網路自動請求；須另外自行提供可信 p5.js 函式庫及執行頁面。核對 setup 的初始 noLoop、明確播放、獨立游標開關與已選參數 setter。真正 p5 runtime、瀏覽器下載與跨環境像素尚未驗證，不把 Node 替身當作通過。
-- 外部工具：官方 [createCanvas](https://p5js.org/reference/p5/createCanvas/) 與 [noLoop](https://p5js.org/reference/p5/noLoop/) 僅作選讀說明，不自動傳作品、連帳號或部署；本版沒有任意 p5.js 匯入／編輯／執行、圖片生成模型或新的 API 金鑰流程。
+- 外部工具：官方 [createCanvas](https://p5js.org/reference/p5/createCanvas/) 與 [noLoop](https://p5js.org/reference/p5/noLoop/) 僅作選讀說明，不自動傳作品、連帳號或部署；互動視覺模組沒有任意 p5.js 匯入／編輯／執行，也不呼叫獨立圖片模型；圖片 API 沿用既有暫存 Key，不新增金鑰保存流程。
 
-PHP fixture 包括 `php tests/phase1.php`、`php tests/artifacts.php`、`php tests/mindmap.php`、`php tests/vector.php`、`php tests/webpage.php`、`php tests/image-artifact.php`、`php tests/png-upload.php`、`php tests/media-store.php`、`php tests/image-vision.php`、`php tests/image-actions.php`、`php tests/composition.php`、`php tests/composition-model.php`、`php tests/composition-app.php`、`php tests/interactive.php`、`php tests/interactive-model.php`、`php tests/interactive-app.php`；完整開發檢查命令見 [README](../README.md)。本次未使用真實 Key、未公開部署，也未執行原生 PHP／Apache／XAMPP、實機瀏覽器或真實 OpenAI／Ollama 驗收。來源、模擬及 SQLite 檢查不等於實機通過；已執行項目以[測試報告](TEST-REPORT.md)為準。
+PHP fixture 包括 `php tests/phase1.php`、`php tests/artifacts.php`、`php tests/mindmap.php`、`php tests/vector.php`、`php tests/webpage.php`、`php tests/image-artifact.php`、`php tests/png-upload.php`、`php tests/media-store.php`、`php tests/image-vision.php`、`php tests/image-actions.php`、`php tests/image-generation.php`、`php tests/image-provider.php`、`php tests/composition.php`、`php tests/composition-model.php`、`php tests/composition-app.php`、`php tests/interactive.php`、`php tests/interactive-model.php`、`php tests/interactive-app.php`；完整開發檢查命令見 [README](../README.md)。本次未使用真實 Key、未公開部署，也未執行原生 PHP／Apache／XAMPP、實機瀏覽器或真實 OpenAI／Ollama 驗收。來源、模擬及 SQLite 檢查不等於實機通過；已執行項目以[測試報告](TEST-REPORT.md)為準。
 
 ## 同系列既有安裝：安全覆蓋更新
 
 1. 停止所有寫入，離線備份原程式、`config.local.php` 及完整私有資料夾，包括 SQLite 及可能存在的 journal／WAL 檔；不要只複製使用中的主資料庫。備份可能含有效 Key／Session，須私密保管，不得當作品分享。更新本身不要求清除或重填目前 Key。
 2. 將新版原始碼合併覆蓋至原程式根目錄。不要先刪整個舊資料夾、重新安裝、覆蓋 `config.local.php`／私有資料、刪除或重設資料庫。
-3. 保留原網址及瀏覽器 Cookie／Session。前端快取標籤為 `20261021-version16`，重新整理，仍是舊介面時強制重新整理；不要清除 Cookie 當作清快取。升級本身不要求重設模型或重填 Key；目前仍有效的 Key 與 Session 保留；自行清除或到期的 Key 仍依原有暫存規則，在需要使用 OpenAI 時重新提供，不承諾升級後永久保留。
-4. 舊 Vn 保留 ID、內容與來源，讀為主版本 Vn，不補造討論或模型資訊；舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image`、`illustrated`、`poster`、`interactive` 規劃項目啟用對應能力，但不改既有對話、版本與引用；不把舊文字補造成原生表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動程式或圖片。本次網頁固定圖片與既有互動視覺沿用專案 JSON，網頁／圖文／海報共用既有固定媒體，不另建或重設資料庫；媒體功能只在原 SQLite 增建 media_assets 與 media_upload_receipts 兩表，不重建既有資料表、不替換資料檔、不刪歷史。
-5. 缺少 `aiBinding` 的專案明確讀為 null，完成一次模型綁定後才能推論。舊單一 AI 設定可轉為「原有設定」成員，首次需明確同意；不必重建作品或重裝。
+3. 保留原網址及瀏覽器 Cookie／Session。前端快取標籤為 `20261021-version17`，重新整理，仍是舊介面時強制重新整理；不要清除 Cookie 當作清快取。升級本身不要求重設模型或重填 Key；目前仍有效的 Key 與 Session 保留；自行清除或到期的 Key 仍依原有暫存規則，在需要使用 OpenAI 時重新提供，不承諾升級後永久保留。
+4. 舊 Vn 保留 ID、內容與來源，讀為主版本 Vn，不補造討論或模型資訊；舊 `article`、`table`、`chart`、`mindmap`、`vector`、`webpage`、`image`、`illustrated`、`poster`、`interactive` 規劃項目啟用對應能力，但不改既有對話、版本與引用；不把舊文字補造成原生表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動程式或圖片。本次固定雙模型與圖片生成在原專案 JSON 增加相容欄位，網頁固定圖片與既有互動視覺仍沿用原資料，網頁／圖文／海報共用既有固定媒體，不另建或重設資料庫；媒體功能只在原 SQLite 增建 media_assets 與 media_upload_receipts 兩表，不重建既有資料表、不替換資料檔、不刪歷史。圖片生成沿用原 requests 日誌與媒體交易，不需 CLI 遷移。
+5. 缺少 `aiBinding` 的專案明確讀為 null，完成一次對談模型綁定後才能對談；缺少 `imageBinding`／`imageGenerationConsent` 分別讀為 null。舊專案要生圖，須明確選圖片成員並同意一次，不能從中央目前選人或歷史猜測，原 `aiBinding` 不變。舊單一 AI 設定可轉為「原有設定」成員，首次需明確同意；不必重建作品或重裝。
 
 作品依原瀏覽器工作階段辨識，Cookie／Session 遺失後沒有帳號復原入口。重要作品可匯出 JSON，保留完整文字、表格／圖表／心智圖／向量圖形／網頁／圖文／海報／互動視覺原生結構、版本、引用、綁定及模型來源，不含 Key。圖片只含中繼資料，不包含 PNG，因此 JSON 不是完整圖片備份；另下載 PNG，完整恢復所需資料以停止寫入後的整個私有資料夾及 config.local.php 離線備份為準。沒有自動媒體匯入／還原介面，也不能靠 JSON 復原遺失的 Session。分享前檢查私人內容，不要分享私有資料夾或其憑證。
 

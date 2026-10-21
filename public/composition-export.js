@@ -25,7 +25,7 @@ function renderHtml(artifact,images){
   const media=(id,caption)=>{
     const entry=images.get(id),image=entry.image,asset=image.asset;
     fail(typeof entry.dataUrl==='string'&&entry.dataUrl.startsWith('data:image/png;base64,'),'固定 PNG 尚未完成驗證，未匯出。');
-    return '<figure class="composition-media"><figure class="artifact-image-preview"><div class="image-preview-frame"><img class="image-preview-image" src="'+entry.dataUrl+'" alt="'+escape(image.alt)+'" width="'+asset.width+'" height="'+asset.height+'"></div><figcaption class="image-preview-caption"><h4 class="image-preview-title">'+escape(image.title)+'</h4><p class="image-preview-origin">來源：外部上傳圖片（不是 AI 生圖）</p><p class="image-preview-attribution">來源註記：'+escape(image.attribution||'尚未填寫')+'</p></figcaption></figure>'+(caption!==''?'<figcaption class="composition-caption">'+escape(caption)+'</figcaption>':'')+'</figure>';
+    return '<figure class="composition-media"><figure class="artifact-image-preview"><div class="image-preview-frame"><img class="image-preview-image" src="'+entry.dataUrl+'" alt="'+escape(image.alt)+'" width="'+asset.width+'" height="'+asset.height+'"></div><figcaption class="image-preview-caption"><h4 class="image-preview-title">'+escape(image.title)+'</h4><p class="image-preview-origin">來源：已保存的固定圖片版本</p><p class="image-preview-attribution">來源註記：'+escape(image.attribution||'尚未填寫')+'</p></figcaption></figure>'+(caption!==''?'<figcaption class="composition-caption">'+escape(caption)+'</figcaption>':'')+'</figure>';
   };
   const sections=artifact.blocks.map(block=>{
     let content;

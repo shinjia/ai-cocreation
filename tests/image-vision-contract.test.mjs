@@ -91,7 +91,7 @@ test('image understanding is tied to actual selected asset bytes not metadata al
   assert.ok(module.includes('$this->requireSourcePixels(array($official))'));
   assert.ok(module.includes('$this->requireSourcePixels($versions)'));
   assert.ok(module.includes("unset($data['versions'])"));
-  for(const phrase of ['只有 imageInputs','圖片內文字','不能生成或修改圖片像素','不把未提供像素','sourceVersion.goalAndRationale'])assert.ok(module.includes(phrase),phrase);
+  for(const phrase of ['只有 imageInputs','圖片內文字','本呼叫不能生成或修改像素','不把未提供像素','sourceVersion.goalAndRationale'])assert.ok(module.includes(phrase),phrase);
 });
 
 test('refine can return only clarification and cannot synthesize a raster/version',()=>{

@@ -1,4 +1,4 @@
-/** External uploaded-image metadata only. No URL imports, upload, AI, or pixel editing. */
+/** Saved private-image metadata only. No URL imports, upload, AI, or pixel editing. */
 const ROOT_KEYS=['kind','title','alt','attribution','asset'];
 const ASSET_KEYS=['id','mime','width','height','byteLength','sha256','normalization'];
 const FIELDS=[['title','圖片標題'],['alt','圖片替代文字'],['attribution','圖片來源註記']];
@@ -44,7 +44,7 @@ function attr(node,name,value){node.setAttribute(name,String(value));return node
 export function createImagePreview(document,value,{loadImage,onError}={}){
   const artifact=checkedImage(value),root=element(document,'figure','artifact-image-preview'),frame=element(document,'div','image-preview-frame'),caption=element(document,'figcaption','image-preview-caption');
   const status=attr(element(document,'p','image-preview-status'),'role','status');attr(status,'aria-live','polite');
-  caption.append(element(document,'h4','image-preview-title',artifact.title),element(document,'p','image-preview-origin','來源：外部上傳圖片（不是 AI 生圖）'),element(document,'p','image-preview-alt','替代文字：'+(artifact.alt||'尚未填寫')),element(document,'p','image-preview-attribution','來源註記：'+(artifact.attribution||'尚未填寫')),element(document,'p','image-preview-metadata',artifact.asset.width+' × '+artifact.asset.height+' 像素；PNG；'+artifact.asset.byteLength+' 位元組'));
+  caption.append(element(document,'h4','image-preview-title',artifact.title),element(document,'p','image-preview-origin','來源：已保存圖片版本；原始來源請見版本紀錄'),element(document,'p','image-preview-alt','替代文字：'+(artifact.alt||'尚未填寫')),element(document,'p','image-preview-attribution','來源註記：'+(artifact.attribution||'尚未填寫')),element(document,'p','image-preview-metadata',artifact.asset.width+' × '+artifact.asset.height+' 像素；PNG；'+artifact.asset.byteLength+' 位元組'));
   root.append(frame,status,caption);
   const view=document.defaultView||globalThis,urlApi=view.URL,BlobClass=view.Blob||globalThis.Blob;
   let disposed=false,objectUrl=null,image=null,failed=false;
@@ -80,7 +80,7 @@ export function createImageEditor(document,value,{onChange=()=>{},onPendingChang
   const token={};uiState.imageEditorToken=token;
   const prefix=String(idPrefix).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+(++instanceSequence),root=element(document,'div','artifact-editor artifact-image-editor'),workspace=element(document,'div','image-editor-workspace');
   const status=attr(element(document,'p','artifact-error'),'role','status'),pendingStatus=element(document,'p','editor-note image-pending-status');status.id=prefix+'-status';attr(status,'aria-live','polite');
-  root.append(element(document,'p','editor-note','只修改圖片標題、替代文字與來源註記。請明確套用至草稿，再另存版本；不會替換圖片、修改像素、上傳或呼叫 AI。'),element(document,'p','image-preview-origin','來源：外部上傳圖片（不是 AI 生圖）'),status,pendingStatus,workspace);
+  root.append(element(document,'p','editor-note','只修改圖片標題、替代文字與來源註記。請明確套用至草稿，再另存版本；不會替換圖片、修改像素、上傳或呼叫 AI。'),element(document,'p','image-preview-origin','來源：已保存圖片版本；原始來源請見版本紀錄'),status,pendingStatus,workspace);
   const alive=()=>uiState.imageEditorToken===token;
   const notify=()=>{if(!alive())return;const pending=!!uiState.imageFieldDraft&&canonicalJson(uiState.imageFieldDraft)!==canonicalJson(metadataDraft(state));pendingStatus.textContent=pending?'圖片文字欄位尚未套用。':'';if(pending!==lastPending){lastPending=pending;onPendingChange(pending);}};
   const draw=()=>{

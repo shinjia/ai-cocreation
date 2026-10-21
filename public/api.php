@@ -22,6 +22,7 @@ try {
         ensure(is_array($input)&&isset($input['action'])&&is_string($input['action']),'INVALID_INPUT','請求格式不正確。');
         // Preserve the JSON object/array distinction before associative decoding loses it.
         if(is_object($rawInput)&&property_exists($rawInput,'artifact'))validateArtifactJsonShape($rawInput->artifact);
+        validateImageGenerationJsonShape($rawInput);
         @set_time_limit((int)ceil($config['model_timeout_ms']/1000)+20);$result=$app->action($input);
     }
     if(session_status()===PHP_SESSION_ACTIVE)session_write_close();echo jsonEncode($result);

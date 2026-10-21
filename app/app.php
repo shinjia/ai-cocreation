@@ -1,10 +1,11 @@
 <?php
 class CocreationApp {
     use CocreationImageActions;
+    use CocreationImageGenerationActions;
     use CocreationCompositionActions;
-    private $store; private $config; private $owner; private $vault; private $model;
-    public function __construct($store,$config,$owner,$adapter=null) {
-        $this->store=$store;$this->config=$config;$this->owner=$owner;$this->vault=new SessionKeyVault($config['data_dir']);$this->model=$adapter;
+    private $store; private $config; private $owner; private $vault; private $model; private $imageModel;
+    public function __construct($store,$config,$owner,$adapter=null,$imageAdapter=null) {
+        $this->store=$store;$this->config=$config;$this->owner=$owner;$this->vault=new SessionKeyVault($config['data_dir']);$this->model=$adapter;$this->imageModel=$imageAdapter;
     }
     private function connection($roster=null) {
         if($roster===null)$roster=$this->store->memberRoster($this->config['openai_model'],$this->owner);$member=null;
@@ -16,6 +17,7 @@ class CocreationApp {
         $roster=$this->settingsLease($input);$id=field($input,'memberId');validId($id);$member=null;
         foreach($roster['members'] as $candidate)if($candidate['id']===$id)$member=$candidate;
         ensure($member!==null,'MEMBER_NOT_FOUND','找不到要為專案選定的 AI 成員。',404);ensure($member['enabled'],'MEMBER_DISABLED','請先在系統設定啟用這位 AI 成員。',409);
+        ensure(!($member['provider']==='openai'&&preg_match('/^(?:gpt-image-|chatgpt-image-|dall-e-)/',$member['model'])),'CHAT_MODEL_REQUIRED','圖片生成模型不能作為專案對談模型；請另外選擇對談成員。',409);
         return array_merge(array('memberId'=>$member['id'],'memberNickname'=>$member['nickname']),validateConnection($member),array('boundAt'=>nowIso()));
     }
     private function projectConnection($project) {
@@ -45,13 +47,13 @@ class CocreationApp {
             ensure(field($input,'approvedKeyRevision')===$status['keyRevision'],'KEY_CHANGED','金鑰設定已改變，請重新確認本次呼叫，避免使用另一個 API 帳戶。',409);
         }
     }
-    public function status() { $roster=$this->store->memberRoster($this->config['openai_model'],$this->owner);return array_merge($this->connection($roster),$this->vault->status($this->owner),array('members'=>$roster['members'],'activeMemberId'=>$roster['activeMemberId'],'usageConsent'=>$roster['usageConsent'],'consentAt'=>$roster['consentAt'],'modelCatalog'=>$this->store->modelCatalog($this->owner))); }
+    public function status() { $roster=$this->store->memberRoster($this->config['openai_model'],$this->owner);return array_merge($this->connection($roster),$this->vault->status($this->owner),array('members'=>$roster['members'],'activeMemberId'=>$roster['activeMemberId'],'usageConsent'=>$roster['usageConsent'],'consentAt'=>$roster['consentAt'],'modelCatalog'=>$this->store->modelCatalog($this->owner),'imageGenerationModels'=>imageGenerationModels())); }
     public function state() { return array_merge($this->status(),array('csrf'=>$_SESSION['csrf'],'projects'=>$this->store->listProjects($this->owner),'modules'=>moduleRegistry())); }
     private function itemKeys() { return array('phase','lifecycle','brief','goalApprovedAt','summaryRevision','versions','archivedVersionIds','officialVersionId','comparisons','messages','finalizedVersionId','finalizedAt','finalizations','references','contextRevision'); }
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
         $compositionWelcome=$type==='poster'?'這張海報要傳達什麼？先確認視覺風格、完整文字內容與圖文排列；可使用同專案明確引用的固定圖片版本，目前不生成或修改圖片像素。':'這份圖文想傳達什麼？可以組合完整段落與同專案明確引用的固定圖片版本，調整排列並保存完整版本；目前不生成或修改圖片像素。';
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='interactive'?'先談要呈現的畫面，再討論可選動畫、想調整的參數與互動；也可以做純靜態作品。預覽只執行受限視覺資料，可匯出 p5.js 主程式，不接受任意程式、外部資源或圖片像素。':(in_array($type,array('illustrated','poster'),true)?$compositionWelcome:($type==='image'?'可以先上傳外部圖片保存版本，再選定版本討論或比較配色、構圖與風格。上傳不呼叫 AI；本階段尚未開放圖片生成或像素修改。':($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽、可展開問答及同專案固定圖片引用，不含外部網址圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='interactive'?'先談要呈現的畫面，再討論可選動畫、想調整的參數與互動；也可以做純靜態作品。預覽只執行受限視覺資料，可匯出 p5.js 主程式，不接受任意程式、外部資源或圖片像素。':(in_array($type,array('illustrated','poster'),true)?$compositionWelcome:($type==='image'?'可以先上傳外部圖片保存版本，再選定版本討論或比較配色、構圖與風格。上傳不呼叫 AI；新圖、修改與融合需另按圖片生成按鈕，使用專案固定的圖片模型並另外計費。':($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽、可展開問答及同專案固定圖片引用，不含外部網址圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -71,6 +73,9 @@ class CocreationApp {
     }
     private function normalizeRaw($raw) {
         unset($raw['availableImageReferences'],$raw['availableImageReferencesError'],$raw['compositionReferencePool']); // View/request-only derived data, never persistent authority.
+        if(!array_key_exists('imageBinding',$raw))$raw['imageBinding']=null;
+        if(!array_key_exists('imageGenerationConsent',$raw))$raw['imageGenerationConsent']=null;
+        if($raw['imageBinding']!==null)$raw['imageBinding']=validateProjectImageBinding($raw['imageBinding']);
         if(!array_key_exists('imageAnalysisConsent',$raw))$raw['imageAnalysisConsent']=null;
         if(!array_key_exists('aiBinding',$raw))$raw['aiBinding']=null; // No inferred model for existing projects.
         if($raw['aiBinding']!==null)$raw['aiBinding']=validateProjectAiBinding($raw['aiBinding']);
@@ -84,7 +89,7 @@ class CocreationApp {
     private function pinnedVersion($version) {
         // Preserve the complete source content and direct provenance, not exponentially
         // nested copies of every prior source's sources. Lineage ids remain available.
-        unset($version['fusionSourceSnapshots']); // Direct content and fusionSourceVersionIds remain; never recursively copy ancestors.
+        unset($version['fusionSourceSnapshots'],$version['imageSourceSnapshots']); // Direct content and fusionSourceVersionIds remain; never recursively copy ancestors.
         if(isset($version['referencesSnapshot']))foreach($version['referencesSnapshot'] as &$ref){$source=field($ref,'versionSnapshot',array());unset($ref['versionSnapshot']);$ref['sourceProvenance']=field($source,'provenance');}unset($ref);
         return $version;
     }
@@ -182,6 +187,7 @@ class CocreationApp {
         $project['versions'][]=$v;return $v['id'];
     }
     public function action($input) {
+        if(field($input,'action')==='generate_image')return $this->generateImage($input);
         $action=field($input,'action');$paid=in_array($action,array('discuss','summarize','generate','confirm_generate','compare','fuse'),true);
         if(!$paid)return $this->execute($action,$input);
         $connection=$this->projectConnection($this->project(field($input,'id')));$this->checkApproval($input,$connection);
@@ -200,6 +206,7 @@ class CocreationApp {
     }
     private function execute($action,$input,$requestConnection=null) {
         $this->imageInputSnapshots=array();
+        if($action==='bind_project_image_model')return $this->bindProjectImageModel($input);
         if($action==='grant_image_analysis')return $this->grantImageAnalysis($input);
         if($action==='save_members') {
             $roster=$this->settingsLease($input);$this->store->setMemberRoster(field($input,'members'),field($input,'activeMemberId'),field($input,'usageConsent'),$this->owner,$roster['settingsRevision']);return $this->status();
@@ -232,7 +239,8 @@ class CocreationApp {
             ensure(count($this->store->listProjects($this->owner))<100,'PROJECT_LIMIT','此瀏覽器最多保留100份專案，請先匯出保存。',409);
             $item=$this->newItem('titles','標題名稱','');
             $binding=field($input,'memberId')===null?null:$this->bindingFromInput($input);
-            $raw=array('schemaVersion'=>1,'id'=>newId(),'title'=>userTextValue(field($input,'title','我的共創專案'),240,'專案名稱'),'description'=>userTextValue(field($input,'description',''),4000,'專案說明',true),'aiBinding'=>$binding,'projectLifecycle'=>'created','projectFinalizations'=>array(),'revision'=>0,'sharedContextRevision'=>0,'activeItemId'=>$item['id'],'creativeItems'=>array($item),'createdAt'=>nowIso());
+            $imageBinding=field($input,'imageMemberId')===null?null:$this->imageBindingFromInput($input);
+            $raw=array('schemaVersion'=>1,'id'=>newId(),'title'=>userTextValue(field($input,'title','我的共創專案'),240,'專案名稱'),'description'=>userTextValue(field($input,'description',''),4000,'專案說明',true),'aiBinding'=>$binding,'imageBinding'=>$imageBinding,'imageGenerationConsent'=>$imageBinding===null?null:$this->newImageGenerationConsent($imageBinding),'projectLifecycle'=>'created','projectFinalizations'=>array(),'revision'=>0,'sharedContextRevision'=>0,'activeItemId'=>$item['id'],'creativeItems'=>array($item),'createdAt'=>nowIso());
             return array('project'=>$this->view($this->store->save($raw,$this->owner)));
         }
         if($action==='bind_project_model'){
@@ -250,7 +258,7 @@ class CocreationApp {
             if($changed)$p['sharedContextRevision']++;$p['description']=$description;$p['title']=$title;return $this->save($p);
         }
         $this->activeInput($p,$input);ensure(!$p['activeItem']['archived'],'ITEM_ARCHIVED','請先還原封存項目。',409);ensure($p['activeItem']['enabled'],'CAPABILITY_UNAVAILABLE','這個創作類型目前只提供規劃及固定版本引用，尚未實作 AI 生成與定稿。',409);$module=moduleAdapter($p['module'],$adapter);
-        if($p['module']==='image')ensure(!in_array($action,array('generate','confirm_generate','fuse'),true),'IMAGE_GENERATION_UNAVAILABLE','目前圖片功能提供外部上傳、版本保存及實際圖片分析；尚未開放 AI 生成或像素修改，沒有呼叫 AI。',409);
+        if($p['module']==='image')ensure(!in_array($action,array('generate','confirm_generate','fuse'),true),'IMAGE_GENERATION_UNAVAILABLE','圖片生成、像素修改與融合必須使用圖片工作區的明確生成按鈕及專案固定圖片模型；對談按鈕不會生圖，沒有呼叫 AI。',409);
         if($action==='reopen') {
             ensure($p['lifecycle']==='finalized','PROJECT_NOT_FINALIZED','此專案尚未定稿，不必重新開啟。',409);
             $p['lifecycle']='in_progress';$p['finalizedVersionId']=null;$p['finalizedAt']=null;

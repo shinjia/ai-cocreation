@@ -114,8 +114,17 @@ MEDIA_RECEIPTS_DDL;
         return $normalized;
     }
 
+    public function assertCapacity($owner,$projectId,$byteLength=4194304) {
+        $owner=$this->owner($owner);$projectId=$this->identifier($projectId);
+        ensure(is_int($byteLength)&&$byteLength>0&&$byteLength<=self::MAX_ASSET_BYTES,'MEDIA_INVALID','圖片預留容量不正確。');
+        $this->checkQuota($owner,$projectId,$byteLength);
+    }
+
     private function enforceQuota($owner,$projectId,$byteLength) {
-        $this->requireTransaction();
+        $this->requireTransaction();$this->checkQuota($owner,$projectId,$byteLength);
+    }
+
+    private function checkQuota($owner,$projectId,$byteLength) {
         $project=$this->db->prepare('SELECT COUNT(*) AS asset_count, COALESCE(SUM(byte_length),0) AS byte_count FROM media_assets WHERE owner=? AND project_id=?');
         $project->execute(array($owner,$projectId));$projectUsage=$project->fetch(PDO::FETCH_ASSOC);
         ensure((int)$projectUsage['asset_count']+1<=self::MAX_PROJECT_ASSETS&&(int)$projectUsage['byte_count']+$byteLength<=self::MAX_PROJECT_BYTES,'MEDIA_PROJECT_QUOTA','此專案圖片已達 100 張或 64 MiB 上限；沒有刪除任何歷史圖片。',409);

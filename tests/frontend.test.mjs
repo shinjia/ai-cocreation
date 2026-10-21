@@ -89,7 +89,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version16"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version16"/);assert.match(html,/demo\.js\?v=20261021-version16/);assert.match(demo,/app\.js\?v=20261021-version16/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version17"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version17"/);assert.match(html,/demo\.js\?v=20261021-version17/);assert.match(demo,/app\.js\?v=20261021-version17/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -644,7 +644,7 @@ test('dialogue panel shows one fixed project model above the log and composer, w
   const panel=root.querySelector('.dialogue-panel'),history=doc.getElementById('conversation'),composer=root.querySelector('.chat-composer'),model=root.querySelector('.project-model');
   assert.equal(panel.getAttribute('aria-labelledby'),'dialogue-heading');assert.equal(doc.getElementById('dialogue-heading').textContent,'與 AI 一起釐清方向');assert.equal(model.parentNode,panel);assert.ok(panel.children.indexOf(model)<panel.children.indexOf(history));assert.ok(panel.children.indexOf(history)<panel.children.indexOf(composer));
   assert.equal(doc.getElementById('discussion-member'),null);assert.equal(root.querySelector('.quick-switch'),null);assert.equal(root.querySelectorAll('.fixed-model').length,1);assert.equal(root.querySelectorAll('#ai-setup-status').length,1);assert.equal(history.getAttribute('role'),'log');assert.equal(doc.getElementById('ai-setup-status').getAttribute('role'),'status');
-  assert.equal(composer.children[0].getAttribute('for'),'chat-input');assert.match(model.textContent,/此專案所有項目共用這個模型/);await fixtureFill(doc,'chat-input','保留輸入中的想法');await fixtureClick(doc,'AI 系統設定');await fixtureDialogClick(doc,'取消');assert.equal(doc.getElementById('chat-input').value,'保留輸入中的想法');assert.deepEqual(calls.map(call=>call.action),['state','project']);
+  assert.equal(composer.children[0].getAttribute('for'),'chat-input');assert.match(model.textContent,/此專案所有項目共用這個對談模型/);await fixtureFill(doc,'chat-input','保留輸入中的想法');await fixtureClick(doc,'AI 系統設定');await fixtureDialogClick(doc,'取消');assert.equal(doc.getElementById('chat-input').value,'保留輸入中的想法');assert.deepEqual(calls.map(call=>call.action),['state','project']);
  });
 });
 

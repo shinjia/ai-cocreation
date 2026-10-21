@@ -15,7 +15,7 @@ trait CocreationImageActions {
         ensure($p['module']==='image','IMAGE_ITEM_REQUIRED','請從圖片工作區確認圖片分析範圍。');
         $this->projectConnection($p); // Verify the fixed destination, but never retrieve a key or make a call.
         $p['imageAnalysisConsent']=array('bindingHash'=>$this->imageBindingHash($p),'acceptedAt'=>nowIso());
-        $p['messages'][]=$this->message('student','我同意之後明確按下圖片討論或比較時，將選取圖片的實際內容、固定圖片引用與專案文字送至本專案固定的 AI 服務分析。此確認不會立即呼叫 AI；圖片生成尚未提供。','image_analysis_consent');
+        $p['messages'][]=$this->message('student','我同意之後明確按下圖片討論或比較時，將選取圖片的實際內容、固定圖片引用與專案文字送至本專案固定的 AI 服務分析。此確認不會立即呼叫 AI；圖片生成使用另一個已明確綁定的圖片模型與獨立按鈕。','image_analysis_consent');
         return $this->save($p);
     }
     private function imageAssetDescriptor($metadata) { unset($metadata['createdAt']);return $metadata; }

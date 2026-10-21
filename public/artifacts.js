@@ -1,10 +1,10 @@
-import {defaultInteractive,validateInteractive,interactiveItems,renderInteractive,renderInteractiveEditor,exportInteractive} from './interactive.js?v=20261021-version16';
-import {defaultComposition,validateCompositionArtifact,compositionItems,createCompositionPreview,createCompositionEditor} from './composition.js?v=20261021-version16';
-import {exportComposition} from './composition-export.js?v=20261021-version16';
-import {validateImageArtifact,imageArtifactItems,createImagePreview,createImageEditor} from './image.js?v=20261021-version16';
-import {defaultWebpage,validateWebpage,webpageItems,renderWebpage,renderWebpageEditor,exportWebpage} from './webpage.js?v=20261021-version16';
-import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version16';
-import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version16';
+import {defaultInteractive,validateInteractive,interactiveItems,renderInteractive,renderInteractiveEditor,exportInteractive} from './interactive.js?v=20261021-version17';
+import {defaultComposition,validateCompositionArtifact,compositionItems,createCompositionPreview,createCompositionEditor} from './composition.js?v=20261021-version17';
+import {exportComposition} from './composition-export.js?v=20261021-version17';
+import {validateImageArtifact,imageArtifactItems,createImagePreview,createImageEditor} from './image.js?v=20261021-version17';
+import {defaultWebpage,validateWebpage,webpageItems,renderWebpage,renderWebpageEditor,exportWebpage} from './webpage.js?v=20261021-version17';
+import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version17';
+import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version17';
 /** Typed, text-only table/chart documents. No storage, network, or implicit downloads. */
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART_TYPES = ['flowchart','bar','line','pie'];
