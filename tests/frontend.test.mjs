@@ -89,7 +89,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version8"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version8"/);assert.match(html,/demo\.js\?v=20261021-version8/);assert.match(demo,/app\.js\?v=20261021-version8/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version9"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version9"/);assert.match(html,/demo\.js\?v=20261021-version9/);assert.match(demo,/app\.js\?v=20261021-version9/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -150,7 +150,7 @@ class FixtureNode {
  reportValidity(){return this.checkValidity();}
 }
 function fixtureDocument(){
- const doc={activeElement:null,createElement(tag){return new FixtureNode(tag,this);},createTextNode(text){return new FixtureNode('#text',this,text);},getElementById(id){return this.body.id===id?this.body:this.body.querySelector('#'+id);}};
+ const doc={activeElement:null,createElement(tag){return new FixtureNode(tag,this);},createElementNS(ns,tag){const node=new FixtureNode(tag,this);node.namespaceURI=ns;return node;},createTextNode(text){return new FixtureNode('#text',this,text);},getElementById(id){return this.body.id===id?this.body:this.body.querySelector('#'+id);}};
  doc.body=doc.createElement('body');doc.body.dataset={appMode:'fixture'};const root=doc.createElement('div');root.id='app';doc.body.append(root);return {doc,root};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
@@ -953,11 +953,11 @@ async function generatedItem(api,project,type){
  return call(api,'confirm_generate',p,{consent:true});
 }
 
-test('module registry preserves all twelve ordered choices and honestly enables only three text modules',async()=>{
+test('module registry preserves all twelve ordered choices and honestly enables three text modules and two structured artifacts',async()=>{
  const registry=[['titles','標題名稱'],['short_text','短文'],['article','長篇文章'],['illustrated','圖文'],['table','表格'],['chart','圖表'],['mindmap','心智圖'],['vector','向量圖形'],['image','圖片創作'],['poster','海報設計'],['webpage','網頁'],['interactive','互動視覺程式']];
- assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article']);
+ assert.deepEqual(MODULES.map(({id,label})=>[id,label]),registry);assert.deepEqual(MODULES.filter(module=>module.enabled).map(module=>module.id),['titles','short_text','article','table','chart']);
  const api=createDemoAdapter({seed:false});let p=await boundProject(api);
- for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
+ for(const [type] of registry){p=await call(api,'create_item',p,{type,title:`規劃 ${type}`});assert.equal(contentType(p),type);assert.equal(canCreate(p),['titles','short_text','article','table','chart'].includes(type));if(!canCreate(p)){const saved=structuredClone(p);for(const action of ['discuss','confirm_generate','fuse','snapshot'])await assert.rejects(call(api,action,p,{text:'不要假裝已實作',consent:true,items:[item()]}));assert.deepEqual((await api.request('project',{id:p.id})).project,saved);}}
 });
 
 test('module content validation distinguishes full short text and bounded stable paragraphs without truncation',()=>{
@@ -1171,4 +1171,116 @@ test('title editing retains every existing custom field without a redundant add-
   const original=project.versions.find(version=>version.id===project.officialVersionId);assert.ok(original.items.some(field=>field.id==='curatorial-note'));assert.equal(root.querySelectorAll('.editor-item').length,original.items.length);assert.ok(doc.getElementById('item-content-curatorial-note'));assert.equal(doc.getElementById('item-content-curatorial-note').value,original.items.find(field=>field.id==='curatorial-note').content);
   assert.ok(!root.querySelectorAll('button').some(button=>button.textContent==='＋ 新增內容欄位' || button.textContent==='＋ 新增段落'));
  });
+});
+
+async function artifactWorkspace(context,type){
+ const {source,app,doc}=context;
+ await call(source,'create_item',context.project,{type,title:type==='table'?'活動時段工作表':'參觀資料圖',description:'固定腳本整合測試'});await app.reload();
+ await fixtureFill(doc,'chat-input',type==='table'?'請使用虛構活動時段示範。':'請使用虛構參觀人次示範。');await fixtureClick(doc,'送出想法 ↗');
+ assert.equal(context.project.versions.length,0);assert.equal(context.project.phase,'summary');
+ await fixtureClick(doc,'確認方向並生成候選 ↗');assert.equal(context.project.versions.length,1);
+ const base=structuredClone(context.project.versions[0]);await fixtureCardClick(doc,base.id,'編輯');return base;
+}
+function artifactInput(doc,suffix){const node=doc.body.querySelector('.artifact-editor').querySelectorAll('input,textarea,select').find(input=>input.id.endsWith('-'+suffix));assert.ok(node,'artifact field '+suffix);return node;}
+async function artifactFill(doc,suffix,value){const node=artifactInput(doc,suffix);node.value=value;await node.dispatchEvent('input');}
+
+test('table renderer edits real columns rows cells and saves complete typed artifact through fetch without touching source',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,calls,root}=context,base=await artifactWorkspace(context,'table'),projectTitle=context.project.title;
+  assert.equal(root.querySelectorAll('.editor-panel').length,1);assert.equal(root.querySelector('.editor-items'),null);
+  const editor=root.querySelector('.artifact-editor'),cell=editor.querySelector('.artifact-cell-input');cell.value='  <img src=x onerror=alert(1)>\n原文  ';await cell.dispatchEvent('input');
+  const oldColumns=base.artifact.columns.map(c=>c.id),oldRows=base.artifact.rows.map(r=>r.id);await fixtureClick(doc,'新增欄位');await fixtureClick(doc,'新增資料列');
+  await fixtureClick(doc,'另存小修改 V1.1');const saved=context.project.versions.at(-1),request=calls.filter(c=>c.action==='snapshot').at(-1).payload;
+  assert.equal(request.items,undefined);assert.equal(request.action,'snapshot');assert.deepEqual(request.artifact,saved.artifact);assert.equal(saved.artifact.rows[0].cells[0],cell.value);
+  assert.deepEqual(saved.artifact.columns.slice(0,-1).map(c=>c.id),oldColumns);assert.deepEqual(saved.artifact.rows.slice(0,-1).map(r=>r.id),oldRows);
+  assert.equal(saved.artifact.columns.length,base.artifact.columns.length+1);assert.equal(saved.artifact.rows.length,base.artifact.rows.length+1);
+  assert.deepEqual(context.project.versions[0],base);assert.equal(saved.basedOnVersionId,base.id);assert.equal(context.project.title,projectTitle);assert.equal(context.project.officialVersionId,null);
+  assert.equal(root.querySelectorAll('img,script').length,0);assert.ok(root.textContent.includes('<img src=x onerror=alert(1)>'));assert.ok(root.querySelector('.artifact-data-table'));assert.equal(context.project.aiBinding.memberId,calls.find(c=>c.action==='confirm_generate').payload.approvedMemberId);
+ });
+});
+
+test('chart source editor preserves invalid drafts then saves data-driven SVG as a new immutable version',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,base=await artifactWorkspace(context,'chart');
+  await artifactFill(doc,'sourceText','類別\t人數\n甲\t=1');assert.equal(doc.getElementById('save-snapshot').disabled,true);assert.match(root.querySelector('.artifact-editor').textContent,/十進位/);
+  assert.equal(artifactInput(doc,'sourceText').value,'類別\t人數\n甲\t=1');assert.equal(calls.filter(c=>c.action==='snapshot').length,0);
+  const source='類別\t人數\n甲\t2\n乙\t5';await artifactFill(doc,'sourceText',source);
+  const type=artifactInput(doc,'chartType');type.value='line';await type.dispatchEvent('change');assert.ok(root.querySelector('.artifact-live-preview').querySelector('svg'));assert.ok(root.querySelector('.artifact-live-preview').querySelector('polyline'));
+  await fixtureClick(doc,'另存新版本 V2');const next=context.project.versions.at(-1),payload=calls.filter(c=>c.action==='snapshot').at(-1).payload;
+  assert.equal(next.artifact.sourceText,source);assert.equal(next.artifact.chartType,'line');assert.deepEqual(payload.artifact,next.artifact);assert.deepEqual(context.project.versions[0],base);assert.equal(next.minor,0);assert.equal(next.basedOnVersionId,base.id);
+  assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='匯出 SVG'));assert.ok(root.querySelectorAll('button').some(b=>b.textContent==='複製文字來源'));
+ });
+});
+
+test('artifact candidate refinement promotes full reviewed artifact and keeps project and item metadata unchanged',async()=>{
+ for(const type of ['table','chart'])await withLiveFixture(async context=>{
+  const {doc,calls,root}=context,base=await artifactWorkspace(context,type),projectTitle=context.project.title,itemTitle=context.project.activeItem.title;
+  const text=type==='table'?'請把表格說明改為「新版時段說明」':'請把圖表標題改為「新版參觀資料」';
+  await fixtureFill(doc,'chat-input',text);await fixtureClick(doc,'送出想法 ↗');const revision=structuredClone(context.project.versions.at(-1));
+  assert.equal(revision.source,'revision');assert.equal(revision.minor,1);assert.equal(revision.basedOnVersionId,base.id);assert.equal(context.project.officialVersionId,null);
+  assert.ok(doc.getElementById('revision-review').querySelector('.artifact-preview'));assert.equal(calls.filter(c=>c.action==='discuss').at(-1).payload.baseVersionId,base.id);
+  await fixtureClick(doc,'採用這次修改');await fixtureClick(doc,'確認採用這次修改');
+  assert.equal(context.project.officialVersionId,revision.id);assert.deepEqual(context.project.versions.at(-1),revision);assert.deepEqual(context.project.versions[0],base);
+  assert.equal(context.project.title,projectTitle);assert.equal(context.project.activeItem.title,itemTitle);assert.ok(root.querySelector('.official-card').querySelector('.artifact-preview'));
+ });
+});
+
+test('artifact comparison renders the exact selected data without generating or relabeling versions',async()=>{
+ await withLiveFixture(async context=>{
+  const {doc,root,calls}=context,base=await artifactWorkspace(context,'chart');await artifactFill(doc,'title','另一個圖表標題');await fixtureFill(doc,'editor-goal','本版優先看分類差異，不推斷因果。');await fixtureClick(doc,'另存新版本 V2');
+  const versions=structuredClone(context.project.versions),other=versions.at(-1);await fixtureVersionSelect(doc,base.id);await fixtureVersionSelect(doc,other.id);await fixtureClick(doc,'請 AI 提供比較意見 ↗');
+  const comparison=context.project.comparisons.at(-1),section=doc.getElementById('comparison-section');assert.equal(section.querySelectorAll('svg').length,2);assert.equal(section.querySelectorAll('.artifact-data-table').length,2);
+  assert.deepEqual(comparison.versionIds,[base.id,other.id]);assert.deepEqual(context.project.versions,versions);assert.equal(calls.filter(c=>c.action==='compare').length,1);assert.equal(calls.filter(c=>c.action==='fuse').length,0);assert.ok(root.textContent.includes('本版優先看分類差異'));
+ });
+});
+
+test('artifact exports and pinned references retain native structure independently of later manual snapshots',async()=>{
+ const source=createDemoAdapter({seed:false});let p=await boundProject(source);p=await call(source,'create_item',p,{type:'table',title:'引用表格'});
+ p=await call(source,'discuss',p,{text:'請使用虛構活動時段示範。',consent:true});p=await call(source,'confirm_generate',p,{consent:true});const base=structuredClone(p.versions[0]),sourceItem=p.activeItemId;
+ p=await call(source,'create_item',p,{type:'titles',title:'引用名稱'});p=await call(source,'attach_reference',p,{targetItemId:sourceItem,versionId:base.id});const pinned=structuredClone(p.references[0]);assert.deepEqual(pinned.versionSnapshot.artifact,base.artifact);
+ const exported=exportProject(p);assert.deepEqual(exported.project.creativeItems.find(item=>item.id===sourceItem).versions[0].artifact,base.artifact);
+ p=await call(source,'select_item',p,{itemId:sourceItem});const edited=structuredClone(base.artifact);edited.caption='來源後續版本';p=await call(source,'snapshot',p,{artifact:edited,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'保留原資料，只修改說明。'});
+ assert.deepEqual(p.versions[0],base);p=await call(source,'select_item',p,{itemId:p.creativeItems.find(item=>item.type==='titles'&&item.title==='引用名稱').id});assert.deepEqual(p.references[0],pinned);
+});
+
+test('flowchart choice generates only after confirmation then edits native source through the actual fetch boundary',async()=>{
+ await withLiveFixture(async context=>{
+  const {source,app,doc,root,calls}=context;await call(source,'create_item',context.project,{type:'chart',title:'創作流程'});await app.reload();
+  assert.equal(artifactInput(doc,'chartType').value,'flowchart');assert.match(artifactInput(doc,'sourceText').value,/flowchart TD/);
+  await fixtureFill(doc,'chat-input','請使用流程圖示範。');await fixtureClick(doc,'送出想法 ↗');assert.equal(context.project.versions.length,0);assert.equal(context.project.phase,'summary');
+  await fixtureClick(doc,'確認方向並生成候選 ↗');const base=structuredClone(context.project.versions[0]);assert.equal(base.artifact.chartType,'flowchart');assert.match(base.artifact.sourceText,/Review -->/);assert.match(context.project.messages.at(-1).text,/虛構.*流程/);await fixtureCardClick(doc,base.id,'編輯');
+  const unsafe='flowchart TD\nA[foo]; click A call evil(); X[bar]';await artifactFill(doc,'sourceText',unsafe);assert.equal(doc.getElementById('save-minor').disabled,true);assert.equal(artifactInput(doc,'sourceText').value,unsafe);assert.equal(calls.filter(call=>call.action==='snapshot').length,0);
+  const sourceText='flowchart LR\nStart("開始")\nCheck{"確認方向？"}\nReady["建立候選"]\nStart --> Check\nCheck -->|未確認| Start\nCheck -->|確認| Ready';await artifactFill(doc,'sourceText',sourceText);assert.equal(doc.getElementById('save-minor').disabled,false);assert.ok(root.querySelector('.artifact-live-preview').querySelector('svg'));
+  await fixtureClick(doc,'另存小修改 V1.1');const saved=context.project.versions.at(-1),request=calls.filter(call=>call.action==='snapshot').at(-1).payload;assert.equal(request.action,'snapshot');assert.equal(request.artifact.sourceText,sourceText);assert.equal(request.items,undefined);assert.equal(saved.basedOnVersionId,base.id);assert.equal(saved.artifact.chartType,'flowchart');assert.equal(saved.artifact.sourceText,sourceText);assert.deepEqual(context.project.versions[0],base);assert.equal(context.project.officialVersionId,null);assert.ok(root.querySelectorAll('button').some(button=>button.textContent==='匯出 MMD'));
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator'),copies=[];Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>copies.push(text)}}});
+  try{const card=doc.getElementById('version-'+saved.id),copy=card.querySelectorAll('button').find(button=>button.textContent==='複製文字來源');assert.ok(copy);const count=calls.length;await copy.dispatchEvent('click');await settle();assert.deepEqual(copies,[sourceText]);assert.equal(calls.length,count);}finally{if(descriptor)Object.defineProperty(globalThis,'navigator',descriptor);else delete globalThis.navigator;}
+ });
+});
+
+test('flowchart mode switching preserves the complete draft, never translating or replacing source silently',async()=>{
+ await withLiveFixture(async context=>{
+  const {source,app,doc,calls}=context;await call(source,'create_item',context.project,{type:'chart',title:'流程與資料選型'});await app.reload();const original=artifactInput(doc,'sourceText').value;
+  let select=artifactInput(doc,'chartType');select.value='bar';await select.dispatchEvent('change');assert.equal(artifactInput(doc,'sourceText').value,original);assert.equal(doc.getElementById('save-snapshot').disabled,true);
+  select=artifactInput(doc,'chartType');select.value='flowchart';await select.dispatchEvent('change');assert.equal(artifactInput(doc,'sourceText').value,original);assert.ok(doc.body.querySelector('.artifact-live-preview').querySelector('svg'));assert.equal(calls.filter(call=>['snapshot','discuss','generate','confirm_generate'].includes(call.action)).length,0);
+ });
+});
+
+test('flowchart comparison and explicit fusion keep native source snapshots, lineage and the fixed member',async()=>{
+ await withLiveFixture(async context=>{
+  const {source,app,doc,calls}=context;let p=await call(source,'create_item',context.project,{type:'chart',title:'流程融合'});p=await call(source,'discuss',p,{text:'請使用流程圖示範。',consent:true});p=await call(source,'confirm_generate',p,{consent:true});const base=structuredClone(p.versions[0]),a=structuredClone(base.artifact),b=structuredClone(base.artifact);a.sourceText+='\nFinish["交付"]\nDraft --> Finish';b.sourceText+='\nArchive["留存紀錄"]\nDraft --> Archive';
+  p=await call(source,'snapshot',p,{artifact:a,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'加上明確交付步驟。'});const first=structuredClone(p.versions.at(-1));p=await call(source,'snapshot',p,{artifact:b,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'加上紀錄留存步驟。'});const second=structuredClone(p.versions.at(-1));await app.reload();await fixtureVersionSelect(doc,first.id);await fixtureVersionSelect(doc,second.id);await fixtureClick(doc,'請 AI 提供比較意見 ↗');assert.equal(context.project.versions.length,3);assert.equal(doc.getElementById('comparison-section').querySelectorAll('svg').length,2);
+  await fixtureFill(doc,'fuse-question','保留完整節點，合併兩版已明確提供的連線。');await fixtureClick(doc,'融合所選版本為新候選 ↗');const fused=context.project.versions.at(-1),request=calls.filter(call=>call.action==='fuse').at(-1).payload;
+  assert.equal(context.project.versions.length,4);assert.equal(fused.source,'fusion');assert.equal(fused.minor,0);assert.match(fused.artifact.sourceText,/Finish\["交付"\]/);assert.match(fused.artifact.sourceText,/Archive\["留存紀錄"\]/);assert.deepEqual(fused.fusionSourceVersionIds,[first.id,second.id]);assert.deepEqual(fused.fusionSourceSnapshots.map(v=>v.artifact),[first.artifact,second.artifact]);assert.deepEqual(context.project.versions.slice(0,3),[base,first,second]);assert.equal(context.project.officialVersionId,null);assert.equal(request.approvedMemberId,context.project.aiBinding.memberId);assert.equal(calls.filter(call=>call.action==='fuse').length,1);
+ });
+});
+
+test('scripted artifact fusion rejects a union already present in any selected source instead of minting a fake revision',async()=>{
+ for(const kind of ['table','bar','flowchart']){
+  const source=createDemoAdapter({seed:false});let p=await boundProject(source);p=await call(source,'create_item',p,{type:kind==='table'?'table':'chart',title:'拒絕假融合'});p=await call(source,'discuss',p,{text:kind==='table'?'請使用虛構活動時段示範。':kind==='bar'?'請使用虛構參觀人次示範。':'請使用流程圖示範。',consent:true});p=await call(source,'confirm_generate',p,{consent:true});const base=p.versions[0],artifact=structuredClone(base.artifact);
+  if(kind==='table')artifact.rows.push({id:'extra_row',cells:artifact.columns.map((column,index)=>'新增 '+index)});
+  else if(kind==='bar')artifact.sourceText=artifact.sourceText.replace(/\n$/,'')+'\n新增分類\t20';
+  else artifact.sourceText+='\nFinish["結束"]\nDraft --> Finish';
+  p=await call(source,'snapshot',p,{artifact,basedOnVersionId:base.id,versionMode:'minor',goalAndRationale:'來源本身已包含全部資料，無新整合。'});const before=structuredClone(p),ids=[base.id,p.versions.at(-1).id];
+  await assert.rejects(call(source,'fuse',p,{versionIds:ids,question:'不要僅複製任何來源。',consent:true}),/未變動|已包含|已完整存在|沒有.*新|沒有.*融合|沒有可新增/);const after=(await source.request('project',{id:p.id})).project;assert.deepEqual(after,before);
+ }
 });

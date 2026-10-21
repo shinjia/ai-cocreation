@@ -18,8 +18,10 @@ try {
         ensure(isset($_SERVER['HTTP_X_CSRF_TOKEN'])&&hash_equals($_SESSION['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']),'CSRF_REJECTED','工作階段已失效，請重新整理。',403);
         ensure(isset($_SERVER['CONTENT_TYPE'])&&preg_match('#^application/json(?:;|$)#i',$_SERVER['CONTENT_TYPE']),'CONTENT_TYPE','只接受 JSON 請求。',415);
         $raw=file_get_contents('php://input',false,null,0,1048577);ensure(is_string($raw)&&strlen($raw)<=1048576,'BODY_LIMIT','請求過大。',413);
-        try{$input=json_decode($raw,true,32,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('INVALID_JSON','JSON 格式不正確。');}
+        try{$rawInput=json_decode($raw,false,32,JSON_THROW_ON_ERROR);$input=json_decode($raw,true,32,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('INVALID_JSON','JSON 格式不正確。');}
         ensure(is_array($input)&&isset($input['action'])&&is_string($input['action']),'INVALID_INPUT','請求格式不正確。');
+        // Preserve the JSON object/array distinction before associative decoding loses it.
+        if(is_object($rawInput)&&property_exists($rawInput,'artifact'))validateArtifactJsonShape($rawInput->artifact);
         @set_time_limit((int)ceil($config['model_timeout_ms']/1000)+20);$result=$app->action($input);
     }
     if(session_status()===PHP_SESSION_ACTIVE)session_write_close();echo jsonEncode($result);

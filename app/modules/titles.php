@@ -21,7 +21,7 @@ class TitleModule {
         $out=array();foreach($project['messages'] as $message){$entry=array_intersect_key($message,array_flip(array('id','role','text','kind','at','versionIds','comparisonId','goalSnapshot','provenance','question','choices','choiceAnswer')));if(field($entry,'role')==='student')$entry['role']='user';$out[]=$entry;}return $out;
     }
     protected function creativeVersions($versions) {
-        $out=array();foreach($versions as $version)$out[]=array_intersect_key($version,array_flip(array('id','number','major','minor','title','items','rationale','source','basedOnVersionId','goalSnapshot','goalText','goalSource','goalAndRationale','changeSummary','discussionMessageIds','provenance','createdAt','fusionSourceVersionIds')));return $out;
+        $out=array();foreach($versions as $version)$out[]=array_intersect_key($version,array_flip(array('id','number','major','minor','title','items','artifact','contentType','rationale','source','basedOnVersionId','goalSnapshot','goalText','goalSource','goalAndRationale','changeSummary','discussionMessageIds','provenance','createdAt','fusionSourceVersionIds')));return $out;
     }
     protected function context($project) {
         return array('projectTitle'=>$project['title'],'projectDescription'=>$project['description'],'creativeItemTitle'=>$project['activeItem']['title'],'creativeItemDescription'=>$project['activeItem']['description'],'pinnedReferences'=>$project['references'],'dialogue'=>$this->dialogue($project),'creativeGoal'=>$project['brief'],'goalApprovedAt'=>$project['goalApprovedAt'],'officialVersionId'=>$project['officialVersionId'],'versions'=>$this->creativeVersions($project['versions']));

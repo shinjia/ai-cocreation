@@ -22,7 +22,7 @@ function operationOutcome($error) {
     if(!($error instanceof AppError)||$error->errorCode==='REQUEST_ALREADY_ATTEMPTED')return 'unknown';
     // Rejected means no valid result was saved, NOT that a provider charged nothing.
     // Never classify transport errors, generic 5xx or a failed journal write as safe.
-    $rejected=array('MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
+    $rejected=array('MODEL_OUTPUT_INVALID','MODEL_NO_REVISION','MODEL_INCOMPLETE','MODEL_REFUSAL','MODEL_FAILED','MODEL_RESPONSE_TOO_LARGE','MODEL_QUESTION_COUNT','MODEL_CLARIFICATION_CLAIM','MODEL_CLARIFICATION_ITEMS','MODEL_CLARIFICATION_ARTIFACT','OPENAI_HTTP_ERROR','OLLAMA_HTTP_ERROR','OLLAMA_MODEL_ERROR');
     return $error->status<500||in_array($error->errorCode,$rejected,true)?'rejected':'unknown';
 }
 function errorResponse($error) { return array('error'=>array('code'=>$error instanceof AppError?$error->errorCode:'INTERNAL_ERROR','message'=>$error instanceof AppError?$error->getMessage():'處理未完成。請先檢查最新狀態，再檢查伺服器環境；不要直接重複提交。','operationOutcome'=>operationOutcome($error))); }
@@ -114,6 +114,7 @@ function inferenceGrowthBudget($project,$action,$input=array()) {
         return 2*$references+$brief+$context+$sourceBytes+($long?1200000:600000);
     }
     if($action==='confirm_generate')$action='generate';
+    if(artifactType($type)&&($action==='generate'||($action==='discuss'&&$hasSource)))return 2*$references+$brief+$context+650000;
     if($long&&$action==='discuss'&&$hasSource)return 2*$references+$brief+$context+1200000;
     if($long&&$action==='generate')return 2*$references+$brief+$context+1300000;
     if($type==='short_text'&&$action==='generate')return 4*$references+3*$brief+3*$context+1000000;

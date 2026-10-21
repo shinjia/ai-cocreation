@@ -76,3 +76,10 @@ test('maximum article manual snapshot fits actual HTTP envelope including worst-
  const result=await api.request('snapshot',payload),bytes=Buffer.byteLength(JSON.stringify(result.accepted));
  assert.ok(bytes>800000);assert.ok(bytes<cap);assert.deepEqual(result.accepted.items,payload.items);assert.equal(result.accepted.action,'snapshot');
 });
+
+test('typed native artifacts retain real nested arrays and action across JSON transport with a server raw-shape guard',async t=>{
+ fixture(t,async(url,options)=>options.method==='POST'?phpEnvelopeContract(options):response({csrf}));
+ const api=createApiAdapter();await api.request('state');const artifact={kind:'table',caption:'原文\n第二行',columns:[{id:'a',label:'欄位\n說明'}],rows:[{id:'r',cells:['  保留文字\n換行  ']}]};const result=await api.request('snapshot',{id:'p',itemId:'i',revision:1,artifact});
+ assert.deepEqual(result.accepted.artifact,artifact);assert.ok(Array.isArray(result.accepted.artifact.rows));assert.ok(Array.isArray(result.accepted.artifact.rows[0].cells));
+ const source=await readFile(new URL('../public/api.php',import.meta.url),'utf8');assert.match(source,/\$rawInput=json_decode\(\$raw,false,32,JSON_THROW_ON_ERROR\)/);assert.match(source,/property_exists\(\$rawInput,'artifact'\)\)validateArtifactJsonShape\(\$rawInput->artifact\)/);assert.ok(source.indexOf('validateArtifactJsonShape')<source.indexOf('$app->action($input)'));
+});

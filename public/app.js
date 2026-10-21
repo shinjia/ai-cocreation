@@ -1,3 +1,4 @@
+import {isArtifactType,defaultArtifact,validateArtifact,artifactItems,cloneArtifact,renderArtifact,renderArtifactEditor,exportArtifact} from './artifacts.js?v=20261021-version9';
 /** AI共創工作室: local PHP-backed UI. No key or project content is written to browser storage. */
 export const DEFAULT_MODEL = 'gpt-5.4-mini';
 export const MODULES = [
@@ -5,8 +6,8 @@ export const MODULES = [
   {id:'short_text',label:'短文',enabled:true},
   {id:'article',label:'長篇文章',enabled:true},
   {id:'illustrated',label:'圖文',enabled:false},
-  {id:'table',label:'表格',enabled:false},
-  {id:'chart',label:'圖表',enabled:false},
+  {id:'table',label:'表格',enabled:true},
+  {id:'chart',label:'圖表',enabled:true},
   {id:'mindmap',label:'心智圖',enabled:false},
   {id:'vector',label:'向量圖形',enabled:false},
   {id:'image',label:'圖片創作',enabled:false},
@@ -62,16 +63,17 @@ export function officialItemTitle(items) {
   return points.length>59?points.slice(0,59).join('')+'…':name;
 }
 export function validItems(items,type='titles') {
-  if(!['titles','short_text','article'].includes(type))return false;
-  const max=type==='short_text'?1:type==='article'?80:12,limit=type==='short_text'?12000:6000,total=type==='short_text'?12000:type==='article'?120000:24000;
+  if(!['titles','short_text','article','table','chart'].includes(type))return false;
+  const max=isArtifactType(type)?1:type==='short_text'?1:type==='article'?80:12,limit=isArtifactType(type)?60000:type==='short_text'?12000:6000,total=isArtifactType(type)?60000:type==='short_text'?12000:type==='article'?120000:24000;
   if(!Array.isArray(items) || items.length<1 || items.length>max)return false;
+  if(isArtifactType(type) && (items.length!==1 || items[0].id!=='document' || items[0].label!==(type==='table'?'表格內容':'圖表來源')))return false;
   if(type==='short_text' && (items[0].id!=='body' || items[0].label!=='全文'))return false;
   const bytes=value=>new TextEncoder().encode(value).length;
   return new Set(items.map(item=>item.id)).size===items.length && new Set(items.map(item=>typeof item.label==='string'?item.label.trim():item.label)).size===items.length && items.every(item=>typeof item.id==='string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(item.id) && typeof item.label==='string' && item.label.trim() && bytes(item.label)<=120 && typeof item.content==='string' && item.content.trim() && bytes(item.content)<=limit) && items.reduce((sum,item)=>sum+bytes(item.content),0)<=total;
 }
 export function contentItemsError(items,type='titles') {
   if(validItems(items,type))return '';
-  const max=type==='article'?80:type==='short_text'?1:12,limit=type==='short_text'?12000:6000,total=type==='article'?120000:type==='short_text'?12000:24000;
+  const max=isArtifactType(type)?1:type==='article'?80:type==='short_text'?1:12,limit=isArtifactType(type)?60000:type==='short_text'?12000:6000,total=isArtifactType(type)?60000:type==='article'?120000:type==='short_text'?12000:24000;
   if(!Array.isArray(items) || !items.length || items.length>max)return `請保留 1–${max} 個完整內容欄位。`;
   if(type==='short_text' && (items.length!==1 || items[0].id!=='body' || items[0].label!=='全文'))return '短文需完整保存在「全文」欄位。';
   if(items.some(item=>typeof item.label!=='string' || !item.label.trim() || typeof item.content!=='string' || !item.content.trim()))return '請填妥每個保留欄位的名稱與內容。';
@@ -236,7 +238,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const id=project?`${project.id}:${project.activeItemId || 'default'}`:'_empty';
     if(!drafts.has(id)) {
       const official=project?.versions.find(v=>v.id===project.officialVersionId);
-      drafts.set(id,{chat:'',items:official?versionItems(official):[{id:contentType(project)==='short_text'?'body':createRequestId(),label:contentType(project)==='short_text'?'全文':contentType(project)==='article'?'第 1 段':'中文名稱',content:''}],goalAndRationale:official?versionGoalAndRationale(official):project?.goalApprovedAt?project.brief?.summary || '':'',metadataEdited:false,basedOnVersionId:official?.id || null,dirty:false,instruction:'',question:'',fusionQuestion:'',targetItemIds:[]});
+      drafts.set(id,{chat:'',artifact:isArtifactType(contentType(project))?cloneArtifact(official?.artifact || defaultArtifact(contentType(project))):null,items:official?versionItems(official):[{id:contentType(project)==='short_text'?'body':createRequestId(),label:contentType(project)==='short_text'?'全文':contentType(project)==='article'?'第 1 段':'中文名稱',content:''}],goalAndRationale:official?versionGoalAndRationale(official):project?.goalApprovedAt?project.brief?.summary || '':'',metadataEdited:false,basedOnVersionId:official?.id || null,dirty:false,instruction:'',question:'',fusionQuestion:'',targetItemIds:[]});
     }
     const saved=drafts.get(id);
     if(!saved.basedOnVersionId && !saved.metadataEdited && !saved.goalAndRationale && project?.goalApprovedAt)saved.goalAndRationale=project.brief?.summary || '';
@@ -477,16 +479,17 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     if(!canCreate(project) || isArchivedVersion(project,version.id)){flash('請先還原這個版本，再帶入工作區編輯。');return;}
     const d=draft();
     if(d.dirty && !await showDialog({title:'改用這個版本繼續編輯？',body:['目前工作區有尚未保存的修改。改用另一個版本會替換這份編輯草稿；已保存的所有版本都不受影響。'],confirmLabel:'替換編輯草稿'})){render();return;}
-    d.items=versionItems(version);d.goalAndRationale=versionGoalAndRationale(version);d.metadataEdited=false;d.basedOnVersionId=version.id;d.targetItemIds=[];d.dirty=false;
+    d.artifact=isArtifactType(contentType(project))?cloneArtifact(version.artifact || defaultArtifact(contentType(project))):null;d.items=versionItems(version);d.goalAndRationale=versionGoalAndRationale(version);d.metadataEdited=false;d.basedOnVersionId=version.id;d.targetItemIds=[];d.dirty=false;
     render();if(focus){document.getElementById(focus)?.focus();document.getElementById(focus)?.scrollIntoView({behavior:'smooth',block:'center'});}
   }
   async function saveSnapshot(versionMode='major') {
     const d=draft(),base=project.versions.find(v=>v.id===d.basedOnVersionId);
     if(combinedMetadataError(d.goalAndRationale)){flash(combinedMetadataError(d.goalAndRationale));return;}
-    if(!canSnapshot(project,d.basedOnVersionId) || !validItems(d.items,contentType(project))){flash(contentItemsError(d.items,contentType(project)) || '請先確認目標或選擇既有來源版本。');return;}
+    const typed=isArtifactType(contentType(project)),contentError=typed?validateArtifact(d.artifact,contentType(project)):contentItemsError(d.items,contentType(project));
+    if(!canSnapshot(project,d.basedOnVersionId) || contentError){flash(contentError || '請先確認目標或選擇既有來源版本。');return;}
     if((versionMode==='minor' && !base) || (base && isArchivedVersion(project,base.id))){flash('請先選擇一個未封存的來源版本，或還原原本的來源。');return;}
     const target=versionLabel(nextVersionCoordinates(project,versionMode,base));
-    const ok=await mutate('snapshot',{id:project.id,revision:project.revision,items:d.items.map(item=>({id:item.id,label:item.label.trim(),content:contentType(project)==='titles'?item.content.trim():item.content})),goalAndRationale:d.goalAndRationale,basedOnVersionId:d.basedOnVersionId,versionMode},`已保存 ${target}。原版本沒有被修改，也沒有自動變更正式版。`);
+    const ok=await mutate('snapshot',{id:project.id,revision:project.revision,...(typed?{artifact:cloneArtifact(d.artifact)}:{items:d.items.map(item=>({id:item.id,label:item.label.trim(),content:contentType(project)==='titles'?item.content.trim():item.content}))}),goalAndRationale:d.goalAndRationale,basedOnVersionId:d.basedOnVersionId,versionMode},`已保存 ${target}。原版本沒有被修改，也沒有自動變更正式版。`);
     if(ok){d.basedOnVersionId=project.versions[project.versions.length-1]?.id || d.basedOnVersionId;d.dirty=false;render();}
   }
   async function archiveVersion(version,restore=false) {
@@ -715,7 +718,8 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     append(form,el('label','field-label',source?`以 ${versionLabel(source)} 為來源繼續討論`:'你的想法',{for:'chat-input'}),input,el('p','composer-hint',!canCreate(project)?'目前項目為唯讀，對話完整保留。請先還原或重新開啟。':source?'明確修改會另存完整的小版本，不會自動採用。可直接選擇候選作為來源，不必先設為正式版。':project.phase==='summary'?'方向已準備好，可以確認並生成；你也可以繼續輸入補充，不會自動開始生成。':'方向足夠時，AI 會主動整理。你也可以隨時按「整理目前方向」，不必固定聊滿幾次。'));
     if(source)append(form,el('p','composer-hint',`目前修改來源：${versionLabel(source)}${source.id===project.officialVersionId?' · 正式版':' · 候選'}。在下方工作區的來源選單或版本樹可更換。`),button('選擇來源與修改範圍',()=>{document.getElementById('editor-source')?.focus();document.getElementById('editor-source')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy));
     const rangeReason=refinementRangeError(project,source?.id,draft().targetItemIds);if(rangeReason)form.append(el('p','composer-hint range-warning',rangeReason,{role:'status'}));
-    if(demo && source)form.append(el('p','composer-hint',contentType(project)==='article'?'固定修改示範：先勾選段落，再輸入「請把選取段落改為「你的新文字」」。僅逐字替換，不是真實 AI。':contentType(project)==='short_text'?'固定修改示範：請把全文改為「你的新文字」。僅逐字替換，不是真實 AI。':'固定修改示範：請把第一項內容改為「你的新文字」，或請把本版目標改為「你的新目標」。僅逐字替換，不是真實 AI。'));
+    if(demo && source && isArtifactType(contentType(project)))form.append(el('p','composer-hint',contentType(project)==='table'?'固定腳本：請把表格說明改為「新說明」。只逐字替換說明；列與欄的其他修改請用工作區編輯，不是真實 AI。':'固定腳本：請把圖表標題改為「新標題」。只逐字替換標題；流程或數據請用來源文字編輯，不是真實 AI。'));
+    if(demo && source && !isArtifactType(contentType(project)))form.append(el('p','composer-hint',contentType(project)==='article'?'固定修改示範：先勾選段落，再輸入「請把選取段落改為「你的新文字」」。僅逐字替換，不是真實 AI。':contentType(project)==='short_text'?'固定修改示範：請把全文改為「你的新文字」。僅逐字替換，不是真實 AI。':'固定修改示範：請把第一項內容改為「你的新文字」，或請把本版目標改為「你的新目標」。僅逐字替換，不是真實 AI。'));
     const actions=el('div','composer-actions');
     const send=button(busy?'處理中…':'送出想法 ↗',sendDiscussion,'primary',discussionBlocked() || !draft().chat.trim());send.id='send-chat';
     append(actions,button('整理目前方向',summarizeGoal,'small',busy || !canSummarize(project) || !!uncertain || !!aiSetupReason(state,demo,project)),send);append(form,actions);panel.append(form);return panel;
@@ -831,7 +835,20 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     else append(context,el('p','context-copy context-missing','未記錄獨立的討論關聯；仍可查看既有來源對話。'));
     return context;
   }
+  function downloadArtifact(version,format) {
+    try {const file=exportArtifact(version.artifact,format),url=URL.createObjectURL(new Blob([file.text],{type:file.mime}));const link=el('a','',null,{href:url,download:`${versionLabel(version)}-${file.filename}`});document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){flash(e.message || '匯出未完成，原版本沒有改動。');}
+  }
   function renderBundle(version,official=false) {
+    if(isArtifactType(version?.contentType || contentType(project))){
+      const wrap=el('div','artifact-bundle');
+      if(!version?.artifact){wrap.append(el('p','empty-small','此版本缺少結構化作品資料，無法安全預覽；沒有補造內容。'));return wrap;}
+      try{wrap.append(renderArtifact(version.artifact,{document}));}catch(e){wrap.append(el('p','inline-error',e.message || '結構化作品無法預覽。'));return wrap;}
+      const tools=el('div','artifact-downloads');
+      const sourceFormat=version.artifact.chartType==='flowchart'?'mmd':'tsv';
+      for(const format of version.artifact.kind==='table'?['csv','tsv']:['svg',sourceFormat])tools.append(button(`匯出 ${format.toUpperCase()}`,()=>downloadArtifact(version,format),'subtle small',false));
+      if(version.artifact.kind==='chart')tools.append(button('複製文字來源',async()=>{try{if(!navigator.clipboard?.writeText)throw new Error(`此瀏覽器無法直接複製，請匯出 ${sourceFormat.toUpperCase()} 後自行複製文字。`);await navigator.clipboard.writeText(exportArtifact(version.artifact,sourceFormat).text);flash('已複製本版文字來源；外部工具的匯入規格需自行核對，不會自動同步。');}catch(e){flash(e.message || `複製未完成，請改用 ${sourceFormat.toUpperCase()} 匯出。`);}},'subtle small',false));
+      append(wrap,tools,el('p','composer-hint','匯出與複製都只處理這個已保存版本，不呼叫 AI、不改正式版。'+(version.artifact.chartType==='flowchart'?'流程圖支援受限 Mermaid 文字語法；外部工具的相容性尚未驗證。':'試算表文字匯出會為可能的公式文字加前置單引號；完整原始文字仍保存在專案 JSON。')));return wrap;
+    }
     const bundle=el('div',`naming-bundle ${official?'official-bundle':''} ${(version?.contentType || contentType(project))==='titles'?'':'text-content-bundle'}`);
     versionItems(version).forEach((item,index)=>{
       const entry=el('div',`bundle-item content-tone-${index%4}`,null,{'data-item-id':item.id});
@@ -842,7 +859,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const d=draft(),base=project.versions.find(v=>v.id===d.basedOnVersionId),type=contentType(project);
     const section=el('section',`panel editor-panel ${type!=='titles'?'text-editor-panel':''}`,null,{'aria-labelledby':'editor-heading'});
     append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','版本微調工作區'),el('h2','','編輯創作內容',{id:'editor-heading'})),el('span','badge',d.dirty?'尚未保存':'自由修改')));
-    append(section,el('p','editor-provenance',base?`延續 ${versionLabel(base)}。儲存會另建一份完整的新版本，不會修改來源。`:type==='short_text'?'每個版本完整保存一篇短文。':type==='article'?'每段都有固定識別碼；AI 僅修改你勾選的段落，其餘段落原文保留。':'每個版本保存名稱、Slogan 與既有自訂內容的完整一組欄位。'));
+    append(section,el('p','editor-provenance',base?`延續 ${versionLabel(base)}。儲存會另建一份完整的新版本，不會修改來源。`:isArtifactType(type)?'編輯完整結構化作品。列、欄、資料來源與預覽會一起保存成新版本。':type==='short_text'?'每個版本完整保存一篇短文。':type==='article'?'每段都有固定識別碼；AI 僅修改你勾選的段落，其餘段落原文保留。':'每個版本保存名稱、Slogan 與既有自訂內容的完整一組欄位。'));
     const source=el('select','',null,{id:'editor-source','aria-label':'選擇 AI 與手動微調的來源版本',disabled:busy || !!uncertain || !canCreate(project)});
     source.append(el('option','',project.officialVersionId?'未指定手動來源（AI 仍以目前正式版為起點）':'未指定來源（先討論方向／手動只可另存大版本）',{value:''}));
     project.versions.forEach(version=>{if(isArchivedVersion(project,version.id) && version.id!==d.basedOnVersionId)return;const option=el('option','',`${versionLabel(version)}${version.id===project.officialVersionId?' · 目前正式版':''}${isArchivedVersion(project,version.id)?' · 已封存，需先還原':''} · ${version.title}`,{value:version.id,disabled:isArchivedVersion(project,version.id)});option.selected=version.id===d.basedOnVersionId;source.append(option);});
@@ -855,8 +872,13 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       append(range,el('p','composer-hint',`已選 ${d.targetItemIds.length} 段。沒有預設全選；未選段落保持原文。這個範圍只控制 AI 微調，下方手動欄位仍是完整版本。`,{id:'refinement-range-note'}));section.append(range);
     }
     if(base)append(section,button('回到對談提出修改',()=>{document.getElementById('chat-input')?.focus();document.getElementById('chat-input')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy || !canCreate(project)));
-    const blocked=()=>busy || !!uncertain || !!combinedMetadataError(d.goalAndRationale) || !validItems(d.items,contentType(project)) || !canSnapshot(project,d.basedOnVersionId) || (!!base && isArchivedVersion(project,base.id));
-    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || contentItemsError(d.items,type) || '草稿尚未保存。重新整理頁面會遺失草稿。';};
+    const contentError=()=>isArtifactType(type)?validateArtifact(d.artifact,type):contentItemsError(d.items,type);
+    const blocked=()=>busy || !!uncertain || !!combinedMetadataError(d.goalAndRationale) || !!contentError() || !canSnapshot(project,d.basedOnVersionId) || (!!base && isArchivedVersion(project,base.id));
+    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || contentError() || '草稿尚未保存。重新整理頁面會遺失草稿。';};
+    if(isArtifactType(type)){
+      section.append(renderArtifactEditor(d.artifact,{document,disabled:busy || !!uncertain || !canCreate(project),idPrefix:'artifact-editor',onChange:value=>{d.artifact=cloneArtifact(value);if(!validateArtifact(d.artifact,type))d.items=artifactItems(d.artifact);update();}}));
+      section.append(el('p','composer-hint',type==='table'?'表格是獨立的列、欄、儲存格資料；每次保存保留完整結構，不把它當一般文字欄位。':'圖表由下方文字資料即時預覽。可修改來源，再保存完整新版本；不自動同步任何外部工具，圖坊的匯入規格尚未核對。'));
+    }else{
     const items=el('div','editor-items');
     d.items.forEach((item,index)=>{
       const row=el('div',`editor-item content-tone-${index%4}`);
@@ -871,12 +893,14 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     if(type==='article')append(section,button('＋ 新增段落',()=>{let number=d.items.length+1;const name=()=>type==='article'?`第 ${number} 段`:`自訂內容 ${number}`;while(d.items.some(item=>item.label.trim()===name()))number++;d.items.push({id:createRequestId(),label:name(),content:''});d.dirty=true;render();},'small',busy || !!uncertain || !canCreate(project) || d.items.length>=(type==='article'?80:12)));
     append(section,el('p','composer-hint',type==='short_text'?'短文固定保存「全文」一欄，最多 12,000 位元組，超過時請先縮短；不會自動截斷。':type==='article'?'下方是完整文章的手動編輯：可改文字、段落名稱或新增／移除段落，另存後才成為新版本。現有段落保留識別碼，新增段落取得新識別碼。AI 微調則只改上方勾選範圍。最多 80 段，每段 6,000、整篇 120,000 位元組，不會自動截斷。':'所有現有欄位與自訂內容會保存到新版本，每欄最多 6,000 位元組、合計 24,000 位元組。'));
 
+    }
+
     const metadata=el('textarea','editor-note',null,{id:'editor-goal',maxlength:'12000',rows:'4',placeholder:'這個版本想達成什麼？你修改了哪些地方、為什麼？可在同一欄自由整理。',disabled:busy || !canCreate(project)});metadata.value=d.goalAndRationale;metadata.addEventListener('input',()=>{d.goalAndRationale=metadata.value;d.metadataEdited=true;update();});
     append(section,field('本版目標與修改意見',metadata),el('p','composer-hint','從所選來源版本帶入，舊版目標、變更摘要與修改意見會完整合併，不重複相同文字。另存後隨本版保存，不改動來源或套用目前共用目標；最多 12,000 位元組。'));
     const save=button(`另存新版本 ${versionLabel(nextVersionCoordinates(project))}`,()=>saveSnapshot('major'),'dark',blocked());save.id='save-snapshot';
     const minor=button(`另存小修改 ${base?versionLabel(nextVersionCoordinates(project,'minor',base)):'V?.?'}`,()=>saveSnapshot('minor'),'',blocked() || !base);minor.id='save-minor';minor.setAttribute('aria-describedby','minor-version-hint');
     append(section,el('p','composer-hint',base?isArchivedVersion(project,base.id)?'編輯來源已封存。草稿仍保留，請先還原來源或改選其他版本。':`小修改將從 ${versionLabel(base)} 另存為 ${versionLabel(nextVersionCoordinates(project,'minor',base))}；不會修改來源或目前正式版。`:'請先選擇來源版本，才能另存小修改。',{id:'minor-version-hint'}));
-    append(section,append(el('div','editor-footer'),el('p','save-state',combinedMetadataError(d.goalAndRationale) || contentItemsError(d.items,type) || (!canCreate(project)?'目前項目為唯讀。還原或重新開啟後才能修改作品。':!canSnapshot(project,d.basedOnVersionId)?'先確認創作目標，才能保存新版本。':d.dirty?'草稿尚未保存。重新整理頁面會遺失草稿。':'按下另存才會建立完整版本，不會自動升為正式版。'),{id:'draft-status',role:'status'}),append(el('div','editor-save-actions'),save,minor)));return section;
+    append(section,append(el('div','editor-footer'),el('p','save-state',combinedMetadataError(d.goalAndRationale) || contentError() || (!canCreate(project)?'目前項目為唯讀。還原或重新開啟後才能修改作品。':!canSnapshot(project,d.basedOnVersionId)?'先確認創作目標，才能保存新版本。':d.dirty?'草稿尚未保存。重新整理頁面會遺失草稿。':'按下另存才會建立完整版本，不會自動升為正式版。'),{id:'draft-status',role:'status'}),append(el('div','editor-save-actions'),save,minor)));return section;
   }
   function renderComparison() {
     if(!project.comparisons.length)return null;
@@ -895,6 +919,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       const version=project.versions.find(v=>v.id===item.versionId);
       const card=el('article','comparison-item');append(card,el('h3','',`${versionLabel(version)} · ${version?.title || '版本'}`));
       [['fit',comparison.goalBasis==='version_snapshots'?'本版目標契合':'目標契合'],['strength','優點'],['tradeoff','取捨'],['suggestion','修改方向']].forEach(([key,label])=>append(card,append(el('p'),el('strong','',`${label}　`),document.createTextNode(readable(item[key])))));
+      if(version?.artifact)card.append(renderBundle(version));
       if(version)append(card,button('選此版繼續微調',()=>editVersion(version,{focus:'chat-input'}),'subtle small',busy || !!uncertain || !canCreate(project) || isArchivedVersion(project,version.id)));
       if(version && isArchivedVersion(project,version.id))card.append(el('p','composer-hint','此版本已封存。比較紀錄仍保留，請先還原版本才能編輯。'));grid.append(card);
     });section.append(grid);

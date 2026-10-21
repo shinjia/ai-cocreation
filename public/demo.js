@@ -1,5 +1,6 @@
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version8';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version9';
+import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version9';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};
@@ -32,15 +33,21 @@ export function createDemoAdapter({seed=true}={}) {
     if(body.approvedSettingsRevision!==undefined && body.approvedSettingsRevision!==settings.settingsRevision)fail('STALE_SETTINGS','AI 設定已更新。');
     if(body.approvedKeyRevision!==undefined && body.approvedKeyRevision!==settings.keyRevision)fail('STALE_KEY','金鑰狀態已更新。');
   }
-  function demoBrief(type) {
+  function demoBrief(type,chartMode='flowchart') {
     const brief=clone(DEMO_BRIEF);
     if(type==='short_text'){brief.items=[{id:'body',label:'全文'}];brief.summary='為社區影像展撰寫一篇溫暖、清楚的宣傳短文，邀請居民與創作者從日常生活看見故事。';}
     if(type==='article'){brief.items=[{id:'paragraph-1',label:'開場'},{id:'paragraph-2',label:'展覽內容'},{id:'paragraph-3',label:'邀請與結語'}];brief.summary='以開場、展覽內容及邀請結語三段介紹社區影像展，讓居民與創作者理解活動意義，從日常生活看見故事。';}
+    if(isArtifactType(type)){
+      const table=type==='table',flow=!table && chartMode==='flowchart';
+      return {items:[{id:'document',label:table?'表格內容':'圖表來源'}],purpose:table?'展示活動時段表格的編輯與版本保存。':flow?'展示流程圖節點、連線與版本保存。':'展示參觀人次統計圖表的編輯與版本保存。',audience:'想了解操作流程的示範使用者。',message:flow?'全部流程步驟、判斷與連線皆為固定的虛構示範，不代表使用者提供的真實流程。':'全部時段、活動名稱與人數皆為虛構示範資料，不代表使用者提供的真實資料。',tone:'清楚易讀，明確標示示範。',constraints:(table?'':flow?'示範種類：流程圖（flowchart），文字來源使用安全 Mermaid 子集。':'示範種類：統計圖表（bar），文字來源使用 TSV。')+'固定腳本，不解析使用者資料、不使用 AI；示範資料不可當作真實活動資訊。',summary:table?'用虛構活動時段資料建立一個完整表格候選，示範結構編輯、另存、比較與固定引用。':flow?'用虛構的想法整理流程建立一個完整流程圖候選，示範節點、判斷、連線、安全文字來源、另存與固定引用。':'用虛構參觀人次建立一個完整統計圖表候選，示範 TSV 來源、圖形預覽、另存與固定引用。'};
+    }
     return brief;
   }
   function markDirectionReady(raw,p,kind='summary') {
-    p.brief=demoBrief(p.type);p.phase='summary';p.summaryRevision=raw.revision+1;p.goalApprovedAt=null;p.lifecycle='in_progress';
-    message(p,'assistant',`${p.brief.summary}\n主軸已可進入下一步，請按「確認方向並生成候選」；你也可以繼續輸入想法。\n（社區影像展的固定示範方向，不是真實 AI 推論）`,kind,{question:'',choices:[],directionStatus:'ready',direction:clone(p.brief),goalSnapshot:clone(p.brief)});
+    const chartChoice=[...p.messages].reverse().find(entry=>entry.role==='student' && /流程圖|參觀人次/u.test(entry.text));
+    const chartMode=chartChoice && /參觀人次/u.test(chartChoice.text) && !/流程圖/u.test(chartChoice.text)?'bar':'flowchart';
+    p.brief=demoBrief(p.type,chartMode);p.phase='summary';p.summaryRevision=raw.revision+1;p.goalApprovedAt=null;p.lifecycle='in_progress';
+    message(p,'assistant',`${p.brief.summary}\n主軸已可進入下一步，請按「確認方向並生成候選」；你也可以繼續輸入想法。\n（固定示範方向，不是真實 AI 推論；不代表已理解或採用你提供的資料）`,kind,{question:'',choices:[],directionStatus:'ready',direction:clone(p.brief),goalSnapshot:clone(p.brief)});
   }
   function message(project,role,text,kind='discussion',extra={}) {
     const value={id:id('message'),role,text,kind,at:now(),...extra};
@@ -50,8 +57,8 @@ export function createDemoAdapter({seed=true}={}) {
     return {question,choices:clone(choices),choiceContext:{itemId:item.id,officialVersionId:item.officialVersionId,sharedContextRevision:raw.sharedContextRevision,itemTitle:item.title,itemDescription:item.description,baseVersionId,targetItemIds:clone(targetItemIds)}};
   }
   function newItem(type,title,description='') {
-    const item={id:id('item'),type,title,description,enabled:['titles','short_text','article'].includes(type),archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,summaryRevision:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
-    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。':'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
+    const item={id:id('item'),type,title,description,enabled:MODULES.some(module=>module.id===type && module.enabled),archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,summaryRevision:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
+    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。'+(isArtifactType(type)?'表格與圖表的初始資料全部虛構，僅供操作示範，不是你提供的實際資料。':''):'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
   }
   function newProject(title,description='',aiBinding=null) {
     const item=newItem('titles','標題名稱');
@@ -63,7 +70,25 @@ export function createDemoAdapter({seed=true}={}) {
     for(const field of ['phase','lifecycle','messages','brief','summaryRevision','goalApprovedAt','versions','archivedVersionIds','officialVersionId','finalizedVersionId','finalizedAt','finalizations','comparisons','references'])projection[field]=item[field];
     return clone(projection);
   }
+  function checkedArtifact(value,type) {
+    const error=validateArtifact(value,type);if(error)throw new ApiError(error,400);
+    const artifact=cloneArtifact(value);
+    if(type==='chart')artifact.sourceText=artifact.sourceText.replace(/\r\n/g,'\n');
+    return artifact;
+  }
+  function artifactTitle(artifact,items) {return String(artifact?.kind==='table'?artifact.caption:artifact?.kind==='chart'?artifact.title:items[0].content).slice(0,180);}
+  function scriptedArtifact(type,brief) {
+    if(type==='chart' && !brief?.constraints?.includes('示範種類：統計圖表'))return {kind:'chart',chartType:'flowchart',title:'想法整理流程（虛構示範）',xLabel:'',yLabel:'',sourceText:'flowchart TD\nStart("開始")\nIdea["整理想法"]\nReview{"確認方向？"}\nDraft["建立候選"]\nStart --> Idea\nIdea --> Review\nReview -->|需要調整| Idea\nReview -->|確認| Draft'};
+    return type==='table'?{kind:'table',caption:'活動時段（虛構示範資料）',columns:[{id:'time',label:'時段'},{id:'activity',label:'活動'}],rows:[{id:'morning',cells:['10:00','開場與導覽（虛構）']},{id:'noon',cells:['11:00','作品交流（虛構）']},{id:'afternoon',cells:['14:00','分享時段（虛構）']}]}:{kind:'chart',chartType:'bar',title:'參觀人次（虛構示範資料）',xLabel:'時段',yLabel:'人次',sourceText:'時段\t人次\n上午\t12\n下午\t18\n傍晚\t9'};
+  }
+  function addGeneratedArtifact(project) {
+    const artifact=checkedArtifact(scriptedArtifact(project.type,project.brief),project.type),items=artifactItems(artifact);
+    const msg=message(project,'assistant','已建立一個完整的'+(project.type==='table'?'表格':artifact.chartType==='flowchart'?'流程圖':'統計圖表')+'候選。'+(artifact.chartType==='flowchart'?'所有節點、判斷與連線皆為事先寫好的虛構示範流程，沒有解析或採用你的真實流程。':'所有時段、活動名稱與人數皆為事先寫好的虛構示範資料，沒有解析或採用你的真實資料。')+'\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:artifactTitle(artifact,items),artifact,items,rationale:'使用明確標示的虛構資料，示範完整結構與版本保存；未推論或補造使用者資料。',goalText:project.brief.summary,goalSource:'ai',changeSummary:'建立一個固定腳本的虛構示範候選。',discussionMessageIds:project.messages.filter(m=>['student','assistant'].includes(m.role)).map(m=>m.id),source:'generated',basedOnVersionId:null,goalSnapshot:{summary:project.brief.summary},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+    v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';
+  }
   function addGenerated(project) {
+    if(isArtifactType(project.type)){addGeneratedArtifact(project);return;}
     const msg=message(project,'assistant',(project.type==='article'?'已建立一個包含完整段落的文章候選。你可以選擇來源版本與段落範圍繼續修改，原內容會完整保留。':'這一組候選展示三種不同角度。它們會一起保留，你可以選一個繼續編輯，也可以把幾個版本放在一起比較。')+'\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
     (project.type==='article'?SCRIPTED_CANDIDATES.slice(0,1):SCRIPTED_CANDIDATES).forEach((candidate,index)=>{
       let items=[{id:'zh-title',label:'中文名稱',content:candidate.title},{id:'en-title',label:'英文名稱',content:['Everyday, In Light','Stories Between Us','Frames Unfinished'][index]},{id:'tagline',label:'宣傳短句',content:['每一個平凡瞬間，都值得被看見。','靠近彼此，故事就開始了。','把生活留在畫面裡，讓故事繼續。'][index]}];
@@ -76,23 +101,30 @@ export function createDemoAdapter({seed=true}={}) {
       const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),...candidate,title:items[0].content.slice(0,180),items,goalText:['以影像意象讓觀眾重新看見生活日常。','強調觀眾與創作者之間的親近感及共同故事。','以生活片段與未完成的畫面留下想像空間。'][index],goalSource:'ai',changeSummary:`固定腳本候選方向：${candidate.rationale}`,discussionMessageIds:project.messages.filter(m=>['student','assistant'].includes(m.role)).map(m=>m.id),source:'generated',basedOnVersionId:null,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:provenance(project)};v.goalSnapshot={summary:v.goalText};v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);
     });project.phase='work';project.lifecycle='in_progress';
   }
-  function addSnapshot(project,items,rationale,basedOnVersionId=null,versionMode='major',goalText=undefined,goalAndRationale=undefined) {
+  function addSnapshot(project,items,rationale,basedOnVersionId=null,versionMode='major',goalText=undefined,goalAndRationale=undefined,artifact=undefined) {
+    if(isArtifactType(project.type)){artifact=checkedArtifact(artifact,project.type);items=artifactItems(artifact);}
     const base=project.versions.find(v=>v.id===basedOnVersionId);goalText=goalText===undefined?(base?versionGoalText(base):project.brief?.summary || ''):goalText;
     if(goalAndRationale!==undefined){goalText=base?versionGoalText(base):project.brief?.summary || '';rationale=base?.rationale || '';}
     const msg=message(project,'system','你把工作區的編輯成果另存成新版本。原版本保持不變。','snapshot',{versionIds:[]});
-    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,versionMode,project.versions.find(v=>v.id===basedOnVersionId)),title:items[0].content.slice(0,180),items:clone(items),rationale,goalText,goalSource:'user',changeSummary:rationale,discussionMessageIds:clone(project.versions.find(v=>v.id===basedOnVersionId)?.discussionMessageIds || []),source:'snapshot',basedOnVersionId,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:null};
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,versionMode,project.versions.find(v=>v.id===basedOnVersionId)),title:artifactTitle(artifact,items),items:clone(items),...(artifact?{artifact}:{}),rationale,goalText,goalSource:'user',changeSummary:rationale,discussionMessageIds:clone(project.versions.find(v=>v.id===basedOnVersionId)?.discussionMessageIds || []),source:'snapshot',basedOnVersionId,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:null};
     v.goalSnapshot={summary:v.goalText};if(goalAndRationale!==undefined)v.changeSummary=base?.changeSummary || '';v.goalAndRationale=goalAndRationale===undefined?versionGoalAndRationale(v):goalAndRationale;project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
-  function addScriptedRevision(project,base,items,targetItemIds=[]) {
+  function addScriptedRevision(project,base,items,targetItemIds=[],artifact=undefined) {
+    if(isArtifactType(project.type)){artifact=checkedArtifact(artifact===undefined?base.artifact:artifact,project.type);items=artifactItems(artifact);}
     const changed=items.filter(item=>item.content!==base.items.find(previous=>previous.id===item.id)?.content);
     const summary=changed.length?`固定腳本逐字替換${changed.map(item=>`「${item.label}」`).join('、')}，其餘內容不變。`:'固定腳本保留完整內容，僅調整明確指定的目標。';
     const msg=message(project,'assistant','已逐字替換你明確指定的內容，其餘項目原樣保留。請閱讀完整修改版與差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）','revision',{versionIds:[]});
-    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,'minor',base),title:items[0].content.slice(0,180),items:clone(items),rationale:'固定腳本僅替換明確指定的內容，未修改其他內容。',goalText:versionGoalText(base),goalSource:'ai',changeSummary:summary,discussionMessageIds:[project.messages.at(-2).id,msg.id],source:'revision',basedOnVersionId:base.id,targetItemIds:clone(targetItemIds),goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,'minor',base),title:artifactTitle(artifact,items),items:clone(items),...(artifact?{artifact}:{}),rationale:'固定腳本僅替換明確指定的內容，未修改其他內容。',goalText:versionGoalText(base),goalSource:'ai',changeSummary:summary,discussionMessageIds:[project.messages.at(-2).id,msg.id],source:'revision',basedOnVersionId:base.id,targetItemIds:clone(targetItemIds),goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
     v.goalSnapshot={summary:v.goalText};v.goalAndRationale=typeof base.goalAndRationale==='string'?[base.goalAndRationale,`本次修改：\n${v.changeSummary}`].filter(Boolean).join('\n\n'):versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
   function addComparison(project,versionIds,question='') {
     const msg=message(project,'assistant','各版本創作內容的比較已整理在右側。各版本有不同優點與取捨，沒有自動選出贏家，也沒有變更正式版。\n（固定腳本意見，不是真實 AI 評估）','comparison');
-    const comparison={id:id('comparison'),versionIds:[...versionIds],goalBasis:'version_snapshots',versionGoalSnapshots:versionIds.map(versionId=>({versionId,goalSnapshot:clone(project.versions.find(v=>v.id===versionId).goalSnapshot || null),goalText:versionGoalText(project.versions.find(v=>v.id===versionId)),goalAndRationale:versionGoalAndRationale(project.versions.find(v=>v.id===versionId)),goalSource:project.versions.find(v=>v.id===versionId).goalSource || null,changeSummary:project.versions.find(v=>v.id===versionId).changeSummary || '',rationale:project.versions.find(v=>v.id===versionId).rationale || '',discussionMessageIds:clone(project.versions.find(v=>v.id===versionId).discussionMessageIds || [])})),goalSnapshot:null,referencesSnapshot:clone(project.references || []),items:versionIds.map((versionId,index)=>({versionId,fit:index===0?'名稱與宣傳短句方向一致，能連結這次展示情境。':'情感較直接，能邀請讀者走進創作者的故事。',strength:index===0?'中英文名稱有共同意象，宣傳短句能接續同一方向。':'親近、好理解，容易形成觀眾共鳴。',tradeoff:index===0?'意象較多，可能需要副標補充活動資訊。':'名稱、短句與短文的語氣可以再確認是否一致。',suggestion:index===0?'可以試著調整動詞，讓語氣更主動。':'保留情緒核心，再考慮是否加入影像相關詞彙。'})),summary:'這些版本適合不同的溝通重點：有的強調影像意象，有的強調人與故事的關係。請回到你最希望觀眾記得的那件事，決定下一步。'+(question?' 這是固定腳本示範，不會因比較問題而改寫分析。':''),messageId:msg.id,createdAt:now(),provenance:provenance(project)};
+    const comparison={id:id('comparison'),versionIds:[...versionIds],question,goalBasis:'version_snapshots',versionGoalSnapshots:versionIds.map(versionId=>({versionId,goalSnapshot:clone(project.versions.find(v=>v.id===versionId).goalSnapshot || null),goalText:versionGoalText(project.versions.find(v=>v.id===versionId)),goalAndRationale:versionGoalAndRationale(project.versions.find(v=>v.id===versionId)),goalSource:project.versions.find(v=>v.id===versionId).goalSource || null,changeSummary:project.versions.find(v=>v.id===versionId).changeSummary || '',rationale:project.versions.find(v=>v.id===versionId).rationale || '',discussionMessageIds:clone(project.versions.find(v=>v.id===versionId).discussionMessageIds || [])})),goalSnapshot:null,referencesSnapshot:clone(project.references || []),items:versionIds.map((versionId,index)=>({versionId,fit:index===0?'名稱與宣傳短句方向一致，能連結這次展示情境。':'情感較直接，能邀請讀者走進創作者的故事。',strength:index===0?'中英文名稱有共同意象，宣傳短句能接續同一方向。':'親近、好理解，容易形成觀眾共鳴。',tradeoff:index===0?'意象較多，可能需要副標補充活動資訊。':'名稱、短句與短文的語氣可以再確認是否一致。',suggestion:index===0?'可以試著調整動詞，讓語氣更主動。':'保留情緒核心，再考慮是否加入影像相關詞彙。'})),summary:'這些版本適合不同的溝通重點：有的強調影像意象，有的強調人與故事的關係。請回到你最希望觀眾記得的那件事，決定下一步。'+(question?' 這是固定腳本示範，不會因比較問題而改寫分析。':''),messageId:msg.id,createdAt:now(),provenance:provenance(project)};
+    if(isArtifactType(project.type)){
+      comparison.items=versionIds.map(versionId=>({versionId,fit:'請對照這個版本保存的完整資料與本版目標。',strength:'完整原生內容、資料來源與版本紀錄都保持不變。',tradeoff:'固定腳本沒有分析資料真實性、呈現品質或不同版本的優劣。',suggestion:project.type==='table'?'逐欄檢查欄位名稱、列內容及表格說明。':'逐項檢查圖表類型、標題，以及流程節點／連線或統計資料來源。'}));
+      comparison.summary='這是版本並排檢視的固定操作提示，不是內容評估或 AI 分析；請自行檢閱完整資料、各版目標與差異。'+(question?' 已保存你的比較問題，固定腳本不會解析或回答該問題。':'');
+      msg.text='已保存選定版本的比較紀錄；完整表格或圖表資料保持在各自的固定版本中。固定腳本只提供操作提示，不判斷優劣，也不會變更正式版。';
+    }
     project.comparisons.push(comparison);msg.comparisonId=comparison.id;msg.goalBasis=comparison.goalBasis;msg.text+='\n'+COMPARISON_SNAPSHOT_NOTE;return comparison;
   }
   function pinVersion(version) {
@@ -100,16 +132,77 @@ export function createDemoAdapter({seed=true}={}) {
     if(Array.isArray(pinned.referencesSnapshot))pinned.referencesSnapshot=pinned.referencesSnapshot.map(reference=>{const source=reference.versionSnapshot;delete reference.versionSnapshot;reference.sourceProvenance=source?.provenance || null;return reference;});
     return pinned;
   }
+  function decimalIdentity(value) {
+    const negative=value.startsWith('-');let [integer='',fraction='']=value.replace(/^[+-]/,'').split('.');
+    integer=integer.replace(/^0+/,'') || '0';fraction=fraction.replace(/0+$/,'');
+    return (negative && (integer!=='0' || fraction)?'-':'')+integer+(fraction?'.'+fraction:'');
+  }
+  const setSignature=values=>JSON.stringify([...new Set(values.map(value=>JSON.stringify(value)))].sort());
+  function flowSignature(graph) {return JSON.stringify([graph.direction,setSignature(graph.nodes.map(node=>[node.id,node.label,node.shape])),setSignature(graph.edges.map(edge=>[edge.from,edge.to,edge.label]))]);}
+  function fuseArtifacts(sources,type) {
+    const artifacts=sources.map(source=>checkedArtifact(source.artifact,type)),artifact=cloneArtifact(artifacts[0]);
+    if(type==='chart' && artifacts.some(source=>source.chartType==='flowchart')){
+      if(artifacts.some(source=>source.chartType!=='flowchart'))throw new ApiError('固定腳本不能混合流程圖與統計圖表，沒有建立融合版。',400);
+      const graphs=artifacts.map(source=>parseFlowchartSource(source.sourceText)),first=graphs[0];
+      if(graphs.some(graph=>graph.direction!==first.direction))throw new ApiError('固定腳本只能合併方向相同的流程圖，沒有建立融合版。',400);
+      const nodes=clone(first.nodes),edges=clone(first.edges),nodeMap=new Map(nodes.map(node=>[node.id,node])),edgeKeys=new Set(edges.map(edge=>JSON.stringify([edge.from,edge.to,edge.label])));
+      for(const graph of graphs.slice(1)){
+        for(const node of graph.nodes){
+          const previous=nodeMap.get(node.id);
+          if(previous){if(previous.label!==node.label || previous.shape!==node.shape)throw new ApiError('所選流程圖有相同節點 ID，但文字或形狀不同；固定腳本不會猜測取捨，沒有建立融合版。',400);continue;}
+          nodeMap.set(node.id,node);nodes.push(clone(node));
+        }
+        for(const edge of graph.edges){const key=JSON.stringify([edge.from,edge.to,edge.label]);if(!edgeKeys.has(key)){edgeKeys.add(key);edges.push(clone(edge));}}
+      }
+      const mergedSignature=flowSignature({direction:first.direction,nodes,edges});
+      if(graphs.some(graph=>flowSignature(graph)===mergedSignature))throw new ApiError('至少一個所選來源已包含合併後的完整流程；固定腳本不會僅改標題、排列或文字格式，便另存成融合版。',400);
+      const delimiters={rect:['[',']'],diamond:['{','}'],round:['(',')']};
+      artifact.sourceText=['flowchart '+first.direction,...nodes.map(node=>node.id+delimiters[node.shape][0]+'"'+node.label+'"'+delimiters[node.shape][1]),...edges.map(edge=>edge.from+' -->'+(edge.label?'|"'+edge.label+'"|':'')+' '+edge.to)].join('\n');
+      return checkedArtifact(artifact,type);
+    }
+    if(type==='table'){
+      if(artifacts.some(source=>JSON.stringify(source.columns.map(column=>[column.id,column.label]))!==JSON.stringify(artifact.columns.map(column=>[column.id,column.label]))))throw new ApiError('固定腳本只能合併欄位 ID、名稱與順序完全相同的表格；這次沒有建立融合版。',400);
+      const seen=new Set(artifact.rows.map(row=>JSON.stringify(row.cells))),ids=new Set(artifact.rows.map(row=>row.id));let next=0;
+      for(const source of artifacts.slice(1))for(const row of source.rows){
+        const key=JSON.stringify(row.cells);if(seen.has(key))continue;seen.add(key);
+        let rowId=row.id;while(ids.has(rowId))rowId=`fusion-row-${++next}`;ids.add(rowId);artifact.rows.push({id:rowId,cells:clone(row.cells)});
+      }
+      const mergedSignature=setSignature(artifact.rows.map(row=>row.cells));
+      if(artifacts.some(source=>setSignature(source.rows.map(row=>row.cells))===mergedSignature))throw new ApiError('至少一個所選來源已包含合併後的完整資料列；固定腳本不會僅改說明、排列或列 ID，便另存成融合版。',400);
+    }else{
+      const parsed=artifacts.map(source=>parseChartSource(source.sourceText,source.chartType)),first=parsed[0];
+      if(artifacts.some((source,index)=>source.chartType!==artifact.chartType || source.xLabel!==artifact.xLabel || source.yLabel!==artifact.yLabel || parsed[index].categoryLabel!==first.categoryLabel || JSON.stringify(parsed[index].series.map(series=>series.label))!==JSON.stringify(first.series.map(series=>series.label))))throw new ApiError('固定腳本只能合併圖表類型、座標軸與 TSV 欄位相同的圖表；這次沒有建立融合版。',400);
+      const trailingLF=artifact.sourceText.endsWith('\n'),rows=artifact.sourceText.split('\n'),seen=new Map(first.labels.map((label,index)=>[label,rows[index+1].split('\t').slice(1).map(decimalIdentity)]));
+      if(trailingLF)rows.pop();
+      for(let sourceIndex=1;sourceIndex<artifacts.length;sourceIndex++){
+        const sourceRows=artifacts[sourceIndex].sourceText.split('\n'),data=parsed[sourceIndex];
+        data.labels.forEach((label,index)=>{
+          const values=sourceRows[index+1].split('\t').slice(1).map(decimalIdentity);
+          if(seen.has(label)){if(JSON.stringify(seen.get(label))!==JSON.stringify(values))throw new ApiError('所選圖表有同名分類但數值不同；固定腳本不會猜測或改寫數值，請先明確整理來源。',400);return;}
+          seen.set(label,values);rows.push(sourceRows[index+1]);
+        });
+      }
+      const mergedSignature=setSignature([...seen].map(([label,values])=>[label,...values]));
+      if(artifacts.some((source,index)=>{
+        const sourceRows=source.sourceText.split('\n');
+        return setSignature(parsed[index].labels.map((label,rowIndex)=>[label,...sourceRows[rowIndex+1].split('\t').slice(1).map(decimalIdentity)]))===mergedSignature;
+      }))throw new ApiError('至少一個所選來源已包含合併後的完整分類與數值；固定腳本不會僅改標題、排列或數字格式，便另存成融合版。',400);
+      artifact.sourceText=rows.join('\n')+(trailingLF?'\n':'');
+    }
+    return checkedArtifact(artifact,type);
+  }
   function addFusion(project,versionIds,question='') {
     const sources=versionIds.map(versionId=>project.versions.find(version=>version.id===versionId));
     // Deterministic sampling is not model inference: preserve the first source's schema,
     // take matching fields in source order, and show the literal construction method.
-    const items=sources[0].items.map((item,index)=>clone(sources[index%sources.length].items.find(candidate=>candidate.id===item.id && candidate.label===item.label) || item));
+    const artifact=isArtifactType(project.type)?fuseArtifacts(sources,project.type):null;
+    const items=artifact?artifactItems(artifact):sources[0].items.map((item,index)=>clone(sources[index%sources.length].items.find(candidate=>candidate.id===item.id && candidate.label===item.label) || item));
     if(project.type==='short_text')items[0].content=sources.map(source=>source.items[0].content).join('\n\n');
     if(!validItems(items,project.type))throw new ApiError('示範融合結果超過內容限制，請減少來源版本或縮短內容。',400);
-    const msg=message(project,'assistant','已建立獨立的融合候選，沒有變更任何來源或正式版。此示範只依選取順序輪流取用同名欄位；短文則逐篇串接，不是真實 AI 融合。','fusion',{versionIds:[]});
-    const rationale='固定腳本依順序取用來源內容，僅示範融合版本與來源快照的保存方式。';
-    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:items[0].content.slice(0,180),items,rationale,goalText:versionGoalText(sources[0]),goalSource:'ai',changeSummary:'建立獨立融合候選；原版本和正式版維持不變。'+(question?' 已保存融合重點，但固定腳本不會解析或依此重寫內容。':''),discussionMessageIds:[msg.id],source:'fusion',basedOnVersionId:null,fusionSourceVersionIds:[...versionIds],fusionSourceSnapshots:sources.map(pinVersion),fusionInstruction:question,goalSnapshot:{summary:versionGoalText(sources[0])},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+    const method=project.type==='table'?'依選取順序加入不同的完整資料列，相同儲存格內容的列不重複加入；保留第一份來源的欄位與說明，僅在列 ID 衝突時另建 ID':project.type==='chart'?(artifact.chartType==='flowchart'?'依選取順序合併已宣告的相容節點與不同連線，保留第一份來源的標題與方向；重新排列成安全文字來源，不新增任何未在來源出現的連線':'依選取順序加入新分類，跳過同名且同值的分類；保留第一份來源的圖表類型、標題、座標軸與欄位，不計算或改寫數值'):'依選取順序輪流取用同名欄位；短文則逐篇串接';
+    const msg=message(project,'assistant',`已建立獨立的融合候選，沒有變更任何來源或正式版。固定腳本只會${method}，不是真實 AI 融合。`,'fusion',{versionIds:[]});
+    const rationale=`固定腳本${method}，僅示範融合版本與來源快照的保存方式。`;
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:artifactTitle(artifact,items),items,...(artifact?{artifact}:{}),rationale,goalText:versionGoalText(sources[0]),goalSource:'ai',changeSummary:'建立獨立融合候選；原版本和正式版維持不變。'+(question?' 已保存融合重點，但固定腳本不會解析或依此重寫內容。':''),discussionMessageIds:[msg.id],source:'fusion',basedOnVersionId:null,fusionSourceVersionIds:[...versionIds],fusionSourceSnapshots:sources.map(pinVersion),fusionInstruction:question,goalSnapshot:{summary:versionGoalText(sources[0])},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
     v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
   if(seed) {
@@ -233,6 +326,27 @@ export function createDemoAdapter({seed=true}={}) {
           if(!choice || body.text!==choice.value)throw new ApiError('選項答案與保存的問題不一致。',400);
           studentExtra={choiceAnswer:{questionMessageId:question.id,choiceId:choice.id,label:choice.label,value:choice.value}};
         }
+        if(base && isArtifactType(p.type)){
+          const artifact=checkedArtifact(base.artifact,p.type),field=p.type==='table'?'表格說明':'圖表標題',key=p.type==='table'?'caption':'title';
+          const command=String(body.text).trim(),match=command.match(p.type==='table'?/^請把表格說明改為「([^「」\r\n]*)」[。！]?$/u:/^請把圖表標題改為「([^「」\r\n]*)」[。！]?$/u),goalMatch=command.match(/^請把本版目標改為「([^「」\r\n]+)」[。！]?$/u);
+          const goal=goalMatch?.[1].trim();
+          if(match && match[1]!==artifact[key]){
+            artifact[key]=match[1];const validated=checkedArtifact(artifact,p.type);
+            message(p,'student',body.text,'discussion',studentExtra);const revised=addScriptedRevision(p,base,artifactItems(validated),[],validated);
+            revised.changeSummary=`固定腳本僅逐字替換${field}，其餘原生資料完整保留。`;revised.rationale=`依明確字串修改${field}，未解析或改寫資料。`;revised.goalAndRationale=typeof base.goalAndRationale==='string'?[base.goalAndRationale,`本次修改：\n${revised.changeSummary}`].filter(Boolean).join('\n\n'):versionGoalAndRationale(revised);revisionVersionId=revised.id;
+          }else if(goal && goal!==versionGoalText(base)){
+            const error=snapshotMetadataError(goal,'');if(error)throw new ApiError(error,400);
+            message(p,'student',body.text,'discussion',studentExtra);const revised=addScriptedRevision(p,base,base.items,[],artifact);
+            revised.goalText=goal;revised.goalSnapshot={summary:goal};revised.changeSummary='固定腳本僅逐字替換本版目標，原生資料完整保留。';revised.rationale='依明確指定的目標文字另存待審修改版。';delete revised.goalAndRationale;revised.goalAndRationale=versionGoalAndRationale(revised);p.messages.find(m=>m.id===revised.messageId).text='已逐字替換你指定的本版目標，完整表格或圖表原樣保留。請閱讀目標差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）';revisionVersionId=revised.id;
+          }else{
+            message(p,'student',body.text,'discussion',studentExtra);
+            message(p,'assistant',`固定腳本只支援「請把${field}改為「新的文字」」或「請把本版目標改為「新的目標」」，且必須與目前內容不同。其他內容可直接在編輯器修改並另存。這次沒有新增修改版，原生資料與正式版不變。`,'clarification',scriptedQuestion(raw,p,'要示範哪一種明確修改？',[
+              {id:'revise-caption',label:`示範修改${field}`,value:`請把${field}改為「${p.type==='table'?'活動時段表':artifact.chartType==='flowchart'?'流程圖':'參觀人次圖'}（新的虛構示範標示）」`},
+              {id:'revise-goal',label:'示範修改本版目標',value:'請把本版目標改為「清楚展示虛構示範資料與完整版本差異。」'}
+            ],base.id,[]));p.lifecycle='in_progress';
+          }
+          break;
+        }
         if(base){
           // A deliberately narrow literal-command fixture, never semantic rewriting.
           const match=String(body.text).trim().match(/^請把(第一項內容|全文|選取段落)改為「([^「」\r\n]+)」[。！]?$/u);
@@ -258,6 +372,15 @@ export function createDemoAdapter({seed=true}={}) {
           break;
         }
         message(p,'student',body.text,'discussion',studentExtra);p.phase='discussion';p.brief=null;p.summaryRevision=null;p.goalApprovedAt=null;p.lifecycle='in_progress';
+        if(isArtifactType(p.type)){
+          if(/示範|活動時段|參觀人次|流程圖/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
+          const table=p.type==='table',options=scriptedQuestion(raw,p,table?'要使用虛構活動時段，示範表格操作嗎？':'要先使用虛構流程圖，示範節點與連線操作嗎？也可明確選擇統計圖表。',[
+            {id:'artifact-demo',label:table?'使用虛構活動時段示範':'使用流程圖示範',value:table?'請使用虛構活動時段示範。':'請使用流程圖示範。'},
+            ...(!table?[{id:'statistics-demo',label:'改用虛構參觀人次統計圖',value:'請使用虛構參觀人次示範。'}]:[]),
+            {id:'artifact-limits',label:'先看操作與資料限制',value:'請先說明可用操作與資料限制。'}
+          ]);directionResult={directionStatus:'exploring',direction:null};
+          message(p,'assistant',`${options.question}\n固定腳本不會解析你輸入的資料；初始候選全部是明確標示的虛構範例。對話只支援逐字替換${table?'表格說明':'圖表標題'}或本版目標。產生候選後可在編輯器換成自己的資料，再另存新版本。`,'discussion',{...options,...directionResult});break;
+        }
         // This fixture recognizes a few literal sample cues; it does not call a model
         // or imply that arbitrary input has been understood. One complete input is enough.
         const sample=[raw.description,p.description,...p.messages.filter(m=>m.role==='student').map(m=>m.text)].join(' ');
@@ -294,14 +417,15 @@ export function createDemoAdapter({seed=true}={}) {
       }
       case 'snapshot': {
         if(!p.goalApprovedAt && !p.versions.some(v=>(v.id===p.officialVersionId || v.id===body.basedOnVersionId) && !isArchivedVersion(p,v.id)))throw new ApiError('請先確認創作目標，或明確選取現有版本作為修改來源。',400);
-        if(!validItems(body.items,p.type))throw new ApiError('內容不符合此類型的欄位、段落或長度限制。',400);
+        const artifact=isArtifactType(p.type)?checkedArtifact(body.artifact,p.type):undefined,items=artifact?artifactItems(artifact):body.items;
+        if(!validItems(items,p.type))throw new ApiError('內容不符合此類型的欄位、段落或長度限制。',400);
         if(body.basedOnVersionId && (!p.versions.some(v=>v.id===body.basedOnVersionId) || isArchivedVersion(p,body.basedOnVersionId)))throw new ApiError('來源版本不存在或已封存，請先還原。',400);
         if(body.versionMode && !['major','minor'].includes(body.versionMode))throw new ApiError('未知版本模式。',400);
         if(body.versionMode==='minor' && !body.basedOnVersionId)throw new ApiError('小修改必須指定來源版本。',400);
         const source=p.versions.find(v=>v.id===body.basedOnVersionId),goal=body.goalText===undefined?(source?versionGoalText(source):p.brief?.summary || ''):body.goalText;
         const metadataError=body.goalAndRationale!==undefined?combinedMetadataError(body.goalAndRationale):snapshotMetadataError(goal,body.rationale || '');
         if(metadataError)throw new ApiError(metadataError,400);
-        addSnapshot(p,body.items,body.rationale || '',body.basedOnVersionId || null,body.versionMode || 'major',body.goalText,body.goalAndRationale);break;
+        addSnapshot(p,items,body.rationale || '',body.basedOnVersionId || null,body.versionMode || 'major',body.goalText,body.goalAndRationale,artifact);break;
       }
       case 'promote': {
         const version=p.versions.find(v=>v.id===body.versionId);if(!version || isArchivedVersion(p,version.id))throw new ApiError('版本不存在或已封存，請先還原。',400);

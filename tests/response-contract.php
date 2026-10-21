@@ -7,6 +7,7 @@ require_once dirname(__DIR__).'/app/validation.php';
 require_once dirname(__DIR__).'/app/versioning.php';
 require_once dirname(__DIR__).'/app/model.php';
 require_once dirname(__DIR__).'/app/ollama.php';
+require_once dirname(__DIR__).'/app/artifacts.php';
 require_once dirname(__DIR__).'/app/content.php';
 require_once dirname(__DIR__).'/app/modules/titles.php';
 require_once __DIR__.'/phase1-helpers.php';

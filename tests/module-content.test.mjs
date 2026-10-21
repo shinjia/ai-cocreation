@@ -6,12 +6,12 @@ import {readFile} from 'node:fs/promises';
 const read = file => readFile(new URL('../' + file, import.meta.url), 'utf8');
 const method = (source, name, next) => source.split(`protected function ${name}(`)[1].split(`protected function ${next}(`)[0];
 
-test('registry exposes exact twelve established module ids but enables only supported text formats', async () => {
+test('registry exposes exact twelve established module ids but enables only supported text and structured artifact formats', async () => {
   const source = await read('app/modules.php');
   const rows = [...source.matchAll(/array\('id'=>'([^']+)','label'=>'([^']+)','enabled'=>(true|false)\)/g)];
   assert.deepEqual(rows.map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive']);
   assert.deepEqual(rows.map(x => x[2]), ['標題名稱','短文','長篇文章','圖文','表格','圖表','心智圖','向量圖形','圖片創作','海報設計','網頁','互動視覺程式']);
-  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article']);
+  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','table','chart']);
   assert.match(source, /throw new AppError\('MODULE_UNAVAILABLE'/);
   assert.match(source, /new TextModule\(\$model,\$id\)/);
 });
