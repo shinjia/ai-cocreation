@@ -1,7 +1,7 @@
 <?php
 // Native, immutable document data. Cells are text, never expressions or HTML.
 // Validation is authoritative for manual snapshots and strict model responses.
-function artifactType($type) { return $type==='table'||$type==='chart'||$type==='mindmap'||$type==='vector'; }
+function artifactType($type) { return $type==='table'||$type==='chart'||$type==='mindmap'||$type==='vector'||$type==='webpage'; }
 function artifactObject($value,$keys,$name) {
     ensure(is_array($value),'ARTIFACT_INVALID',$name.'必須是完整物件。');
     $actual=array_keys($value);sort($actual,SORT_STRING);$expected=$keys;sort($expected,SORT_STRING);
@@ -123,6 +123,7 @@ function parseChartSource($sourceText,$chartType) {
     return array('labels'=>$labels,'series'=>$series,'categoryLabel'=>$categoryLabel);
 }
 function validateArtifact($value,$type) {
+    if($type==='webpage')return validateWebpageArtifact($value);
     if($type==='mindmap')return validateMindmapArtifact($value);
     if($type==='vector')return validateVectorArtifact($value);
     ensure(artifactType($type),'ARTIFACT_TYPE_INVALID','此類型不是可保存的結構化作品。');
@@ -164,6 +165,7 @@ function artifactTsvField($value) {
 function artifactItems($artifact) {
     if(field($artifact,'kind')==='mindmap')return mindmapItems($artifact);
     if(field($artifact,'kind')==='vector')return vectorItems($artifact);
+    if(field($artifact,'kind')==='webpage')return webpageItems($artifact);
     $type=field($artifact,'kind');$artifact=validateArtifact($artifact,$type);
     if($type==='table'){
         $lines=array();if($artifact['caption']!=='')$lines[]=$artifact['caption'];
@@ -178,6 +180,7 @@ function artifactItems($artifact) {
 }
 function artifactSchemaObject($properties) { return array('type'=>'object','properties'=>$properties,'required'=>array_keys($properties),'additionalProperties'=>false); }
 function artifactSchema($type) {
+    if($type==='webpage')return webpageSchema();
     if($type==='mindmap')return mindmapSchema();
     if($type==='vector')return vectorSchema();
     ensure(artifactType($type),'ARTIFACT_TYPE_INVALID','不支援此原生作品類型。');$text=array('type'=>'string');
@@ -201,6 +204,7 @@ function artifactJsonSchemaValue($value,$schema,$depth=0) {
         ensure(count($value)>=field($schema,'minItems',0)&&count($value)<=field($schema,'maxItems',1000),'ARTIFACT_INVALID','作品 JSON 清單數量超過限制。');
         foreach($value as $entry)artifactJsonSchemaValue($entry,$schema['items'],$depth+1);
     }elseif($type==='string')ensure(is_string($value)&&preg_match('//u',$value)&&strpos($value,"\0")===false,'ARTIFACT_INVALID','作品 JSON 文字欄位型別不正確。');
+    elseif($type==='boolean')ensure(is_bool($value),'ARTIFACT_INVALID','作品 JSON 此欄位必須是布林值。');
     elseif($type==='number'||$type==='integer'){
         ensure((is_int($value)||is_float($value))&&is_finite((float)$value),'ARTIFACT_INVALID','作品 JSON 數值必須是有限數字，不接受文字或布林值。');
         if($type==='integer')ensure(is_int($value)||floor($value)===$value,'ARTIFACT_INVALID','作品 JSON 此欄位需要整數。');

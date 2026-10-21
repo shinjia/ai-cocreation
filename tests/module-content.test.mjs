@@ -11,7 +11,7 @@ test('registry exposes exact twelve established module ids but enables only supp
   const rows = [...source.matchAll(/array\('id'=>'([^']+)','label'=>'([^']+)','enabled'=>(true|false)\)/g)];
   assert.deepEqual(rows.map(x => x[1]), ['titles','short_text','article','illustrated','table','chart','mindmap','vector','image','poster','webpage','interactive']);
   assert.deepEqual(rows.map(x => x[2]), ['標題名稱','短文','長篇文章','圖文','表格','圖表','心智圖','向量圖形','圖片創作','海報設計','網頁','互動視覺程式']);
-  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','table','chart','mindmap','vector']);
+  assert.deepEqual(rows.filter(x => x[3] === 'true').map(x => x[1]), ['titles','short_text','article','table','chart','mindmap','vector','webpage']);
   assert.match(source, /throw new AppError\('MODULE_UNAVAILABLE'/);
   assert.match(source, /new TextModule\(\$model,\$id\)/);
 });
@@ -110,4 +110,12 @@ test('strict shared numeric schema handles finite native numbers only, integral 
  assert.match(validate,/\$type==='number'\|\|\$type==='integer'/);assert.match(validate,/is_int\(\$value\)\|\|is_float\(\$value\)/);assert.match(validate,/is_finite\(\(float\)\$value\)/);assert.match(validate,/floor\(\$value\)===\$value\|\|is_int\(\$value\)/);
  assert.match(validate,/\$value>=\$schema\['minimum'\]/);assert.match(validate,/\$value<=\$schema\['maximum'\]/);assert.doesNotMatch(validate,/is_numeric\(|floatval\(|intval\(/);
  const fixture=await read('tests/response-contract.php');assert.match(fixture,/NumericSchemaFixture/);assert.match(fixture,/NAN,INF,-INF/);
+});
+
+test('webpage three-part approval validates current summary before inference and leaves legacy modules unchanged',async()=>{
+ const validation=await read('app/validation.php'),app=await read('app/app.php'),client=await read('public/app.js');
+ assert.match(validation,/function webpageDirectionConfirmation/);assert.match(validation,/\$parts===array\('style','content','functions'\)/);assert.match(validation,/is_int\(\$summaryRevision\)&&\$summaryRevision===field\(\$project,'summaryRevision'\)/);
+ const generation=app.slice(app.indexOf("if($action==='generate'||$action==='confirm_generate')"),app.indexOf("if($action==='snapshot')"));assert.ok(generation.indexOf('webpageDirectionConfirmation($p,$input)')<generation.indexOf('$module->generate'));assert.match(generation,/'directionConfirmation'=>\$directionConfirmation/);
+ assert.match(client,/project.summaryRevision!==directionRevision \|\| project.activeItemId!==directionItemId/);assert.match(client,/type==='webpage'\?'網頁由可編輯的內容區塊組成/);
+ const php=await read('tests/response-contract.php');assert.match(php,/strict native boolean accepted/);assert.match(php,/three direction confirmations pin exact current summary content/);
 });

@@ -8,7 +8,7 @@ const section = (source, start, next) => source.split(start)[1].split(next)[0];
 
 test('native validator has two exact bounded artifact shapes, never text substitutes', async () => {
   const source = await read('app/artifacts.php');
-  assert.match(source, /function artifactType\(\$type\) \{ return \$type==='table'\|\|\$type==='chart'\|\|\$type==='mindmap'\|\|\$type==='vector'; \}/);
+  assert.match(source, /function artifactType\(\$type\) \{ return \$type==='table'\|\|\$type==='chart'\|\|\$type==='mindmap'\|\|\$type==='vector'\|\|\$type==='webpage'; \}/);
   assert.match(source, /artifactObject\(\$value,array\('kind','caption','columns','rows'\)/);
   assert.match(source, /artifactObject\(\$value,array\('kind','chartType','title','xLabel','yLabel','sourceText'\)/);
   assert.match(source, /\$actual===\$expected/);

@@ -1,5 +1,6 @@
-import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version11';
-import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version11';
+import {defaultWebpage,validateWebpage,webpageItems,renderWebpage,renderWebpageEditor,exportWebpage} from './webpage.js?v=20261021-version12';
+import {defaultVector,validateVector,vectorItems,renderVector,renderVectorEditor,exportVector} from './vector.js?v=20261021-version12';
+import {defaultMindmap,validateMindmap,mindmapItems,renderMindmap,renderMindmapEditor,exportMindmap} from './mindmap.js?v=20261021-version12';
 /** Typed, text-only table/chart documents. No storage, network, or implicit downloads. */
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART_TYPES = ['flowchart','bar','line','pie'];
@@ -42,11 +43,12 @@ function sourceText(value) {
   fail(!normalized.includes('\r'),'圖表來源不可包含單獨的 CR 換行字元。');
   return normalized;
 }
-export function isArtifactType(type) { return type==='table'||type==='chart'||type==='mindmap'||type==='vector'; }
+export function isArtifactType(type) { return type==='table'||type==='chart'||type==='mindmap'||type==='vector'||type==='webpage'; }
 export function cloneArtifact(value) { return JSON.parse(JSON.stringify(value)); }
 export function defaultArtifact(type) {
   if(type==='mindmap')return defaultMindmap();
   if(type==='vector')return defaultVector();
+  if(type==='webpage')return defaultWebpage();
   if(type==='table')return {kind:'table',caption:'',columns:[{id:'column_1',label:'欄位 1'},{id:'column_2',label:'欄位 2'}],rows:[{id:'row_1',cells:['','']}]};
   if(type==='chart')return {kind:'chart',chartType:'flowchart',title:'',xLabel:'',yLabel:'',sourceText:'flowchart TD\nStart["開始"]'};
   throw new Error('此類型不是可保存的結構化作品。');
@@ -130,6 +132,7 @@ export function parseFlowchartSource(value) {
 function checkedArtifact(value,type) {
   if(type==='mindmap'){const error=validateMindmap(value);if(error)throw new Error(error);return cloneArtifact(value);}
   if(type==='vector'){const error=validateVector(value);if(error)throw new Error(error);return cloneArtifact(value);}
+  if(type==='webpage'){const error=validateWebpage(value);if(error)throw new Error(error);return cloneArtifact(value);}
   fail(isArtifactType(type),'此類型不是可保存的結構化作品。');
   let out;
   if(type==='table'){
@@ -173,6 +176,7 @@ function delimitedField(value,delimiter,spreadsheet=false) {
 export function artifactItems(value) {
   if(value?.kind==='mindmap')return mindmapItems(value);
   if(value?.kind==='vector')return vectorItems(value);
+  if(value?.kind==='webpage')return webpageItems(value);
   const artifact=checkedArtifact(value,value?.kind);let content,label;
   if(artifact.kind==='table'){
     const lines=artifact.caption?[artifact.caption]:[];
@@ -345,6 +349,7 @@ function serializeSvg(node) {
 export function renderArtifact(value,{document=globalThis.document,compact=false}={}) {
   if(value?.kind==='mindmap')return renderMindmap(value,{document,compact});
   if(value?.kind==='vector')return renderVector(value,{document,compact});
+  if(value?.kind==='webpage')return renderWebpage(value,{document,compact});
   const root=element(document,'section','artifact-preview'+(compact?' compact':''));
   const error=validateArtifact(value,value?.kind);
   if(error){root.append(element(document,'p','artifact-error',error));return root;}
@@ -371,6 +376,7 @@ function newStableId(kind,existing) {
 export function renderArtifactEditor(value,{document=globalThis.document,disabled=false,onChange=()=>{},idPrefix='artifact',uiState={},onPendingChange=()=>{}}={}) {
   if(value?.kind==='mindmap')return renderMindmapEditor(value,{document,disabled,onChange,idPrefix,uiState,onPendingChange});
   if(value?.kind==='vector')return renderVectorEditor(value,{document,disabled,onChange,idPrefix,uiState,onPendingChange});
+  if(value?.kind==='webpage')return renderWebpageEditor(value,{document,disabled,onChange,idPrefix,uiState,onPendingChange});
   const state=cloneArtifact(value),kind=state.kind;
   fail(isArtifactType(kind),'此類型不是可保存的結構化作品。');
   const prefix=String(idPrefix).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+(++instanceSequence);
@@ -442,6 +448,7 @@ export function renderArtifactEditor(value,{document=globalThis.document,disable
 export function exportArtifact(value,format) {
   if(value?.kind==='mindmap')return exportMindmap(value,format);
   if(value?.kind==='vector')return exportVector(value,format);
+  if(value?.kind==='webpage')return exportWebpage(value,format);
   const artifact=checkedArtifact(value,value?.kind);
   if(artifact.kind==='table'){
     fail(format==='csv'||format==='tsv','表格只支援 CSV 或 TSV 匯出。');

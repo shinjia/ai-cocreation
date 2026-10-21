@@ -234,7 +234,7 @@ test('returned artifacts are detached from input sources',()=>{
 
 test('helper uses shared native validation and has no network or browser state path',async()=>{
   const source=await readFile(new URL('../public/mindmap-demo.js',import.meta.url),'utf8');
-  assert.match(source,/import \{cloneMindmap\} from '\.\/mindmap\.js\?v=20261021-version11'/);
+  assert.match(source,/import \{cloneMindmap\} from '\.\/mindmap\.js\?v=20261021-version12'/);
   assert.doesNotMatch(source,/\b(?:fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB)\s*(?:\(|\.)/);
   assert.doesNotMatch(source,/\b(?:function\s+validateMindmap|innerHTML|eval\s*\()/);
 });

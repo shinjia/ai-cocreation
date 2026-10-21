@@ -48,7 +48,7 @@ class CocreationApp {
     private function itemKeys() { return array('phase','lifecycle','brief','goalApprovedAt','summaryRevision','versions','archivedVersionIds','officialVersionId','comparisons','messages','finalizedVersionId','finalizedAt','finalizations','references','contextRevision'); }
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？')))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='webpage'?'這個網頁要介紹什麼？我們會依序確認視覺風格、內容結構與操作功能；目前支援頁內導覽及可展開問答，不含外部圖片、表單送出或自訂程式。':($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':($type==='table'?'這份表格要整理什麼資料，需要哪些欄位？':($type==='chart'?'這張流程圖想表達什麼流程？可以先說起點、主要步驟與判斷關係；若需要統計圖，也可以明確提出並提供資料。':($type==='mindmap'?'先從一個主題開始，這張心智圖想探索什麼？AI 只提出待選分支，由你勾選後才加入圖中。':($type==='vector'?'這張向量作品要表達什麼？可以先談視覺、用途與必要文字；目前支援可編輯幾何圖形與文字，不含點陣影像或任意 SVG 匯入。':'先不用一次想完。這個創作項目要替什麼內容命名？'))))))):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -169,7 +169,7 @@ class CocreationApp {
         $combined=validateCombinedVersionNote(field($metadata,'goalAndRationale',versionGoalAndRationale(array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'rationale'=>$rationale))));
         $links=array($messageId);$last=end($project['messages']);if(is_array($last)&&$last['role']==='student'&&(($source==='revision'&&$last['kind']==='discussion')||($source==='generated'&&$last['kind']==='generation_request')||($source==='fusion'&&$last['kind']==='fusion_request')))array_unshift($links,$last['id']);$links=array_values(array_unique($links));
         $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'contentType'=>$project['module'],'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','goalAndRationale'=>$combined,'changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
-        if($artifact!==null){$v['artifact']=$artifact;$name=$project['module']==='table'?$artifact['caption']:($project['module']==='mindmap'?mindmapNode($artifact,$artifact['rootId'])['label']:$artifact['title']);$v['title']=trim($name)===''?($project['module']==='table'?'表格':($project['module']==='mindmap'?'心智圖':($project['module']==='vector'?'向量圖形':'圖表'))):bundleDisplayTitle(array(array('label'=>'title','content'=>$name)));}
+        if($artifact!==null){$v['artifact']=$artifact;$name=$project['module']==='table'?$artifact['caption']:($project['module']==='mindmap'?mindmapNode($artifact,$artifact['rootId'])['label']:$artifact['title']);$v['title']=trim($name)===''?($project['module']==='table'?'表格':($project['module']==='mindmap'?'心智圖':($project['module']==='vector'?'向量圖形':($project['module']==='webpage'?'網頁':'圖表')))):bundleDisplayTitle(array(array('label'=>'title','content'=>$name)));}
         $project['versions'][]=$v;return $v['id'];
     }
     public function action($input) {
@@ -286,19 +286,21 @@ class CocreationApp {
             $p['messages'][]=$this->message('assistant','我把目前對話整理成右側的創作目標草案。請確認它是不是你的意思；還有不同之處就繼續聊。','goal_summary',array('goalSnapshot'=>$p['brief'],'provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));return $this->save($p);
         }
         if($action==='approve_goal') {
+            $directionConfirmation=webpageDirectionConfirmation($p,$input);
             ensure($p['phase']==='summary'&&$p['brief']!==null&&is_int($p['summaryRevision'])&&$p['summaryRevision']<=$p['revision'],'SUMMARY_REQUIRED','請先整理最新目標，再按確認。',409);
             $p['goalApprovedAt']=nowIso();$p['phase']=count($p['versions'])?'work':'ready';
-            $p['messages'][]=$this->message('student','我確認這份創作目標；產生候選仍需由我另按按鈕。','goal_approval',array('goalSnapshot'=>$p['brief']));return $this->save($p);
+            $p['messages'][]=$this->message('student','我確認這份創作目標；產生候選仍需由我另按按鈕。','goal_approval',array('goalSnapshot'=>$p['brief'],'directionConfirmation'=>$directionConfirmation));return $this->save($p);
         }
         if($action==='generate'||$action==='confirm_generate') {
             if($action==='confirm_generate'){
+                $directionConfirmation=webpageDirectionConfirmation($p,$input);
                 ensure($p['phase']==='summary'&&$p['brief']!==null&&is_int($p['summaryRevision'])&&$p['summaryRevision']<=$p['revision'],'SUMMARY_REQUIRED','方向已變更或尚未整理，請先查看目前主軸與方向，再明確確認生成。',409);
                 $p['goalApprovedAt']=nowIso();$p['contextRevision']=$p['sharedContextRevision'];$p['phase']='ready';
             }
             $this->goalRequired($p);$slots=($p['module']==='article'||artifactType($p['module']))?1:($p['module']==='short_text'?3:5);ensure(count($p['versions'])<=60-$slots,'VERSION_LIMIT','本次候選的版本空間不足，請匯出後延續新作品；尚未呼叫 AI。',409);
             $instruction=userTextValue(field($input,'instruction',''),2000,'候選方向',true);
             $candidates=$module->generate($p,$instruction,$model);
-            if($action==='confirm_generate')$p['messages'][]=$this->message('student','我確認目前主軸與方向，並明確要求產生候選。','goal_approval',array('goalSnapshot'=>$p['brief']));
+            if($action==='confirm_generate')$p['messages'][]=$this->message('student','我確認目前主軸與方向，並明確要求產生候選。','goal_approval',array('goalSnapshot'=>$p['brief'],'directionConfirmation'=>$directionConfirmation));
             $p['messages'][]=$this->message('student',$instruction===''?'請依已確認目標產生一組候選組。':'請依已確認目標產生候選；這次方向：'.$instruction,'generation_request');
             $message=$this->message('assistant','新增了 '.count($candidates).' 組候選。正式版沒有變動；你可以比較、手動修改保存，或自己決定升為正式版。','generation',array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));$ids=array();
             foreach($candidates as $candidate)$ids[]=$this->appendVersion($p,$candidate['items'],$candidate['rationale'],'generated',null,$message['id'],$this->provenance($connection,$adapter,$requestedAt),'major',$candidate);

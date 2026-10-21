@@ -126,3 +126,14 @@ function inferenceGrowthBudget($project,$action,$input=array()) {
     if($action==='compare'){$goals=array();foreach(field($project,'versions',array()) as $v)$goals[]=strlen(jsonEncode(versionComparisonSnapshot($v)));rsort($goals,SORT_NUMERIC);return 2*$references+$brief+array_sum(array_slice($goals,0,5))+180000;} // Each selected historical goal is saved separately.
     throw new AppError('UNKNOWN_ACTION','未知的容量檢查操作。');
 }
+
+// Webpage generation is gated by three explicit user confirmations bound to the
+// current summary. The approval is saved in the existing immutable dialogue;
+// checkbox changes alone never infer, save artwork, or contact a provider.
+function webpageDirectionConfirmation($project,$input) {
+    if(field($project,'module')!=='webpage')return null;
+    $parts=field($input,'confirmedDirections');$summaryRevision=field($input,'directionRevision');
+    ensure(is_array($parts)&&$parts===array('style','content','functions')&&is_int($summaryRevision)&&$summaryRevision===field($project,'summaryRevision'),'DIRECTION_CONFIRMATION_REQUIRED','請分別確認目前網頁的視覺風格、內容結構與操作功能；方向更新後需重新確認。',409);
+    ensure(is_array(field($project,'brief')),'SUMMARY_REQUIRED','請先整理目前網頁方向。',409);
+    return array('summaryRevision'=>$summaryRevision,'style'=>$project['brief']['tone'],'content'=>$project['brief']['message'],'functions'=>$project['brief']['constraints']);
+}

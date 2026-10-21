@@ -1,8 +1,9 @@
-import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version11';
-import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version11';
+import {scriptedWebpageArtifact,scriptedWebpageBrief,scriptedWebpageRevision,fuseScriptedWebpages} from './webpage-demo.js?v=20261021-version12';
+import {scriptedVectorArtifact,scriptedVectorBrief,scriptedVectorRevision,fuseScriptedVectors} from './vector-demo.js?v=20261021-version12';
+import {scriptedMindmapArtifact,scriptedMindmapBrief,scriptedMindmapRevision,fuseScriptedMindmaps} from './mindmap-demo.js?v=20261021-version12';
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version11';
-import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version11';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion,webpageDirectionConfirmationError} from './app.js?v=20261021-version12';
+import {isArtifactType,validateArtifact,artifactItems,cloneArtifact,parseChartSource,parseFlowchartSource} from './artifacts.js?v=20261021-version12';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};
@@ -38,6 +39,7 @@ export function createDemoAdapter({seed=true}={}) {
   function demoBrief(type,chartMode='flowchart') {
     if(type==='mindmap')return scriptedMindmapBrief();
     if(type==='vector')return scriptedVectorBrief();
+    if(type==='webpage')return scriptedWebpageBrief();
     const brief=clone(DEMO_BRIEF);
     if(type==='short_text'){brief.items=[{id:'body',label:'全文'}];brief.summary='為社區影像展撰寫一篇溫暖、清楚的宣傳短文，邀請居民與創作者從日常生活看見故事。';}
     if(type==='article'){brief.items=[{id:'paragraph-1',label:'開場'},{id:'paragraph-2',label:'展覽內容'},{id:'paragraph-3',label:'邀請與結語'}];brief.summary='以開場、展覽內容及邀請結語三段介紹社區影像展，讓居民與創作者理解活動意義，從日常生活看見故事。';}
@@ -80,10 +82,11 @@ export function createDemoAdapter({seed=true}={}) {
     if(type==='chart')artifact.sourceText=artifact.sourceText.replace(/\r\n/g,'\n');
     return artifact;
   }
-  function artifactTitle(artifact,items) {return String(artifact?.kind==='table'?artifact.caption:['chart','vector'].includes(artifact?.kind)?artifact.title:artifact?.kind==='mindmap'?artifact.nodes.find(node=>node.id===artifact.rootId).label:items[0].content).slice(0,180);}
+  function artifactTitle(artifact,items) {return String(artifact?.kind==='table'?artifact.caption:['chart','vector','webpage'].includes(artifact?.kind)?artifact.title:artifact?.kind==='mindmap'?artifact.nodes.find(node=>node.id===artifact.rootId).label:items[0].content).slice(0,180);}
   function scriptedArtifact(type,brief) {
     if(type==='mindmap')return scriptedMindmapArtifact(brief);
     if(type==='vector')return scriptedVectorArtifact(brief);
+    if(type==='webpage')return scriptedWebpageArtifact(brief);
     if(type==='chart' && !brief?.constraints?.includes('示範種類：統計圖表'))return {kind:'chart',chartType:'flowchart',title:'想法整理流程（虛構示範）',xLabel:'',yLabel:'',sourceText:'flowchart TD\nStart("開始")\nIdea["整理想法"]\nReview{"確認方向？"}\nDraft["建立候選"]\nStart --> Idea\nIdea --> Review\nReview -->|需要調整| Idea\nReview -->|確認| Draft'};
     return type==='table'?{kind:'table',caption:'活動時段（虛構示範資料）',columns:[{id:'time',label:'時段'},{id:'activity',label:'活動'}],rows:[{id:'morning',cells:['10:00','開場與導覽（虛構）']},{id:'noon',cells:['11:00','作品交流（虛構）']},{id:'afternoon',cells:['14:00','分享時段（虛構）']}]}:{kind:'chart',chartType:'bar',title:'參觀人次（虛構示範資料）',xLabel:'時段',yLabel:'人次',sourceText:'時段\t人次\n上午\t12\n下午\t18\n傍晚\t9'};
   }
@@ -147,6 +150,7 @@ export function createDemoAdapter({seed=true}={}) {
   function flowSignature(graph) {return JSON.stringify([graph.direction,setSignature(graph.nodes.map(node=>[node.id,node.label,node.shape])),setSignature(graph.edges.map(edge=>[edge.from,edge.to,edge.label]))]);}
   function fuseArtifacts(sources,type) {
     if(type==='vector'){try{return fuseScriptedVectors(sources.map(source=>source.artifact));}catch(error){throw new ApiError(error.message,400);}}
+    if(type==='webpage'){try{return fuseScriptedWebpages(sources.map(source=>source.artifact));}catch(error){throw new ApiError(error.message,400);}}
     if(type==='mindmap'){try{return fuseScriptedMindmaps(sources.map(source=>source.artifact));}catch(error){throw new ApiError(error.message,400);}}
     const artifacts=sources.map(source=>checkedArtifact(source.artifact,type)),artifact=cloneArtifact(artifacts[0]);
     if(type==='chart' && artifacts.some(source=>source.chartType==='flowchart')){
@@ -207,7 +211,7 @@ export function createDemoAdapter({seed=true}={}) {
     const items=artifact?artifactItems(artifact):sources[0].items.map((item,index)=>clone(sources[index%sources.length].items.find(candidate=>candidate.id===item.id && candidate.label===item.label) || item));
     if(project.type==='short_text')items[0].content=sources.map(source=>source.items[0].content).join('\n\n');
     if(!validItems(items,project.type))throw new ApiError('示範融合結果超過內容限制，請減少來源版本或縮短內容。',400);
-    const method=project.type==='vector'?'依選取順序追加相容的新圖形物件，保留第一份來源的畫布、背景與既有圖層順序；不猜測相衝突的圖形內容或外部工具相容性':project.type==='mindmap'?'合併已在來源中加入的相容節點，待選建議仍保持待選；不推測關係、不把未勾選建議加入圖中':project.type==='table'?'依選取順序加入不同的完整資料列，相同儲存格內容的列不重複加入；保留第一份來源的欄位與說明，僅在列 ID 衝突時另建 ID':project.type==='chart'?(artifact.chartType==='flowchart'?'依選取順序合併已宣告的相容節點與不同連線，保留第一份來源的標題與方向；重新排列成安全文字來源，不新增任何未在來源出現的連線':'依選取順序加入新分類，跳過同名且同值的分類；保留第一份來源的圖表類型、標題、座標軸與欄位，不計算或改寫數值'):'依選取順序輪流取用同名欄位；短文則逐篇串接';
+    const method=project.type==='webpage'?'依選取順序合併相容的完整內容區塊，保留既有區塊識別碼與頁內導覽；衝突時拒絕，不捏造外部圖片、表單或網站功能':project.type==='vector'?'依選取順序追加相容的新圖形物件，保留第一份來源的畫布、背景與既有圖層順序；不猜測相衝突的圖形內容或外部工具相容性':project.type==='mindmap'?'合併已在來源中加入的相容節點，待選建議仍保持待選；不推測關係、不把未勾選建議加入圖中':project.type==='table'?'依選取順序加入不同的完整資料列，相同儲存格內容的列不重複加入；保留第一份來源的欄位與說明，僅在列 ID 衝突時另建 ID':project.type==='chart'?(artifact.chartType==='flowchart'?'依選取順序合併已宣告的相容節點與不同連線，保留第一份來源的標題與方向；重新排列成安全文字來源，不新增任何未在來源出現的連線':'依選取順序加入新分類，跳過同名且同值的分類；保留第一份來源的圖表類型、標題、座標軸與欄位，不計算或改寫數值'):'依選取順序輪流取用同名欄位；短文則逐篇串接';
     const goal='固定腳本未綜合或重新判斷來源目標；下方逐版保留本版目標與修改意見，請自行審閱。';
     const combined=[goal,...sources.map(source=>`${versionLabel(source)} 來源目標與修改意見：\n${versionGoalAndRationale(source) || '此舊版未保存目標與修改意見。'}`),`本次固定腳本操作：\n${method}`].join('\n\n');
     if(combinedMetadataError(combined))throw new ApiError('完整來源目標與意見合計超過示範融合的 12,000 位元組限制；未省略、未截斷，也沒有建立融合版。請減少來源版本。',400);
@@ -315,6 +319,11 @@ export function createDemoAdapter({seed=true}={}) {
     if(!p.enabled)throw new ApiError('這個項目類型尚未實作，不能執行 AI 或保存版本。',409);
     if(p.lifecycle==='finalized' && action!=='reopen')throw new ApiError('項目已定稿，請先重新開啟討論。',409);
     if(['discuss','summarize','generate','confirm_generate','compare','fuse'].includes(action))requireProjectModel(raw,body);
+    let directionConfirmation=null;
+    if(p.type==='webpage' && ['approve_goal','confirm_generate'].includes(action)){
+      const error=webpageDirectionConfirmationError(view(raw),body.confirmedDirections,body.directionRevision);if(error)throw new ApiError(error,409);
+      directionConfirmation={summaryRevision:p.summaryRevision,style:p.brief.tone,content:p.brief.message,functions:p.brief.constraints};
+    }
     let revisionVersionId=null,fusionVersionId=null,directionResult=null;
     switch(action) {
       case 'discuss': {
@@ -339,6 +348,15 @@ export function createDemoAdapter({seed=true}={}) {
           const choice=question.choices.find(option=>option.id===answer.choiceId);
           if(!choice || body.text!==choice.value)throw new ApiError('選項答案與保存的問題不一致。',400);
           studentExtra={choiceAnswer:{questionMessageId:question.id,choiceId:choice.id,label:choice.label,value:choice.value}};
+        }
+        if(base && p.type==='webpage'){
+          let result;try{result=scriptedWebpageRevision(base.artifact,body.text);}catch(error){throw new ApiError(error.message,400);}
+          if(result.outcome==='revision'){
+            const combined=[versionGoalAndRationale(base),'本次網頁修改：\n'+result.changeSummary].filter(Boolean).join('\n\n');if(combinedMetadataError(combined))throw new ApiError('完整目標與網頁修改意見超過 12,000 位元組，未截斷或建立修改版。',400);
+            message(p,'student',body.text,'discussion',{...studentExtra,basedOnVersionId:base.id});
+            const revised=addScriptedRevision(p,base,artifactItems(result.artifact),[],result.artifact);revised.revisionInstruction=body.text;revised.changeSummary=result.changeSummary;revised.rationale=result.rationale;revised.goalAndRationale=combined;p.messages.find(m=>m.id===revised.messageId).text=result.reply;revisionVersionId=revised.id;
+          }else{message(p,'student',body.text,'discussion',{...studentExtra,basedOnVersionId:base.id});message(p,'assistant',result.reply,'clarification',{...scriptedQuestion(raw,p,result.question || '',result.choices || [],base.id,[]),basedOnVersionId:base.id});p.lifecycle='in_progress';}
+          break;
         }
         if(base && p.type==='vector'){
           let result;try{result=scriptedVectorRevision(base.artifact,body.text);}catch(error){throw new ApiError(error.message,400);}
@@ -405,6 +423,10 @@ export function createDemoAdapter({seed=true}={}) {
           break;
         }
         message(p,'student',body.text,'discussion',studentExtra);p.phase='discussion';p.brief=null;p.summaryRevision=null;p.goalApprovedAt=null;p.lifecycle='in_progress';
+        if(p.type==='webpage'){
+          if(/示範|網頁/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
+          message(p,'assistant','固定腳本不會解析你的網站需求。可先使用虛構活動網頁，體驗內容區塊、頁內導覽與可展開問答；需分別確認三部分方向，再按生成。','discussion',scriptedQuestion(raw,p,'要使用固定的虛構網頁示範嗎？',[{id:'webpage-demo',label:'使用網頁示範',value:'請使用網頁示範。'},{id:'webpage-continue',label:'繼續自由輸入',value:'我想先繼續說明想法。'}]));break;
+        }
         if(p.type==='vector'){
           if(/示範|向量/u.test(body.text)){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
           message(p,'assistant','固定腳本不會解析你的設計要求。可使用虛構向量圖，體驗可編輯幾何物件與 SVG 匯出；確認前不建立作品。','discussion',scriptedQuestion(raw,p,'要先使用固定的虛構向量示範嗎？',[{id:'vector-demo',label:'使用向量圖形示範',value:'請使用向量圖形示範。'},{id:'vector-continue',label:'繼續自由輸入',value:'我想先繼續說明想法。'}]));break;
@@ -447,11 +469,11 @@ export function createDemoAdapter({seed=true}={}) {
       }
       case 'approve_goal': {
         if(p.phase!=='summary' || !p.brief)throw new ApiError('請先整理目標。',400);
-        p.goalApprovedAt=now();p.phase='ready';p.lifecycle='in_progress';message(p,'system','你已確認這份目標。候選尚未生成，需要另外按下「產生候選」並確認。','goal_approved');break;
+        p.goalApprovedAt=now();p.phase='ready';p.lifecycle='in_progress';message(p,'system','你已確認這份目標。候選尚未生成，需要另外按下「產生候選」並確認。','goal_approved',{directionConfirmation});break;
       }
       case 'confirm_generate': {
         if(p.phase!=='summary' || !p.brief || !Number.isInteger(p.summaryRevision) || p.summaryRevision>raw.revision)throw new ApiError('請先檢閱最新整理的主軸與方向，再確認生成。',409);
-        p.goalApprovedAt=now();p.phase='ready';message(p,'system','你已確認目前主軸與方向，並明確要求產生候選。','goal_approved');addGenerated(p);break;
+        p.goalApprovedAt=now();p.phase='ready';message(p,'system','你已確認目前主軸與方向，並明確要求產生候選。','goal_approved',{directionConfirmation});addGenerated(p);break;
       }
       case 'generate': {
         if(!canGenerate(p))throw new ApiError('請先確認創作目標。',400);addGenerated(p);break;
