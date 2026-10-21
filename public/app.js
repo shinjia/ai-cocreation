@@ -586,6 +586,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   function renderConversation() {
     const panel=el('aside','panel dialogue-panel',null,{'aria-labelledby':'dialogue-heading'});
     append(panel,append(el('div','panel-heading dialogue-head'),append(el('div'),el('p','step-label','01 釐清想法'),el('h2','','和 AI 慢慢聊',{id:'dialogue-heading'}),el('p','panel-subtitle','一次想清楚一件事，對話都留在這裡。')),el('span','badge',`${project.messages.length} 則紀錄`)));
+    panel.append(renderQuickSwitch());
     const list=el('div','conversation',null,{id:'conversation',role:'log','aria-label':'完整討論紀錄','aria-live':'polite','aria-relevant':'additions',tabindex:'0'});
     if(!project.messages.length)append(list,append(el('div','chat-entry'),el('p','chat-role',demo?'腳本引導':'創作起點'),el('p','chat-text','這次的標題要用在哪裡？\n可以先說用途，不需要一次把所有事情想好。')));
     project.messages.forEach(message=>{
@@ -602,7 +603,6 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       list.append(card);
     });panel.append(list);
     const form=el('form','chat-composer');form.addEventListener('submit',e=>{e.preventDefault();sendDiscussion();});
-    form.append(renderQuickSwitch());
     const input=el('textarea','',null,{id:'chat-input',maxlength:'6000',rows:'3',placeholder:project.officialVersionId?'告訴 AI 要修改正式版的哪一項、怎麼改，其他項目會保留…':'寫下你的想法，或回應上一個問題…',disabled:busy || !canCreate(project)});input.value=draft().chat;
     input.addEventListener('input',()=>{draft().chat=input.value;const send=document.getElementById('send-chat');if(send)send.disabled=busy || !canCreate(project) || !input.value.trim() || !!uncertain || !!aiSetupReason(state,demo);});
     const discussionTurns=project.messages.filter(m=>m.role==='student' && (!m.kind || m.kind==='discussion')).length;

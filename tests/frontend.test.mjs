@@ -82,7 +82,7 @@ test('demo source has no networking or persistent browser storage; rendering nev
  assert.ok(!/localStorage|sessionStorage|indexedDB|innerHTML|outerHTML|insertAdjacentHTML/.test(app+demo));
  assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(demo));
  const html=await readFile(new URL('../public/demo.html',import.meta.url),'utf8');assert.match(html,/connect-src 'none'/);assert.match(html,/腳本示範/);
- const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version4"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version4"/);assert.match(html,/demo\.js\?v=20261021-version4/);assert.match(demo,/app\.js\?v=20261021-version4/);
+ const view=await readFile(new URL('../app/view.html',import.meta.url),'utf8');assert.match(view,/src="\.\/app\.js\?v=20261021-version5"/);assert.match(view,/href="\.\/styles\.css\?v=20261021-version5"/);assert.match(html,/demo\.js\?v=20261021-version5/);assert.match(demo,/app\.js\?v=20261021-version5/);
 });
 test('creative items isolate discussion, draft source versions, and unavailable capabilities',async()=>{
  const api=createDemoAdapter({seed:false});let p=await readyProject(api);p=await call(api,'generate',p,{consent:true});const originalId=p.activeItemId;const original=structuredClone(p.activeItem);
@@ -623,14 +623,23 @@ test('reference picker excludes archived versions and empty sources while retain
  });
 });
 
-test('member selector is in the composer directly before its label, after the complete history',async()=>{
- await withMemberFixture(async({doc,root,calls})=>{
-  const panel=root.querySelector('.dialogue-panel'),history=doc.getElementById('conversation'),composer=root.querySelector('.chat-composer'),selector=root.querySelector('.quick-switch');
-  assert.equal(selector.parentNode,composer);assert.equal(composer.children[0],selector);
-  assert.equal(composer.children[1].tagName,'LABEL');assert.equal(composer.children[1].getAttribute('for'),'chat-input');assert.equal(composer.children[1].textContent,'針對正式版繼續修改或討論');
-  assert.ok(panel.children.indexOf(history)<panel.children.indexOf(composer));assert.equal(history.querySelector('.quick-switch'),null);assert.equal(root.querySelectorAll('#discussion-member').length,1);
-  assert.ok(history.querySelectorAll('.chat-entry').length>3);assert.match(selector.textContent,/下一次操作使用這位 AI 成員/);assert.deepEqual(calls.map(c=>c.action),['state','project']);
+test('member selector is inside the named dialogue panel after its heading and above log and input',async()=>{
+ await withMemberFixture(async({doc,root,calls,second})=>{
+  const checkPlacement=()=>{
+   const panel=root.querySelector('.dialogue-panel'),history=doc.getElementById('conversation'),composer=root.querySelector('.chat-composer'),selector=root.querySelector('.quick-switch'),member=doc.getElementById('discussion-member');
+   assert.equal(panel.getAttribute('aria-labelledby'),'dialogue-heading');assert.equal(doc.getElementById('dialogue-heading').textContent,'和 AI 慢慢聊');
+   assert.deepEqual(panel.children.map(node=>node.className),['panel-heading dialogue-head','quick-switch','conversation','chat-composer']);
+   assert.equal(selector.parentNode,panel);assert.equal(member.closest('.dialogue-panel'),panel);assert.equal(composer.querySelector('.quick-switch'),null);assert.equal(history.querySelector('.quick-switch'),null);
+   assert.equal(composer.children[0].tagName,'LABEL');assert.equal(composer.children[0].getAttribute('for'),'chat-input');assert.equal(composer.children[1],doc.getElementById('chat-input'));
+   assert.equal(root.querySelectorAll('#discussion-member').length,1);assert.equal(root.querySelectorAll('#ai-setup-status').length,1);assert.equal(root.querySelectorAll('#dialogue-heading').length,1);assert.equal(root.querySelectorAll('.quick-switch').length,1);assert.equal(history.getAttribute('role'),'log');
+   assert.equal(member.getAttribute('aria-label'),'下一次操作的 AI 成員');assert.ok(selector.querySelectorAll('label').some(label=>label.getAttribute('for')==='discussion-member' && label.textContent==='下一次操作使用這位 AI 成員'));
+   assert.equal(doc.getElementById('ai-setup-status').getAttribute('role'),'status');assert.ok(history.querySelectorAll('.chat-entry').length>3);return member;
+  };
+  assert.equal(checkPlacement().disabled,false);assert.deepEqual(calls.map(c=>c.action),['state','project']);
+  await fixtureFill(doc,'chat-input','保留輸入中的想法');await fixtureSelect(doc,'discussion-member',second);assert.equal(checkPlacement().value,second);assert.equal(doc.getElementById('chat-input').value,'保留輸入中的想法');
+  await fixtureClick(doc,'AI 系統設定');await fixtureDialogClick(doc,'取消');assert.equal(checkPlacement().value,second);assert.equal(doc.getElementById('chat-input').value,'保留輸入中的想法');assert.deepEqual(calls.map(c=>c.action),['state','project','select_member']);
  });
+ const css=await readFile(new URL('../public/styles.css',import.meta.url),'utf8');assert.match(css,/@media print\{[^{}]*\.quick-switch[^{}]*\{display:none!important\}/);assert.doesNotMatch(css,/\.chat-composer \.quick-switch\{/);
 });
 
 test('UI defaults and seeded demo use general-audience creative examples, without altering legacy role storage',async()=>{
