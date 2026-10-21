@@ -1,15 +1,24 @@
 <?php
-// Add a module descriptor and an adapter for future capabilities; only titles is active.
+// Keep all established ids. Planned media modules are visible but never execute
+// a text substitute and never claim that an image, site, or program was created.
 function moduleRegistry() {
     return array(
         array('id'=>'titles','label'=>'標題名稱','enabled'=>true),
-        array('id'=>'article','label'=>'文章','enabled'=>false),
+        array('id'=>'short_text','label'=>'短文','enabled'=>true),
+        array('id'=>'article','label'=>'長篇文章','enabled'=>true),
+        array('id'=>'illustrated','label'=>'圖文','enabled'=>false),
+        array('id'=>'table','label'=>'表格','enabled'=>false),
+        array('id'=>'chart','label'=>'圖表','enabled'=>false),
+        array('id'=>'mindmap','label'=>'心智圖','enabled'=>false),
+        array('id'=>'vector','label'=>'向量圖形','enabled'=>false),
+        array('id'=>'image','label'=>'圖片創作','enabled'=>false),
         array('id'=>'poster','label'=>'海報設計','enabled'=>false),
-        array('id'=>'webpage','label'=>'網頁設計','enabled'=>false),
-        array('id'=>'interactive','label'=>'互動程式創意','enabled'=>false)
+        array('id'=>'webpage','label'=>'網頁','enabled'=>false),
+        array('id'=>'interactive','label'=>'互動視覺程式','enabled'=>false)
     );
 }
 function moduleAdapter($id,$model) {
-    ensure($id==='titles','MODULE_UNAVAILABLE','此模組尚未開放；目前只提供標題創意。',409);
-    return new TitleModule($model);
+    if($id==='titles')return new TitleModule($model);
+    if($id==='short_text'||$id==='article')return new TextModule($model,$id);
+    throw new AppError('MODULE_UNAVAILABLE','此模組仍在規劃中，尚未開放；目前提供標題名稱、短文及長篇文章。',409);
 }

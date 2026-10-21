@@ -28,10 +28,11 @@ class OpenAIAdapter
         }
         try{return json_decode($body,false,128,JSON_THROW_ON_ERROR);}catch(JsonException $e){throw new AppError('MODEL_OUTPUT_INVALID','OpenAI 回應不是有效 JSON。',502);}
     }
-    public function generate($model,$messages,$schema)
+    public function generate($model,$messages,$schema,$maxOutputTokens=6000)
     {
+        ensure(is_int($maxOutputTokens)&&$maxOutputTokens>=6000&&$maxOutputTokens<=24000,'MODEL_OUTPUT_BUDGET','輸出長度設定超出允許範圍。');
         modelName($model);$this->actualModel=null;
-        $payload=array('model'=>$model,'input'=>$messages,'store'=>false,'stream'=>false,'max_output_tokens'=>6000,'text'=>array('format'=>array('type'=>'json_schema','name'=>'title_cocreation_result','strict'=>true,'schema'=>$schema)));
+        $payload=array('model'=>$model,'input'=>$messages,'store'=>false,'stream'=>false,'max_output_tokens'=>$maxOutputTokens,'text'=>array('format'=>array('type'=>'json_schema','name'=>'title_cocreation_result','strict'=>true,'schema'=>$schema)));
         $result=$this->request($payload);
         ensure(plain($result),'MODEL_OUTPUT_INVALID','OpenAI 回應格式不正確。',502);
         if(field($result,'status')==='incomplete')throw new AppError('MODEL_INCOMPLETE','OpenAI 輸出未完成（可能達到輸出上限或內容限制），沒有儲存為有效回饋，也不會自動重試。',502);

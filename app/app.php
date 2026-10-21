@@ -10,6 +10,21 @@ class CocreationApp {
         $connection=$member===null?$this->store->connection($this->config['openai_model'],$this->owner):validateConnection($member);
         return array_merge($connection,array('settingsRevision'=>$roster['settingsRevision'],'memberId'=>$member===null?null:$member['id'],'memberNickname'=>$member===null?null:$member['nickname'],'usageConsent'=>$roster['usageConsent']));
     }
+    private function bindingFromInput($input) {
+        $roster=$this->settingsLease($input);$id=field($input,'memberId');validId($id);$member=null;
+        foreach($roster['members'] as $candidate)if($candidate['id']===$id)$member=$candidate;
+        ensure($member!==null,'MEMBER_NOT_FOUND','找不到要為專案選定的 AI 成員。',404);ensure($member['enabled'],'MEMBER_DISABLED','請先在系統設定啟用這位 AI 成員。',409);
+        return array_merge(array('memberId'=>$member['id'],'memberNickname'=>$member['nickname']),validateConnection($member),array('boundAt'=>nowIso()));
+    }
+    private function projectConnection($project) {
+        $binding=field($project,'aiBinding');ensure(is_array($binding),'PROJECT_MODEL_REQUIRED','請先為這個專案選定 AI 模型；選定後在此專案固定使用，不會逐句切換。',409);
+        $binding=validateProjectAiBinding($binding);$roster=$this->store->memberRoster($this->config['openai_model'],$this->owner);$member=null;
+        foreach($roster['members'] as $candidate)if($candidate['id']===$binding['memberId'])$member=$candidate;
+        ensure($member!==null,'MEMBER_NOT_FOUND','此專案固定的 AI 成員已不在設定中；請還原原成員設定，不會改用其他模型。',404);
+        ensure($member['enabled'],'MEMBER_DISABLED','此專案固定的 AI 成員已停用；請在系統設定重新啟用原成員。',409);
+        foreach(array('provider','model','ollamaUrl') as $key)ensure($member[$key]===$binding[$key],'PROJECT_MODEL_CHANGED','中央設定已更動此專案固定的模型或目的地。請還原原設定；若需要其他模型，請另建專案，不會偷偷切換。',409);
+        return array_merge(validateConnection($binding),array('memberId'=>$binding['memberId'],'memberNickname'=>$binding['memberNickname'],'settingsRevision'=>$roster['settingsRevision'],'usageConsent'=>$roster['usageConsent']));
+    }
     private function adapter($connection) {
         if($this->model!==null)return $this->model;
         if($connection['provider']==='ollama')return new OllamaAdapter($connection['ollamaUrl'],$this->config['model_timeout_ms']);
@@ -33,7 +48,7 @@ class CocreationApp {
     private function itemKeys() { return array('phase','lifecycle','brief','goalApprovedAt','summaryRevision','versions','archivedVersionIds','officialVersionId','comparisons','messages','finalizedVersionId','finalizedAt','finalizations','references','contextRevision'); }
     private function newItem($type,$title,$description) {
         $supported=array_column(moduleRegistry(),'enabled','id');ensure(isset($supported[$type]),'ITEM_TYPE','未知創作項目類型。');
-        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?'先不用一次想完。這個創作項目要替什麼內容命名？':'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
+        return array('id'=>newId(),'type'=>$type,'title'=>userTextValue($title,240,'創作項目名稱'),'description'=>userTextValue($description,4000,'項目說明',true),'enabled'=>$supported[$type],'archived'=>false,'phase'=>'discussion','lifecycle'=>'created','brief'=>null,'goalApprovedAt'=>null,'summaryRevision'=>null,'versions'=>array(),'archivedVersionIds'=>array(),'officialVersionId'=>null,'comparisons'=>array(),'messages'=>array($this->message('system',$supported[$type]?($type==='short_text'?'這篇短文想傳達什麼，準備給誰閱讀？':($type==='article'?'這篇文章的核心主題與用途是什麼？':'先不用一次想完。這個創作項目要替什麼內容命名？')):'此項目目前只有規劃位置，可填寫說明、加入其他項目的版本引用；尚未提供 AI 生成。','welcome')),'finalizedVersionId'=>null,'finalizedAt'=>null,'finalizations'=>array(),'references'=>array(),'contextRevision'=>0,'createdAt'=>nowIso());
     }
     private function view($raw) {
         ensure(isset($raw['creativeItems'],$raw['activeItemId'],$raw['sharedContextRevision']),'DATA_SCHEMA_UNSUPPORTED','這不是本版的專案資料格式。請使用新的私有資料夾；不要覆寫既有其他系統的資料。',409);
@@ -47,7 +62,12 @@ class CocreationApp {
         if(isset($selected['sharedContextChanged']))$out['sharedContextChanged']=true;
         return $out;
     }
-    private function normalizeRaw($raw) { foreach($raw['creativeItems'] as &$item)normalizeItemVersions($item);unset($item);return $raw; }
+    private function normalizeRaw($raw) {
+        if(!array_key_exists('aiBinding',$raw))$raw['aiBinding']=null; // No inferred model for existing projects.
+        if($raw['aiBinding']!==null)$raw['aiBinding']=validateProjectAiBinding($raw['aiBinding']);
+        $capabilities=array_column(moduleRegistry(),'enabled','id');
+        foreach($raw['creativeItems'] as &$item){normalizeItemVersions($item);$item['enabled']=isset($capabilities[$item['type']])&&$capabilities[$item['type']];}unset($item);return $raw;
+    }
     public function project($id) { return $this->view($this->store->project($id,$this->owner)); }
     private function saveRaw($raw) { $raw['revision']++;return array('project'=>$this->view($this->store->save($raw,$this->owner))); }
     private function locateItem($raw,$id) { validId($id);foreach($raw['creativeItems'] as $index=>$item)if($item['id']===$id)return $index;throw new AppError('ITEM_NOT_FOUND','找不到這個專案的創作項目。',404); }
@@ -55,6 +75,7 @@ class CocreationApp {
     private function pinnedVersion($version) {
         // Preserve the complete source content and direct provenance, not exponentially
         // nested copies of every prior source's sources. Lineage ids remain available.
+        unset($version['fusionSourceSnapshots']); // Direct content and fusionSourceVersionIds remain; never recursively copy ancestors.
         if(isset($version['referencesSnapshot']))foreach($version['referencesSnapshot'] as &$ref){$source=field($ref,'versionSnapshot',array());unset($ref['versionSnapshot']);$ref['sourceProvenance']=field($source,'provenance');}unset($ref);
         return $version;
     }
@@ -97,21 +118,32 @@ class CocreationApp {
         foreach($this->itemKeys() as $key)unset($project[$key]);unset($project['activeItem'],$project['module'],$project['sharedContextChanged']);$project['projectLifecycle']='in_progress';return $this->saveRaw($project);
     }
     private function message($role,$text,$kind,$extra=array()) { return array_merge(array('id'=>newId(),'role'=>$role,'text'=>$text,'kind'=>$kind,'at'=>nowIso()),$extra); }
-    private function choiceContext($project) {
-        return array('itemId'=>$project['activeItemId'],'officialVersionId'=>$project['officialVersionId'],'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description']);
+    private function refinementSelection($project,$input) {
+        $id=field($input,'baseVersionId',$project['officialVersionId']);$base=$id===null?null:$this->version($project,$id);
+        if($base!==null)ensure(!versionArchived($project,$id),'VERSION_ARCHIVED','請先還原這個版本，再以它為修改起點。',409);
+        $targets=field($input,'targetItemIds',array());ensure(is_array($targets)&&($targets===array()||array_keys($targets)===range(0,count($targets)-1)),'TARGET_ITEMS_INVALID','修改範圍必須是段落識別碼清單。',409);
+        if($project['module']==='article'&&$base!==null){
+            ensure(count($targets)>0,'TARGET_ITEMS_REQUIRED','請先選擇這一版要修改的段落或條文；會參考全文但只更動選取範圍。',409);
+            $known=array_column($base['items'],'id');foreach($targets as $target)ensure(is_string($target)&&in_array($target,$known,true),'TARGET_ITEMS_INVALID','修改範圍包含不屬於這個版本的段落。',409);
+            ensure(count(array_unique($targets,SORT_STRING))===count($targets),'TARGET_ITEMS_INVALID','修改範圍不可重複。',409);sort($targets,SORT_STRING);
+        }else ensure($targets===array(),'TARGET_ITEMS_INVALID','這個創作類型或階段不接受段落範圍。',409);
+        return array('base'=>$base,'targetItemIds'=>$targets);
     }
-    private function questionMetadata($project,$result) {
+    private function choiceContext($project,$selection) {
+        return array('itemId'=>$project['activeItemId'],'officialVersionId'=>$project['officialVersionId'],'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description'],'baseVersionId'=>$selection['base']===null?null:$selection['base']['id'],'targetItemIds'=>$selection['targetItemIds']);
+    }
+    private function questionMetadata($project,$result,$selection) {
         $extra=array('question'=>$result['question'],'choices'=>$result['choices']);
-        if($result['choices']!==array())$extra['choiceContext']=$this->choiceContext($project);
+        if($result['choices']!==array())$extra['choiceContext']=$this->choiceContext($project,$selection);
         return $extra;
     }
-    private function resolveChoiceAnswer($project,$input) {
+    private function resolveChoiceAnswer($project,$input,$selection) {
         if(!array_key_exists('choiceAnswer',$input))return array();
         $answer=$input['choiceAnswer'];$questionId=field($answer,'questionMessageId');$choiceId=field($answer,'choiceId');
         ensure(is_array($answer)&&count($answer)===2&&is_string($questionId)&&preg_match('/^[a-f0-9]{32}$/D',$questionId)&&is_string($choiceId)&&preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/D',$choiceId),'CHOICE_INVALID','回答選項格式不正確，請重新讀取問題或改用文字回答。');
         $question=end($project['messages']);
         ensure(is_array($question)&&field($question,'id')===$questionId&&field($question,'role')==='assistant'&&in_array(field($question,'kind'),array('discussion','clarification'),true),'CHOICE_STALE','這個問題已不是目前可回答的問題。請查看最新對話；文字草稿仍保留。',409);
-        $context=field($question,'choiceContext');$expected=$this->choiceContext($project);
+        $context=field($question,'choiceContext');$expected=$this->choiceContext($project,$selection);
         ensure(is_array($context)&&count($context)===count($expected),'CHOICE_STALE','這個問題缺少目前內容的綁定，請查看最新對話或用文字回答。',409);
         foreach($expected as $key=>$value)ensure(array_key_exists($key,$context)&&$context[$key]===$value,'CHOICE_STALE','創作內容或目標脈絡已改變，舊問題的選項已停用；請繼續用文字討論。',409);
         try{$choices=validateDialogueChoices(field($question,'choices'),field($question,'question'));}catch(AppError $e){throw new AppError('CHOICE_STALE','這個問題沒有可用的回答選項，請用文字回答。',409);}
@@ -127,14 +159,14 @@ class CocreationApp {
         $base=$basedOn===null?null:$this->version($project,$basedOn);$coordinates=nextVersionCoordinates($project['versions'],$mode,$base);$ordinal=0;foreach($project['versions'] as $old)$ordinal=max($ordinal,$old['number']);
         $goalText=userTextValue(field($metadata,'goalText',field($project['brief'],'summary','')),6000,'版本目標',true);$changeSummary=userTextValue(field($metadata,'changeSummary',$rationale),2000,'版本修改整理',true);
         $combined=validateCombinedVersionNote(field($metadata,'goalAndRationale',versionGoalAndRationale(array('goalText'=>$goalText,'changeSummary'=>$changeSummary,'rationale'=>$rationale))));
-        $links=array($messageId);$last=end($project['messages']);if(is_array($last)&&$last['role']==='student'&&(($source==='revision'&&$last['kind']==='discussion')||($source==='generated'&&$last['kind']==='generation_request')))array_unshift($links,$last['id']);$links=array_values(array_unique($links));
-        $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','goalAndRationale'=>$combined,'changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
+        $links=array($messageId);$last=end($project['messages']);if(is_array($last)&&$last['role']==='student'&&(($source==='revision'&&$last['kind']==='discussion')||($source==='generated'&&$last['kind']==='generation_request')||($source==='fusion'&&$last['kind']==='fusion_request')))array_unshift($links,$last['id']);$links=array_values(array_unique($links));
+        $v=array('id'=>newId(),'number'=>$ordinal+1,'major'=>$coordinates['major'],'minor'=>$coordinates['minor'],'title'=>bundleDisplayTitle($items),'contentType'=>$project['module'],'items'=>$items,'rationale'=>$rationale,'source'=>$source,'basedOnVersionId'=>$basedOn,'goalSnapshot'=>array('summary'=>$goalText),'goalText'=>$goalText,'goalSource'=>$source==='snapshot'?'user':'ai','goalAndRationale'=>$combined,'changeSummary'=>$changeSummary,'discussionMessageIds'=>$links,'referencesSnapshot'=>$project['references'],'projectContextSnapshot'=>array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision']),'provenance'=>$provenance,'messageId'=>$messageId,'createdAt'=>nowIso());
         $project['versions'][]=$v;return $v['id'];
     }
     public function action($input) {
-        $action=field($input,'action');$paid=in_array($action,array('discuss','summarize','generate','compare'),true);
+        $action=field($input,'action');$paid=in_array($action,array('discuss','summarize','generate','confirm_generate','compare','fuse'),true);
         if(!$paid)return $this->execute($action,$input);
-        $connection=$this->connection();$this->checkApproval($input,$connection);
+        $connection=$this->projectConnection($this->project(field($input,'id')));$this->checkApproval($input,$connection);
         $requestId=field($input,'requestId');$fingerprint=hash('sha256',jsonEncode($input));
         $previous=$this->store->requestStart($this->owner,$requestId,$action,$fingerprint);
         if($previous!==null)return array('project'=>$this->project($previous['projectId']));
@@ -179,11 +211,18 @@ class CocreationApp {
         if($action==='new') {
             ensure(count($this->store->listProjects($this->owner))<100,'PROJECT_LIMIT','此瀏覽器最多保留100份專案，請先匯出保存。',409);
             $item=$this->newItem('titles','標題名稱','');
-            $raw=array('schemaVersion'=>1,'id'=>newId(),'title'=>userTextValue(field($input,'title','我的共創專案'),240,'專案名稱'),'description'=>userTextValue(field($input,'description',''),4000,'專案說明',true),'projectLifecycle'=>'created','projectFinalizations'=>array(),'revision'=>0,'sharedContextRevision'=>0,'activeItemId'=>$item['id'],'creativeItems'=>array($item),'createdAt'=>nowIso());
+            $binding=field($input,'memberId')===null?null:$this->bindingFromInput($input);
+            $raw=array('schemaVersion'=>1,'id'=>newId(),'title'=>userTextValue(field($input,'title','我的共創專案'),240,'專案名稱'),'description'=>userTextValue(field($input,'description',''),4000,'專案說明',true),'aiBinding'=>$binding,'projectLifecycle'=>'created','projectFinalizations'=>array(),'revision'=>0,'sharedContextRevision'=>0,'activeItemId'=>$item['id'],'creativeItems'=>array($item),'createdAt'=>nowIso());
             return array('project'=>$this->view($this->store->save($raw,$this->owner)));
         }
+        if($action==='bind_project_model'){
+            $raw=$this->normalizeRaw($this->store->project(field($input,'id'),$this->owner));$this->revision($raw,$input);
+            ensure($raw['aiBinding']===null,'PROJECT_MODEL_BOUND','這個專案已選定模型，不會在對話中切換。',409);
+            ensure($raw['projectLifecycle']!=='finalized','PROJECT_CLOSED','請先重新開啟專案，再完成一次性模型選擇。',409);
+            $raw['aiBinding']=$this->bindingFromInput($input);return $this->saveRaw($raw);
+        }
         if(in_array($action,array('create_item','select_item','edit_item','archive_item','restore_item','attach_reference','remove_reference','finalize_project','reopen_project'),true))return $this->shellAction($action,$input);
-        ensure(in_array($action,array('edit_project','finalize','reopen','discuss','summarize','approve_goal','generate','snapshot','promote','archive_version','restore_version','compare'),true),'UNKNOWN_ACTION','未知操作。',404);
+        ensure(in_array($action,array('edit_project','finalize','reopen','discuss','summarize','approve_goal','generate','confirm_generate','snapshot','promote','archive_version','restore_version','compare','fuse'),true),'UNKNOWN_ACTION','未知操作。',404);
         $p=$this->project(field($input,'id'));$this->revision($p,$input);ensure($p['projectLifecycle']!=='finalized','PROJECT_CLOSED','專案已結案，請先重新開啟專案。',409);$connection=$requestConnection===null?$this->connection():$requestConnection;$adapter=$this->adapter($connection);$model=$connection['model'];$requestedAt=nowIso();
         if($action==='edit_project') {
             $description=userTextValue(field($input,'description',''),4000,'專案說明',true);$title=userTextValue(field($input,'title'),240,'專案名稱');$changed=$description!==$p['description']||$title!==$p['title'];
@@ -204,52 +243,58 @@ class CocreationApp {
             $p['finalizations'][]=array('versionId'=>$v['id'],'versionSnapshot'=>$v,'acceptedGoalSnapshot'=>$p['brief'],'sharedContextRevision'=>$p['sharedContextRevision'],'at'=>$p['finalizedAt'],'messageId'=>$message['id']);$p['messages'][]=$message;return $this->save($p);
         }
         $p['lifecycle']='in_progress';
-        if(in_array($action,array('discuss','summarize','generate','compare'),true))$this->reserveStorage($p,inferenceGrowthBudget($p,$action));
+        if(in_array($action,array('discuss','summarize','generate','confirm_generate','compare','fuse'),true))$this->reserveStorage($p,inferenceGrowthBudget($p,$action,$input));
         ensure($action==='restore_version'||count($p['messages'])<400,'DIALOGUE_LIMIT','此作品對話已達上限，請匯出完整紀錄後開啟新作品。',409);
         if($action==='discuss') {
             ensure($this->studentTurns($p)<60,'DIALOGUE_LIMIT','此作品已有60輪討論，請匯出後開啟新作品。',409);
-            $text=userTextValue(field($input,'text'),4000,'你的想法');$answerMetadata=$this->resolveChoiceAnswer($p,$input);
-            if($p['officialVersionId']!==null){
+            $text=userTextValue(field($input,'text'),4000,'你的想法');$selection=$this->refinementSelection($p,$input);$answerMetadata=$this->resolveChoiceAnswer($p,$input,$selection);
+            if($selection['base']!==null){
                 // Promotion is a working baseline, never an implicit finalization.
                 // Legacy discussions may have cleared approval: editing an existing
                 // official bundle still works, without inventing new goal approval.
                 ensure(count($p['versions'])<60,'VERSION_LIMIT','此項目已達60個版本，請匯出保存後延續新項目；本次未呼叫AI。',409);
-                $official=$this->version($p,$p['officialVersionId']);$result=$module->refine($p,$official,$text,$model);$provenance=$this->provenance($connection,$adapter,$requestedAt);
+                $official=$selection['base'];$result=$module->refine($p,$official,$text,$model,$selection['targetItemIds']);$provenance=$this->provenance($connection,$adapter,$requestedAt);
                 $p['messages'][]=$this->message('student',$text,'discussion',array_merge(array('basedOnVersionId'=>$official['id']),$answerMetadata));
-                $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array_merge(array('basedOnVersionId'=>$official['id'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result)));
+                $message=$this->message('assistant',$result['reply'],$result['outcome']==='revision'?'revision':'clarification',array_merge(array('basedOnVersionId'=>$official['id'],'targetItemIds'=>$selection['targetItemIds'],'provenance'=>$provenance,'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result,$selection)));
                 if($result['outcome']==='revision'){
                     $id=$this->appendVersion($p,$result['items'],$result['rationale'],'revision',$official['id'],$message['id'],$provenance,'minor',$result);
-                    $p['versions'][count($p['versions'])-1]['revisionInstruction']=$text;$message['versionIds']=array($id);$message['text'].=' 已新增可審閱的完整修訂版，尚未取代正式版；請查看右側差異，再決定是否採用。';$p['phase']='work';
+                    $p['versions'][count($p['versions'])-1]['revisionInstruction']=$text;$p['versions'][count($p['versions'])-1]['targetItemIds']=$selection['targetItemIds'];$message['versionIds']=array($id);$message['text'].=' 已新增可審閱的完整修訂版，尚未取代正式版；請查看差異，再決定是否採用，或選這一版接續微調。';$p['phase']='work';
                     $p['messages'][]=$message;$saved=$this->save($p);$saved['revisionVersionId']=$id;return $saved;
                 }
                 $p['messages'][]=$message;return $this->save($p);
             }
             $result=$module->discuss($p,$text,$model);
-            $p['messages'][]=$this->message('student',$text,'discussion',$answerMetadata);$p['messages'][]=$this->message('assistant',$result['reply'],'discussion',array_merge(array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']),$this->questionMetadata($p,$result)));
-            $p['phase']='discussion';$p['goalApprovedAt']=null;$p['summaryRevision']=null;return $this->save($p);
+            $ready=$result['directionStatus']==='ready';$p['brief']=$ready?$result['direction']:null;$p['phase']=$ready?'summary':'discussion';$p['goalApprovedAt']=null;$p['summaryRevision']=$ready?$p['revision']+1:null;if($ready)$p['contextRevision']=$p['sharedContextRevision'];
+            $extra=array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references'],'directionStatus'=>$result['directionStatus']);if($ready)$extra['goalSnapshot']=$p['brief'];
+            $p['messages'][]=$this->message('student',$text,'discussion',$answerMetadata);$p['messages'][]=$this->message('assistant',$result['reply'],'discussion',array_merge($extra,$this->questionMetadata($p,$result,$selection)));
+            return $this->save($p);
         }
         if($action==='summarize') {
-            ensure($this->studentTurns($p)>=3,'MORE_DISCUSSION','至少交流三次，再一起整理目標。先把想法談清楚，不急著產生標題。',409);
             $p['brief']=$module->summarize($p,$model);$p['contextRevision']=$p['sharedContextRevision'];$p['goalApprovedAt']=null;$p['phase']='summary';$p['summaryRevision']=$p['revision']+1;
             $p['messages'][]=$this->message('assistant','我把目前對話整理成右側的創作目標草案。請確認它是不是你的意思；還有不同之處就繼續聊。','goal_summary',array('goalSnapshot'=>$p['brief'],'provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));return $this->save($p);
         }
         if($action==='approve_goal') {
-            ensure($p['phase']==='summary'&&$p['brief']!==null&&is_int($p['summaryRevision']),'SUMMARY_REQUIRED','請先整理最新目標，再按確認。',409);
+            ensure($p['phase']==='summary'&&$p['brief']!==null&&is_int($p['summaryRevision'])&&$p['summaryRevision']<=$p['revision'],'SUMMARY_REQUIRED','請先整理最新目標，再按確認。',409);
             $p['goalApprovedAt']=nowIso();$p['phase']=count($p['versions'])?'work':'ready';
             $p['messages'][]=$this->message('student','我確認這份創作目標；產生候選仍需由我另按按鈕。','goal_approval',array('goalSnapshot'=>$p['brief']));return $this->save($p);
         }
-        if($action==='generate') {
-            $this->goalRequired($p);ensure(count($p['versions'])<=55,'VERSION_LIMIT','候選空間不足5個，請匯出後開啟新作品。',409);
+        if($action==='generate'||$action==='confirm_generate') {
+            if($action==='confirm_generate'){
+                ensure($p['phase']==='summary'&&$p['brief']!==null&&is_int($p['summaryRevision'])&&$p['summaryRevision']<=$p['revision'],'SUMMARY_REQUIRED','方向已變更或尚未整理，請先查看目前主軸與方向，再明確確認生成。',409);
+                $p['goalApprovedAt']=nowIso();$p['contextRevision']=$p['sharedContextRevision'];$p['phase']='ready';
+            }
+            $this->goalRequired($p);$slots=$p['module']==='article'?1:($p['module']==='short_text'?3:5);ensure(count($p['versions'])<=60-$slots,'VERSION_LIMIT','本次候選的版本空間不足，請匯出後延續新作品；尚未呼叫 AI。',409);
             $instruction=userTextValue(field($input,'instruction',''),2000,'候選方向',true);
             $candidates=$module->generate($p,$instruction,$model);
+            if($action==='confirm_generate')$p['messages'][]=$this->message('student','我確認目前主軸與方向，並明確要求產生候選。','goal_approval',array('goalSnapshot'=>$p['brief']));
             $p['messages'][]=$this->message('student',$instruction===''?'請依已確認目標產生一組候選組。':'請依已確認目標產生候選；這次方向：'.$instruction,'generation_request');
             $message=$this->message('assistant','新增了 '.count($candidates).' 組候選。正式版沒有變動；你可以比較、手動修改保存，或自己決定升為正式版。','generation',array('provenance'=>$this->provenance($connection,$adapter,$requestedAt),'referencesSnapshot'=>$p['references']));$ids=array();
             foreach($candidates as $candidate)$ids[]=$this->appendVersion($p,$candidate['items'],$candidate['rationale'],'generated',null,$message['id'],$this->provenance($connection,$adapter,$requestedAt),'major',$candidate);
             $message['versionIds']=$ids;$p['messages'][]=$message;$p['phase']='work';return $this->save($p);
         }
         if($action==='snapshot') {
-            if($p['officialVersionId']===null)$this->goalRequired($p);$basedOn=field($input,'basedOnVersionId');if($basedOn!==null){$this->version($p,$basedOn);ensure(!versionArchived($p,$basedOn),'VERSION_ARCHIVED','請先還原來源版本，再編輯另存。',409);}$mode=field($input,'versionMode','major');ensure(in_array($mode,array('major','minor'),true),'VERSION_MODE','請選擇另存新版本或另存小修改。');if($mode==='minor')ensure($basedOn!==null,'VERSION_BASE_REQUIRED','請選擇小修改的來源版本。');
-            $items=validateContentItems(field($input,'items'));$base=$basedOn===null?null:$this->version($p,$basedOn);
+            $basedOn=field($input,'basedOnVersionId');if($p['officialVersionId']===null&&$basedOn===null)$this->goalRequired($p);if($basedOn!==null){$this->version($p,$basedOn);ensure(!versionArchived($p,$basedOn),'VERSION_ARCHIVED','請先還原來源版本，再編輯另存。',409);}$mode=field($input,'versionMode','major');ensure(in_array($mode,array('major','minor'),true),'VERSION_MODE','請選擇另存新版本或另存小修改。');if($mode==='minor')ensure($basedOn!==null,'VERSION_BASE_REQUIRED','請選擇小修改的來源版本。');
+            $items=validateModuleContentItems(field($input,'items'),$p['module']);$base=$basedOn===null?null:$this->version($p,$basedOn);
             $goalDefault=$base===null?field($p['brief'],'summary',''):versionGoalText($base);
             if(array_key_exists('goalAndRationale',$input)){
                 $combined=validateCombinedVersionNote($input['goalAndRationale']);
@@ -268,14 +313,26 @@ class CocreationApp {
         if($action==='promote') {
             $v=$this->version($p,field($input,'versionId'));ensure(!versionArchived($p,$v['id']),'VERSION_ARCHIVED','請先還原這個候選版本，再採用為正式版。',409);ensure($p['officialVersionId']!==$v['id'],'ALREADY_OFFICIAL','這個版本已是正式版。',409);
             $old=$p['officialVersionId'];$p['officialVersionId']=$v['id'];$index=$this->locateItem($p,$p['activeItemId']);
-            $previousItemTitle=$p['creativeItems'][$index]['title'];$itemTitle=officialItemTitle($v['items']);$p['creativeItems'][$index]['title']=$itemTitle;$p['activeItem']['title']=$itemTitle;
-            $p['messages'][]=$this->message('student','我選擇 '.versionLabel($v).'「'.$v['title'].'」作為正式版，創作項目名稱同步更新為「'.$itemTitle.'」。其他版本完整保留。','promotion',array('versionIds'=>array($v['id']),'previousOfficialVersionId'=>$old,'previousItemTitle'=>$previousItemTitle,'itemTitle'=>$itemTitle));return $this->save($p);
+            $previousItemTitle=$p['creativeItems'][$index]['title'];$itemTitle=$p['module']==='titles'?officialItemTitle($v['items']):$previousItemTitle;$p['creativeItems'][$index]['title']=$itemTitle;$p['activeItem']['title']=$itemTitle;
+            $p['messages'][]=$this->message('student','我選擇 '.versionLabel($v).'「'.$v['title'].'」作為正式版。'.($p['module']==='titles'?'創作項目名稱同步更新為「'.$itemTitle.'」。':'').'其他版本完整保留。','promotion',array('versionIds'=>array($v['id']),'previousOfficialVersionId'=>$old,'previousItemTitle'=>$previousItemTitle,'itemTitle'=>$itemTitle));return $this->save($p);
         }
         if($action==='archive_version'||$action==='restore_version'){
             $v=$this->version($p,field($input,'versionId'));$archived=versionArchived($p,$v['id']);
             if($action==='archive_version'){ensure($p['officialVersionId']!==$v['id'],'OFFICIAL_ARCHIVE','正式版不可封存，請先選擇其他正式版。',409);ensure(!$archived,'VERSION_ALREADY_ARCHIVED','這個版本已封存。',409);$p['archivedVersionIds'][]=$v['id'];}
             else{ensure($archived,'VERSION_NOT_ARCHIVED','這個版本目前沒有封存。',409);$p['archivedVersionIds']=array_values(array_filter($p['archivedVersionIds'],function($id)use($v){return $id!==$v['id'];}));}
             if(count($p['messages'])<400)$p['messages'][]=$this->message('student',($action==='archive_version'?'我封存 ':'我還原 ').versionLabel($v).'；原內容、引用與版本歷史完整保留。',$action,array('versionIds'=>array($v['id'])));return $this->save($p);
+        }
+        if($action==='fuse'){
+            ensure(count($p['versions'])<60,'VERSION_LIMIT','此項目已達版本上限，尚未呼叫 AI。',409);
+            $ids=field($input,'versionIds');ensure(is_array($ids)&&count($ids)>=2&&count($ids)<=5,'COMPARISON_SELECTION','請選取2至5個不同版本，再明確要求融合。');
+            foreach($ids as $id)validId($id);ensure(count(array_unique($ids,SORT_STRING))===count($ids),'COMPARISON_SELECTION','不可重複選取同一版本。');
+            $versions=array();$snapshots=array();foreach($ids as $id){ensure(!versionArchived($p,$id),'VERSION_ARCHIVED','請先還原封存版本，再加入新的融合。',409);$v=$this->version($p,$id);$versions[]=$v;$snapshots[]=$this->pinnedVersion($v);}
+            $question=userTextValue(field($input,'question',''),2000,'融合方向',true);$result=$module->fuse($p,$versions,$question,$model);$provenance=$this->provenance($connection,$adapter,$requestedAt);
+            $p['messages'][]=$this->message('student','我明確要求把選取版本融合成新的候選；不是選出勝負，也不取代正式版。'.($question===''?'':' 融合方向：'.$question),'fusion_request',array('versionIds'=>$ids));
+            $message=$this->message('assistant','已新增一個融合候選。請查看完整內容、採納與捨棄的方向；原版本和正式版保持不變。','fusion',array('sourceVersionIds'=>$ids,'provenance'=>$provenance,'referencesSnapshot'=>$p['references']));
+            $id=$this->appendVersion($p,$result['items'],$result['rationale'],'fusion',null,$message['id'],$provenance,'major',$result);$index=count($p['versions'])-1;
+            $p['versions'][$index]['fusionSourceVersionIds']=$ids;$p['versions'][$index]['fusionSourceSnapshots']=$snapshots;$p['versions'][$index]['fusionInstruction']=$question;
+            $message['versionIds']=array($id);$p['messages'][]=$message;$p['phase']='work';$saved=$this->save($p);$saved['fusionVersionId']=$id;return $saved;
         }
         ensure(count($p['comparisons'])<60,'COMPARISON_LIMIT','比較紀錄已達60筆，請匯出後開啟新作品。',409);
         $ids=field($input,'versionIds');ensure(is_array($ids)&&count($ids)>=2&&count($ids)<=5,'COMPARISON_SELECTION','請選取2至5個不同版本，可包含正式版與候選。');

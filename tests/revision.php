@@ -2,11 +2,12 @@
 // Developer-only PHP fixture. No key, network, external model or user data.
 // Requires PHP 7.4+ and PDO SQLite; execution status is documented separately.
 require_once dirname(__DIR__).'/app/bootstrap.php';
+require_once __DIR__.'/phase1-helpers.php';
 $checks=0;
 function verifyRevision($ok,$label){global $checks;if(!$ok)throw new Exception('FAIL: '.$label);$checks++;echo 'PASS '.$label."\n";}
 function revisionReject($fn,$expected){try{$fn();throw new Exception('Expected '.$expected);}catch(AppError $e){verifyRevision($e->errorCode===$expected,'reject '.$expected);}}
 function removeRevisionFixture($dir){if(!is_dir($dir))return;foreach(scandir($dir) as $name)if($name!=='.'&&$name!=='..'){is_dir($dir.'/'.$name)?removeRevisionFixture($dir.'/'.$name):unlink($dir.'/'.$name);}rmdir($dir);}
-function revisionInput($app,$p,$action,$extra=array()){$status=$app->status();return array_merge(array('action'=>$action,'id'=>$p['id'],'itemId'=>$p['activeItemId'],'revision'=>$p['revision'],'consent'=>true,'approvedMemberId'=>$status['memberId'],'approvedProvider'=>$status['provider'],'approvedSettingsRevision'=>$status['settingsRevision'],'approvedModel'=>$status['model'],'requestId'=>newId()),$extra);}
+function revisionInput($app,$p,$action,$extra=array()){return fixtureProjectInput($app,$p,$action,$extra);}
 class RevisionFixtureAdapter {
  public $calls=0;public $data=null;public $mode='revision';public $actual='fixture-local-v1';
  public function actualModel(){return $this->actual;}
@@ -19,6 +20,7 @@ class RevisionFixtureAdapter {
   elseif(isset($props['purpose']))$out=array('purpose'=>'影展命名','audience'=>'同學','message'=>'發現日常','tone'=>'溫暖','constraints'=>'不誇張','summary'=>'用清楚溫暖的名稱邀請同學參加影展。','items'=>array(array('id'=>'name','label'=>'中文名稱')));
   else{$out=array('candidates'=>array());foreach(array('日常的光','一起看見','故事之間') as $content)$out['candidates'][]=array('items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>$content)),'rationale'=>'對應創作目標。','goalText'=>'邀請同學一起發現日常故事。','changeSummary'=>'初次候選，整理已確認的影展方向。');}
   if(isset($props['choices']))$out['choices']=array();
+  $out=fixtureExploringResponse($out,$props);
   return json_decode(jsonEncode($out));
  }
 }
@@ -28,7 +30,7 @@ try{
  $_SESSION=array('csrf'=>str_repeat('b',64));$owner=str_repeat('a',64);$config=validateConfig(array('app_url'=>'http://localhost/studio/public/','data_dir'=>$dir,'openai_model'=>'fixture','model_timeout_ms'=>120000));$store=new Store($dir);$model=new RevisionFixtureAdapter();$app=new CocreationApp($store,$config,$owner,$model);
  $app->action(array('action'=>'save_settings','provider'=>'ollama','model'=>'fixture-local','ollamaUrl'=>'http://127.0.0.1:11434'));
  $status=$app->status();$app->action(array('action'=>'save_members','expectedSettingsRevision'=>$status['settingsRevision'],'members'=>$status['members'],'activeMemberId'=>$status['activeMemberId'],'usageConsent'=>true));
- $p=$app->action(array('action'=>'new','title'=>'持續修訂','description'=>'測試專案脈絡'))['project'];$other=$app->action(array('action'=>'new','title'=>'另一專案'))['project'];
+ $p=$app->action(fixtureBoundNew($app,array('title'=>'持續修訂','description'=>'測試專案脈絡')))['project'];$other=$app->action(fixtureBoundNew($app,array('title'=>'另一專案')))['project'];
  for($i=0;$i<3;$i++)$p=$app->action(revisionInput($app,$p,'discuss',array('text'=>'構思'.$i)))['project'];
  $p=$app->action(revisionInput($app,$p,'summarize'))['project'];$p=$app->action(revisionInput($app,$p,'approve_goal'))['project'];$p=$app->action(revisionInput($app,$p,'generate'))['project'];
  $p=$app->action(revisionInput($app,$p,'snapshot',array('items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>'原始名稱'),array('id'=>'custom','label'=>'自訂邀請語','content'=>'保留這段自訂內容')))))['project'];

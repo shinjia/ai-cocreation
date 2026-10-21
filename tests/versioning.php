@@ -8,6 +8,7 @@
  * The real SessionKeyVault creates only a temporary empty vault and lock file.
  */
 require_once dirname(__DIR__).'/app/bootstrap.php';
+require_once __DIR__.'/phase1-helpers.php';
 
 $versioningChecks=0;
 function versioningCheck($ok,$label) {
@@ -28,11 +29,9 @@ function versioningCleanup($dir) {
     rmdir($dir);
 }
 function versioningInput($app,$p,$action,$extra=array()) {
-    $status=$app->status();
-    return array_merge(array('action'=>$action,'id'=>$p['id'],'itemId'=>$p['activeItemId'],'revision'=>$p['revision'],
-        'consent'=>true,'approvedProvider'=>$status['provider'],'approvedSettingsRevision'=>$status['settingsRevision'],
-        'approvedModel'=>$status['model'],'approvedMemberId'=>field($status,'memberId',field($status,'activeMemberId')),'requestId'=>newId()),$extra);
+    return fixtureProjectInput($app,$p,$action,$extra);
 }
+
 function versioningById($versions,$id) {
     foreach($versions as $version)if($version['id']===$id)return $version;
     throw new Exception('Fixture version not found: '.$id);
@@ -170,6 +169,7 @@ class VersioningFixtureAdapter {
             $out=array('items'=>$items,'summary'=>'請依各版自己的目標與取捨選擇，並非指定唯一冠軍。');
         }
         if(isset($props['choices']))$out['choices']=array();
+        $out=fixtureExploringResponse($out,$props);
         return json_decode(jsonEncode($out),false,128,JSON_THROW_ON_ERROR);
     }
 }
@@ -231,8 +231,8 @@ try {
     $_SESSION=array('csrf'=>str_repeat('b',64));$owner=str_repeat('a',64);
     $config=validateConfig(array('app_url'=>'http://localhost/studio/public/','data_dir'=>$dir,'openai_model'=>'fixture-local','model_timeout_ms'=>120000));
     $store=new VersioningMemoryStore();$model=new VersioningFixtureAdapter();$app=new CocreationApp($store,$config,$owner,$model);
-    $p=$app->action(array('action'=>'new','title'=>'版本完整回歸','description'=>'虛構測試資料'))['project'];
-    $other=$app->action(array('action'=>'new','title'=>'隔離專案'))['project'];
+    $p=$app->action(fixtureBoundNew($app,array('title'=>'版本完整回歸','description'=>'虛構測試資料')))['project'];
+    $other=$app->action(fixtureBoundNew($app,array('title'=>'隔離專案')))['project'];
     versioningCheck(!$app->status()['keyPresent'],'in-memory fixture uses no key');
     for($i=0;$i<3;$i++)$p=$app->action(versioningInput($app,$p,'discuss',array('text'=>'討論方向 '.$i)))['project'];
     $p=$app->action(versioningInput($app,$p,'summarize'))['project'];
@@ -291,7 +291,7 @@ try {
     versioningCheck($p['goalApprovedAt']===null,'shared item edit invalidates global approval only');
     $oldVersions=$p['versions'];$model->mode='goal_only';$request=versioningInput($app,$p,'discuss',array('text'=>'只調整本版創作目標，不修改文字。'));
     $result=$app->action($request);$p=$result['project'];$goalRevision=versioningLast($p['versions']);
-    versioningCheck($model->calls===$beforeCalls+1&&count($model->schema['properties'])===7&&isset($model->schema['properties']['goalText'],$model->schema['properties']['changeSummary']),'refine uses exactly one seven-field model response');
+    versioningCheck($model->calls===$beforeCalls+1&&count($model->schema['properties'])===8&&isset($model->schema['properties']['goalText'],$model->schema['properties']['changeSummary']),'refine uses exactly one eight-field model response');
     versioningCheck($goalRevision['items']===$major['items']&&$goalRevision['goalText']!==$major['goalText']&&$goalRevision['goalSnapshot']['summary']===$goalRevision['goalText']&&$goalRevision['changeSummary']==='只修改本版目標，內容保持原文。','goal-only refinement saves an authentic full revision');
     versioningCheck(isset($goalRevision['goalAndRationale'])&&$goalRevision['goalAndRationale']===versioningCombinedFromLegacyFields($goalRevision),'AI revision stores combined text from this response without another inference');
     versioningCheck(versionLabel($goalRevision)==='V4.1'&&$goalRevision['basedOnVersionId']===$major['id']&&$p['officialVersionId']===$major['id']&&$p['goalApprovedAt']===null,'goal-only revision is minor, does not adopt or fabricate approval');
@@ -351,8 +351,8 @@ try {
     versioningCheck($pinned['versionSnapshot']===$manual&&versioningItem($p,$sourceItem)===$sourceBefore,'reference pins full goal comment and provenance without modifying source item');
     foreach(array('promote','compare','snapshot') as $crossAction) {
         $extra=$crossAction==='compare'?array('versionIds'=>array($manual['id'],$major['id'])):($crossAction==='snapshot'?array('basedOnVersionId'=>$manual['id'],'versionMode'=>'minor','items'=>$manualItems):array('versionId'=>$manual['id']));
-        // Snapshot on an unapproved empty item first enforces its own goal gate.
-        $code=$crossAction==='snapshot'?'GOAL_APPROVAL_REQUIRED':'VERSION_NOT_FOUND';
+        // A supplied source must belong to this item, even before any official exists.
+        $code='VERSION_NOT_FOUND';
         $before=$app->project($p['id']);
         versioningReject(function()use($app,$p,$crossAction,$extra){$app->action(versioningInput($app,$p,$crossAction,$extra));},$code);
         versioningCheck($app->project($p['id'])===$before&&$model->calls===$calls,'cross-item '.$crossAction.' cannot borrow another item version');
@@ -376,7 +376,7 @@ try {
     // in-memory seam checks revision tokens, not SQLite locking/concurrency.
     $priorProject=$app->project($p['id']);$memberModel=new VersioningFixtureAdapter();
     $memberApp=new CocreationApp($store,$config,$owner,$memberModel);
-    $memberProject=$memberApp->action(array('action'=>'new','title'=>'AI 成員端到端測試','description'=>'只有虛構資料與注入模型。'))['project'];
+    $memberProject=$memberApp->action(array('action'=>'new','title'=>'未綁定的舊專案','description'=>'只有虛構資料與注入模型。'))['project'];
     $memberStatus=$memberApp->status();$members=$memberStatus['members'];$memberA=$members[0]['id'];$memberB=str_repeat('e',32);
     $members[0]['nickname']='甲夥伴';$members[0]['model']='fixture-alpha';
     $members[]=array('id'=>$memberB,'nickname'=>'乙夥伴','enabled'=>false,'provider'=>'ollama','model'=>'fixture-beta','ollamaUrl'=>'http://127.0.0.1:11434');
@@ -399,8 +399,10 @@ try {
     versioningCheck($memberApp->status()===$memberStatus&&$memberModel->calls===0,'disabled selection and disabled active roster are rejected atomically');
     $memberStatus=$memberApp->action(array('action'=>'select_member','memberId'=>null,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
     versioningCheck($memberStatus['activeMemberId']===null&&$memberStatus['memberId']===null&&$memberStatus['memberNickname']===null&&$memberStatus['members']===$members,'explicit null clears selection without choosing another enabled member');
-    versioningReject(function()use($memberApp,$memberProject){$memberApp->action(versioningInput($memberApp,$memberProject,'discuss',array('text'=>'未選成員不應送出。')));},'AI_MEMBER_REQUIRED');
-    versioningCheck($memberModel->calls===0&&$memberApp->project($memberProject['id'])===$memberProject,'null member has no default-provider fallback or project mutation');
+    versioningReject(function()use($memberApp,$memberProject){$memberApp->action(versioningInput($memberApp,$memberProject,'discuss',array('text'=>'未選成員不應送出。')));},'PROJECT_MODEL_REQUIRED');
+    versioningCheck($memberModel->calls===0&&$memberApp->project($memberProject['id'])===$memberProject,'unbound project has no global-default fallback or project mutation');
+    $memberProject=$memberApp->action(array('action'=>'bind_project_model','id'=>$memberProject['id'],'revision'=>$memberProject['revision'],'memberId'=>$memberA,'expectedSettingsRevision'=>$memberStatus['settingsRevision']))['project'];
+    versioningCheck($memberProject['aiBinding']['memberId']===$memberA&&$memberProject['aiBinding']['model']==='fixture-alpha','one-time explicit binding is independent of global default selection');
     $memberStatus=$memberApp->action(array('action'=>'select_member','memberId'=>$memberA,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
     versioningReject(function()use($memberApp,$memberProject,$memberB){$memberApp->action(versioningInput($memberApp,$memberProject,'discuss',array('text'=>'錯誤成員不得送出。','approvedMemberId'=>$memberB)));},'MEMBER_CHANGED');
     $memberStatus=$memberApp->action(array('action'=>'save_members','members'=>$members,'activeMemberId'=>$memberA,'usageConsent'=>false,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
@@ -412,7 +414,7 @@ try {
     $oldPaidInput=versioningInput($memberApp,$memberProject,'discuss',array('text'=>'此請求綁定甲夥伴。'));
     $selectionConsentAt=$memberStatus['consentAt'];$memberStatus=$memberApp->action(array('action'=>'select_member','memberId'=>$memberB,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
     versioningCheck($memberStatus['memberId']===$memberB&&$memberStatus['usageConsent']===true&&$memberStatus['consentAt']===$selectionConsentAt,'explicit selection chooses only the requested enabled member and preserves consent');
-    versioningReject(function()use($memberApp,$oldPaidInput){$memberApp->action($oldPaidInput);},'MEMBER_CHANGED');
+    versioningReject(function()use($memberApp,$oldPaidInput){$memberApp->action($oldPaidInput);},'SETTINGS_CHANGED');
     $memberStatus=$memberApp->action(array('action'=>'select_member','memberId'=>$memberA,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
     versioningReject(function()use($memberApp,$oldPaidInput){$memberApp->action($oldPaidInput);},'SETTINGS_CHANGED');
     versioningCheck($memberModel->calls===0,'switching away and back cannot revive a stale paid settings approval');
@@ -435,6 +437,11 @@ try {
     $memberHistory=$memberProject;$members=$memberStatus['members'];$members[0]['nickname']='重新啟用的甲';$members[0]['enabled']=true;$members[0]['model']='fixture-gamma';
     $memberStatus=$memberApp->action(array('action'=>'save_members','members'=>$members,'activeMemberId'=>$memberA,'usageConsent'=>true,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
     versioningCheck($memberApp->project($memberProject['id'])===$memberHistory,'later same-id rename re-enable and model edit do not rewrite saved reply or version provenance');
+    $callsBeforeMismatch=$memberModel->calls;
+    versioningReject(function()use($memberApp,$memberProject){$memberApp->action(versioningInput($memberApp,$memberProject,'discuss',array('text'=>'禁止換模型。')));},'PROJECT_MODEL_CHANGED');
+    versioningCheck($memberModel->calls===$callsBeforeMismatch,'edited same-id model cannot replace project model or fall back');
+    $members[0]['model']='fixture-alpha';
+    $memberStatus=$memberApp->action(array('action'=>'save_members','members'=>$members,'activeMemberId'=>$memberA,'usageConsent'=>true,'expectedSettingsRevision'=>$memberStatus['settingsRevision']));
 
     // A deterministic race between approval and execute additionally proves the
     // paid action freezes its validated connection, not just its output label.
@@ -444,8 +451,8 @@ try {
         $memberApp->action(array('action'=>'save_members','members'=>$edited,'activeMemberId'=>$memberB,'usageConsent'=>true,'expectedSettingsRevision'=>$during['settingsRevision']));
     };
     $memberProject=$memberApp->action($approvedPaidInput)['project'];$frozenRevision=versioningLast($memberProject['versions']);$frozenReply=versioningLast($memberProject['messages']);
-    versioningCheck($memberModel->calls===6&&versioningLast($memberModel->requestedModels)==='fixture-gamma'&&$memberApp->status()['memberId']===$memberB,'approval-to-execute race still invokes the originally approved model exactly once');
-    versioningCheck($frozenRevision['provenance']['memberId']===$memberA&&$frozenRevision['provenance']['memberNickname']==='重新啟用的甲'&&$frozenRevision['provenance']['requestedModel']==='fixture-gamma'&&$frozenReply['provenance']===$frozenRevision['provenance'],'revision and response both retain frozen approved member identity and model');
+    versioningCheck($memberModel->calls===6&&versioningLast($memberModel->requestedModels)==='fixture-alpha'&&$memberApp->status()['memberId']===$memberB,'approval-to-execute race still invokes the originally approved model exactly once');
+    versioningCheck($frozenRevision['provenance']['memberId']===$memberA&&$frozenRevision['provenance']['memberNickname']==='甲夥伴'&&$frozenRevision['provenance']['requestedModel']==='fixture-alpha'&&$frozenReply['provenance']===$frozenRevision['provenance'],'revision and response both retain project-bound nickname identity and model');
     versioningCheck(array_slice($memberProject['versions'],0,count($memberVersions))===$memberVersions&&array_slice($memberProject['messages'],0,count($memberHistory['messages']))===$memberHistory['messages'],'subsequent roster edits and refinement preserve all prior content and provenance snapshots');
     versioningCheck($memberApp->project($p['id'])===$priorProject&&$memberApp->project($other['id'])===$other,'member end-to-end fixture does not mutate earlier versioning or isolated projects');
 
@@ -453,7 +460,7 @@ try {
     // Its own store and model leave every earlier numbering/call-count assertion intact.
     $mergedStore=new VersioningMemoryStore();$mergedModel=new VersioningFixtureAdapter();
     $mergedApp=new CocreationApp($mergedStore,$config,$owner,$mergedModel);
-    $mergedProject=$mergedApp->action(array('action'=>'new','title'=>'合併欄位隔離專案','description'=>'專案名稱與說明不得因採用版本而改動。'))['project'];
+    $mergedProject=$mergedApp->action(fixtureBoundNew($mergedApp,array('title'=>'合併欄位隔離專案','description'=>'專案名稱與說明不得因採用版本而改動。')))['project'];
     $mergedOuterTitle=$mergedProject['title'];$mergedOuterDescription=$mergedProject['description'];
     $mergedInitialItemTitle=$mergedProject['activeItem']['title'];$mergedItemDescription=$mergedProject['activeItem']['description'];
     for($i=0;$i<3;$i++)$mergedProject=$mergedApp->action(versioningInput($mergedApp,$mergedProject,'discuss',array('text'=>'合併欄位討論 '.$i)))['project'];

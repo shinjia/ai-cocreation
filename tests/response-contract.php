@@ -7,7 +7,9 @@ require_once dirname(__DIR__).'/app/validation.php';
 require_once dirname(__DIR__).'/app/versioning.php';
 require_once dirname(__DIR__).'/app/model.php';
 require_once dirname(__DIR__).'/app/ollama.php';
+require_once dirname(__DIR__).'/app/content.php';
 require_once dirname(__DIR__).'/app/modules/titles.php';
+require_once __DIR__.'/phase1-helpers.php';
 
 $contractChecks=0;
 $contractAttempts=0;
@@ -77,7 +79,8 @@ function contractRevision($official,$changes=array()) {
 }
 
 function contractDiscussion($changes=array()) {
-    return array_merge(array('reply'=>'這個方向可以討論。','question'=>'你希望先討論哪一項？','choices'=>array()),$changes);
+    return array_merge(array('reply'=>'這個方向可以討論。','question'=>'你希望先討論哪一項？','choices'=>array(),
+        'directionStatus'=>'exploring','direction'=>fixtureEmptyDirection()),$changes);
 }
 
 function contractChoices() {
@@ -144,11 +147,15 @@ function contractAttempt($provider,$method,$raw,$label,$transportError=null) {
     contractCheck(!array_key_exists('referencesSnapshot',$data['dialogue'][0])&&!array_key_exists('referencesSnapshot',$data['versions'][0]),$prefix.': stale attachment snapshots excluded only from outbound context');
     contractCheck($data['pinnedReferences']===$project['references'],$prefix.': current pinned references retained');
     contractCheck(strpos($messages[0]['content'],'任何使用者')!==false&&strpos($messages[0]['content'],'不預設身分、年齡或用途')!==false&&strpos($messages[0]['content'],'學生')===false&&strpos($messages[0]['content'],'latestStudentMessage')===false,$prefix.': general-audience prompt');
-    contractCheck(count($schema['properties'])===($method==='discuss'?3:8),$prefix.': all required choice-aware response fields');
+    contractCheck(count($schema['properties'])===($method==='discuss'?5:8),$prefix.': all required choice-aware response fields');
     contractCheck($schema['properties']['choices']['type']==='array'&&$schema['properties']['choices']['items']['type']==='object'&&$schema['properties']['choices']['items']['additionalProperties']===false&&$schema['properties']['choices']['items']['required']===array_keys($schema['properties']['choices']['items']['properties']),$prefix.': strict nested choice object schema');
     contractCheck($schema['type']==='object'&&$schema['additionalProperties']===false&&$schema['required']===array_keys($schema['properties']),$prefix.': strict complete root schema');
     contractCheck($captured['stream']===false,$prefix.': single non-streaming request');
     if($provider==='openai')contractCheck($captured['store']===false&&$captured['text']['format']['strict']===true,$prefix.': non-stored strict structured request');
+    if($method==='discuss') {
+        $directionSchema=$schema['properties']['direction'];
+        contractCheck($schema['properties']['directionStatus']['enum']===array('exploring','ready')&&$directionSchema['type']==='object'&&$directionSchema['additionalProperties']===false&&count($directionSchema['properties'])===7&&$directionSchema['required']===array_keys($directionSchema['properties']),$prefix.': direction status and nested seven-field proposal are strict');
+    }
     if($method==='refine') {
         contractCheck($data['officialVersion']['id']===$official['id']&&$data['officialVersion']['items']===$official['items']&&$data['officialVersion']['goalText']===$official['goalText'],$prefix.': complete official custom bundle and own goal used');
         contractCheck($schema['properties']['items']['type']==='array'&&$schema['properties']['items']['items']['additionalProperties']===false,$prefix.': nested item schema distinguishes objects and arrays');
@@ -286,8 +293,36 @@ foreach(array('openai','ollama') as $provider) {
     );
     foreach($discussions as $label=>$value) {
         $result=contractAccept(contractAttempt($provider,'discuss',contractRaw($value),$label));
-        contractCheck($result===array('reply'=>$value['reply']."\n\n".$value['question'],'question'=>$value['question'],'choices'=>$value['choices']),$provider.' discussion '.$label.': combined text and structured question preserved');
+        contractCheck($result===array('reply'=>$value['reply']."\n\n".$value['question'],'question'=>$value['question'],'choices'=>$value['choices'],'directionStatus'=>'exploring','direction'=>null),$provider.' discussion '.$label.': combined text and structured question preserved');
     }
+    $readyBrief=$fixtureProject['brief'];
+    $readyValue=contractDiscussion(array('reply'=>'主軸已足夠，可確認後生成，也能繼續討論。','question'=>'','choices'=>array(),'directionStatus'=>'ready','direction'=>$readyBrief));
+    $readyResult=contractAccept(contractAttempt($provider,'discuss',contractRaw($readyValue),'ready without an extra question'));
+    contractCheck($readyResult['directionStatus']==='ready'&&$readyResult['direction']===$readyBrief&&$readyResult['question']===''&&$readyResult['choices']===array(),$provider.': ready exposes a validated direction only, not content candidates');
+    $emptyAnswer=contractAccept(contractAttempt($provider,'discuss',contractRaw(contractDiscussion(array('question'=>''))),'exploring can answer without forced question'));
+    contractCheck($emptyAnswer['question']===''&&$emptyAnswer['direction']===null,$provider.': exploring permits no-question answer without inventing readiness');
+    $badDirections=array(
+        array('unknown direction status',contractDiscussion(array('directionStatus'=>'almost_ready')),'MODEL_OUTPUT_INVALID'),
+        array('ready unresolved question',array_merge($readyValue,array('question'=>'還要補充什麼？')),'MODEL_OUTPUT_INVALID'),
+        array('ready reply still asks a question',array_merge($readyValue,array('reply'=>'你準備好了嗎？')),'MODEL_QUESTION_COUNT'),
+        array('ready with empty direction',array_merge($readyValue,array('direction'=>fixtureEmptyDirection())),'MODEL_OUTPUT_INVALID'),
+        array('direction wrong type',contractDiscussion(array('direction'=>array())),'MODEL_OUTPUT_INVALID'),
+        array('discussion false completed-edit claim',contractDiscussion(array('reply'=>'已經修改好了。')),'MODEL_CLARIFICATION_CLAIM')
+    );
+    foreach(array_keys($readyBrief) as $key) {
+        $missing=$readyBrief;unset($missing[$key]);
+        $badDirections[]=array('direction missing '.$key,array_merge($readyValue,array('direction'=>$missing)),'MODEL_OUTPUT_INVALID');
+    }
+    foreach(array('尚未指定','待確認','TBD') as $placeholder) {
+        $incomplete=$readyBrief;$incomplete['summary']=$placeholder;
+        $badDirections[]=array('ready placeholder summary '.$placeholder,array_merge($readyValue,array('direction'=>$incomplete)),'MODEL_OUTPUT_INVALID');
+    }
+    $extraDirection=$readyBrief;$extraDirection['extra']='no';
+    $badDirections[]=array('direction extra field',array_merge($readyValue,array('direction'=>$extraDirection)),'MODEL_OUTPUT_INVALID');
+    $duplicateDefinitions=$readyBrief;$duplicateDefinitions['items'][]=$duplicateDefinitions['items'][0];
+    $badDirections[]=array('direction duplicate stable id',array_merge($readyValue,array('direction'=>$duplicateDefinitions)),'MODEL_OUTPUT_INVALID');
+    foreach($badDirections as $case)contractReject(contractAttempt($provider,'discuss',contractRaw($case[1]),$case[0]),$case[2]);
+
     $badDiscussions=array(
         array('two unquoted questions',contractDiscussion(array('question'=>'想更短嗎？還是更親切？')),'MODEL_QUESTION_COUNT'),
         array('extra field',contractDiscussion(array('extra'=>'')),'MODEL_OUTPUT_INVALID'),

@@ -65,6 +65,13 @@ function validateConnection($value) {
     $provider=providerName(field($value,'provider'));$model=$provider==='openai'?modelName(field($value,'model')):ollamaModelName(field($value,'model'));
     return array('provider'=>$provider,'model'=>$model,'ollamaUrl'=>validateOllamaUrl(field($value,'ollamaUrl','http://127.0.0.1:11434')));
 }
+function validateProjectAiBinding($value) {
+    ensure(is_array($value)&&count($value)===6,'PROJECT_MODEL_INVALID','專案模型紀錄不完整；沒有自行選用其他模型。',409);
+    foreach(array('memberId','memberNickname','provider','model','ollamaUrl','boundAt') as $key)ensure(array_key_exists($key,$value),'PROJECT_MODEL_INVALID','專案模型紀錄缺少必要欄位。',409);
+    $id=validId($value['memberId']);$name=userTextValue($value['memberNickname'],120,'專案 AI 稱呼');
+    $at=textValue($value['boundAt'],80,'模型選定時間');ensure(strtotime($at)!==false,'PROJECT_MODEL_INVALID','專案模型選定時間無法驗證。',409);
+    return array_merge(array('memberId'=>$id,'memberNickname'=>$name),validateConnection($value),array('boundAt'=>$at));
+}
 function validateItemDefinitions($items) {
     ensure(is_array($items)&&count($items)>=1&&count($items)<=12,'ITEMS_INVALID','每組需1至12個內容項目。');$out=array();$ids=array();$labels=array();
     foreach($items as $item) {
@@ -97,12 +104,23 @@ function officialItemTitle($items) {
 // Worst-case stored growth before inference. JSON may escape each input byte into
 // six bytes. Count EVERY reference snapshot copy, including the assistant message.
 // Conservative headroom deliberately rejects near-full projects before spending.
-function inferenceGrowthBudget($project,$action) {
+function inferenceGrowthBudget($project,$action,$input=array()) {
     $references=strlen(jsonEncode($project['references']));$brief=strlen(jsonEncode($project['brief']));
     $context=strlen(jsonEncode(array('title'=>$project['title'],'description'=>$project['description'],'revision'=>$project['sharedContextRevision'])));
-    if($action==='discuss'&&field($project,'officialVersionId')!==null)return 2*$references+$brief+$context+450000; // Revision + assistant, full bundle and instruction twice.
-    if($action==='discuss')return $references+150000; // Question options, resolved answer and context binding can be escaped too.
-    if($action==='summarize')return $references+150000; // New brief is stored twice.
+    $type=field($project,'module','titles');$long=$type==='article';$hasSource=field($input,'baseVersionId')!==null||field($project,'officialVersionId')!==null;
+    if($action==='fuse'){
+        $selected=field($input,'versionIds',array());$sourceBytes=0;
+        if(is_array($selected))foreach($project['versions'] as $version)if(in_array($version['id'],$selected,true))$sourceBytes+=strlen(jsonEncode($version));
+        return 2*$references+$brief+$context+$sourceBytes+($long?1200000:600000);
+    }
+    if($action==='confirm_generate')$action='generate';
+    if($long&&$action==='discuss'&&$hasSource)return 2*$references+$brief+$context+1200000;
+    if($long&&$action==='generate')return 2*$references+$brief+$context+1300000;
+    if($type==='short_text'&&$action==='generate')return 4*$references+3*$brief+3*$context+1000000;
+    if($action==='discuss'&&$hasSource)return 2*$references+$brief+$context+450000; // Revision + assistant, full bundle and instruction twice.
+    if($long&&$action==='discuss')return $references+600000;
+    if($action==='discuss')return $references+350000; // Question options, resolved answer and context binding can be escaped too.
+    if($action==='summarize')return $references+400000; // New brief is stored twice.
     if($action==='generate')return 6*$references+5*$brief+5*$context+1700000;
     if($action==='compare'){$goals=array();foreach(field($project,'versions',array()) as $v)$goals[]=strlen(jsonEncode(versionComparisonSnapshot($v)));rsort($goals,SORT_NUMERIC);return 2*$references+$brief+array_sum(array_slice($goals,0,5))+180000;} // Each selected historical goal is saved separately.
     throw new AppError('UNKNOWN_ACTION','未知的容量檢查操作。');

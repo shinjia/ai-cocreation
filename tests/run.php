@@ -1,12 +1,13 @@
 <?php
 // Developer-only fixtures: synthetic secrets and injected transport. No network calls.
 require_once dirname(__DIR__).'/app/bootstrap.php';
+require_once __DIR__.'/phase1-helpers.php';
 $passed=0;
 function check($ok,$label){global $passed;if(!$ok)throw new Exception('FAIL: '.$label);$passed++;echo "PASS $label\n";}
 function rejects($fn,$code){try{$fn();throw new Exception('Expected '.$code);}catch(AppError $e){check($e->errorCode===$code,'reject '.$code);}}
 function cleanup($dir){if(!is_dir($dir))return;foreach(scandir($dir) as $f)if($f!=='.'&&$f!=='..'){is_dir($dir.'/'.$f)?cleanup($dir.'/'.$f):unlink($dir.'/'.$f);}rmdir($dir);}
 function enableFixtureMembers($app){$s=$app->status();$app->action(array('action'=>'save_members','expectedSettingsRevision'=>$s['settingsRevision'],'members'=>$s['members'],'activeMemberId'=>$s['activeMemberId'],'usageConsent'=>true));}
-function inputFor($app,$p,$action,$extra=array()) {return array_merge(array('action'=>$action,'id'=>$p['id'],'itemId'=>$p['activeItemId'],'revision'=>$p['revision'],'consent'=>true,'approvedMemberId'=>$app->status()['memberId'],'approvedProvider'=>$app->status()['provider'],'approvedSettingsRevision'=>$app->status()['settingsRevision'],'approvedModel'=>$app->status()['model'],'approvedKeyRevision'=>$app->status()['keyRevision'],'requestId'=>newId()),$extra);}
+function inputFor($app,$p,$action,$extra=array()) {return fixtureProjectInput($app,$p,$action,$extra);}
 $dir=sys_get_temp_dir().'/cocreation-tests-'.bin2hex(random_bytes(6));mkdir($dir,0700,true);
 try {
  $config=validateConfig(array('app_url'=>'http://localhost/studio/public/','data_dir'=>$dir,'openai_model'=>'fixture-model','model_timeout_ms'=>120000));
@@ -31,17 +32,19 @@ try {
   elseif(isset($props['candidates'])){$data=json_decode($payload['input'][1]['content'],true);$candidates=array();foreach(array('把想法說出來','一個念頭的旅行','從一句話開始') as $i=>$title){$items=array();foreach($data['creativeGoal']['items'] as $def)$items[]=array('id'=>$def['id'],'label'=>$def['label'],'content'=>$title.' '.($i+1));$candidates[]=array('items'=>$items,'rationale'=>'明確的創作邀請。','goalText'=>'本版以清楚語句邀請同學參與。','changeSummary'=>'初次候選，整理已討論的活動邀請。');}$out=array('candidates'=>$candidates);}
   else {$data=json_decode($payload['input'][1]['content'],true);$items=array();foreach($data['selectedVersions'] as $v)$items[]=array('versionId'=>$v['id'],'fit'=>'符合清楚的目標。','strength'=>'容易理解。','tradeoff'=>'意象較少。','suggestion'=>'可再加一個具體詞。');$out=array('items'=>$items,'summary'=>'直接與意象各有取捨，請依你想邀請的讀者選擇。');}
   if(isset($props['choices']))$out['choices']=array();
+  $out=fixtureExploringResponse($out,$props);
   return (object)array('status'=>'completed','model'=>'fixture-model-20261021','output'=>array((object)array('type'=>'message','content'=>array((object)array('type'=>'output_text','text'=>jsonEncode($out))))));
  });
  if(!extension_loaded('pdo_sqlite')){echo "SKIP: PHP PDO SQLite unavailable\n";exit(0);}
  $_SESSION=array('csrf'=>str_repeat('b',64));$store=new Store($dir);$app=new CocreationApp($store,$config,$owner,$adapter);
  $app->action(array('action'=>'set_key','key'=>'sk-'.str_repeat('x',30),'model'=>'fixture-model'));
  enableFixtureMembers($app);
- $p=$app->action(array('action'=>'new','title'=>'專案A','description'=>'活動標題練習'))['project'];
+ $p=$app->action(fixtureBoundNew($app,array('title'=>'專案A','description'=>'活動標題練習')))['project'];
  check($p['lifecycle']==='created'&&$p['officialVersionId']===null&&$p['description']==='活動標題練習','new project separate metadata and lifecycle');
- $q=$app->action(array('action'=>'new','title'=>'專案B','description'=>'不同內容'))['project'];
+ $q=$app->action(fixtureBoundNew($app,array('title'=>'專案B','description'=>'不同內容')))['project'];
  rejects(function()use($app,$p){$app->action(inputFor($app,$p,'generate'));},'GOAL_APPROVAL_REQUIRED');
- rejects(function()use($app,$p){$app->action(inputFor($app,$p,'summarize'));},'MORE_DISCUSSION');check($calls===0,'early gates do not spend');
+ check($calls===0,'generation approval gate does not spend');
+ $p=$app->action(inputFor($app,$p,'summarize'))['project'];check($calls===1&&$p['phase']==='summary','manual summary has no fixed turn gate');
  for($i=0;$i<3;$i++)$p=$app->action(inputFor($app,$p,'discuss',array('text'=>'我的方向'.$i)))['project'];
  check($p['lifecycle']==='in_progress'&&count($p['versions'])===0,'dialogue only; no premature candidates');
  $p=$app->action(inputFor($app,$p,'summarize'))['project'];check($p['phase']==='summary'&&$p['goalApprovedAt']===null,'summary unapproved');

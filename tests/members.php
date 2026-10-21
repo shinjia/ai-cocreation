@@ -34,6 +34,14 @@ rejectMember(function()use($off){validateMemberRosterInput(array($off),$off['id'
 rejectMember(function()use($a){validateMemberRosterInput(array_fill(0,21,$a),null,false);},'MEMBERS_INVALID');
 rejectMember(function()use($a){validateMemberRosterInput(array('named'=>$a),null,false);},'MEMBERS_INVALID');
 
+// Project binding is a separately validated immutable six-field snapshot.
+$binding=array('memberId'=>$b['id'],'memberNickname'=>$b['nickname'],'provider'=>$b['provider'],
+    'model'=>$b['model'],'ollamaUrl'=>$b['ollamaUrl'],'boundAt'=>'2026-10-21T00:00:00+00:00');
+verifyMember(validateProjectAiBinding($binding)===$binding,'fixed project binding preserves exact provider model URL and identity');
+foreach(array_keys($binding) as $key){$bad=$binding;unset($bad[$key]);rejectMember(function()use($bad){validateProjectAiBinding($bad);},'PROJECT_MODEL_INVALID');}
+$bad=$binding;$bad['apiKey']='not-a-secret';rejectMember(function()use($bad){validateProjectAiBinding($bad);},'PROJECT_MODEL_INVALID');
+$bad=$binding;$bad['boundAt']='not-a-date';rejectMember(function()use($bad){validateProjectAiBinding($bad);},'PROJECT_MODEL_INVALID');
+
 $keyReads=0;$openaiCalls=array();$openaiData=(object)array('data'=>array((object)array('id'=>'fixture-z'),(object)array('id'=>'fixture-a'),(object)array('id'=>'fixture-a')));
 $openai=new OpenAIAdapter(function()use(&$keyReads){$keyReads++;throw new Exception('Metadata fixture must not retrieve a key');},120000,function($url,$payload)use(&$openaiCalls,&$openaiData){$openaiCalls[]=array($url,$payload);return $openaiData;});
 $listed=$openai->listModels();verifyMember($listed['models']===array('fixture-a','fixture-z')&&$listed['provider']==='openai'&&is_string($listed['fetchedAt']),'OpenAI lists validated distinct metadata IDs only');

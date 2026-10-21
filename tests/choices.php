@@ -8,6 +8,7 @@
  * The in-memory Store is a persistence seam, not alternate application logic.
  */
 require_once dirname(__DIR__).'/app/bootstrap.php';
+require_once __DIR__.'/phase1-helpers.php';
 
 $choiceChecks=0;
 function choiceCheck($ok,$label) {
@@ -23,12 +24,9 @@ function choiceCleanup($dir) {
     rmdir($dir);
 }
 function choiceInput($app,$project,$extra=array()) {
-    $status=$app->status();
-    return array_merge(array('action'=>'discuss','id'=>$project['id'],'itemId'=>$project['activeItemId'],
-        'revision'=>$project['revision'],'consent'=>true,'approvedMemberId'=>$status['memberId'],
-        'approvedProvider'=>$status['provider'],'approvedSettingsRevision'=>$status['settingsRevision'],
-        'approvedModel'=>$status['model'],'requestId'=>newId()),$extra);
+    return fixtureProjectInput($app,$project,'discuss',$extra);
 }
+
 function choiceLast($values) {return $values[count($values)-1];}
 function choiceList() {
     return array(array('id'=>'warm','label'=>'溫暖親切','value'=>'我希望語氣溫暖親切。'),
@@ -48,7 +46,7 @@ function choiceRejectWithoutCall($app,$model,$input,$code,$label) {
     choiceCheck(errorResponse($caught)['error']['operationOutcome']==='rejected',$label.': explicit rejected outcome');
 }
 function choiceNewQuestion($app,$title) {
-    $project=$app->action(array('action'=>'new','title'=>$title))['project'];
+    $project=$app->action(fixtureBoundNew($app,array('title'=>$title)))['project'];
     return $app->action(choiceInput($app,$project,array('text'=>'希望名稱更好理解。')))['project'];
 }
 function choiceRawItemIndex($raw) {
@@ -152,6 +150,7 @@ class ChoiceFixtureAdapter {
             $out=array('reply'=>'我理解你希望讀者更容易掌握方向。',
                 'question'=>'你希望採用哪一種語氣？','choices'=>$choices);
         }
+        $out=fixtureExploringResponse($out,$schema['properties']);
         return json_decode(jsonEncode($out),false,128,JSON_THROW_ON_ERROR);
     }
 }
@@ -167,7 +166,7 @@ try {
     $project=choiceNewQuestion($app,'初次選擇問答');$question=choiceLast($project['messages']);
     choiceCheck($model->calls===1&&$question['role']==='assistant'&&$question['kind']==='discussion','initial question uses one call on existing discuss path');
     choiceCheck($question['question']==='你希望採用哪一種語氣？'&&$question['choices']===choiceList(),'question and structured options are persisted exactly');
-    choiceCheck($question['choiceContext']===array('itemId'=>$project['activeItemId'],'officialVersionId'=>null,'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description']),'initial question is bound to exact active item official and shared context');
+    choiceCheck($question['choiceContext']===array('itemId'=>$project['activeItemId'],'officialVersionId'=>null,'sharedContextRevision'=>$project['sharedContextRevision'],'itemTitle'=>$project['activeItem']['title'],'itemDescription'=>$project['activeItem']['description'],'baseVersionId'=>null,'targetItemIds'=>array()),'initial question is bound to exact active item official and shared context');
     choiceCheck(strpos($question['text'],$question['question'])!==false&&$project['versions']===array(),'combined readable text remains and choices do not create versions');
     $input=choiceAnswerInput($app,$project,$question);$beforeMessages=$project['messages'];$calls=$model->calls;
     $project=$app->action($input)['project'];$answer=$project['messages'][count($project['messages'])-2];$next=choiceLast($project['messages']);
@@ -250,6 +249,9 @@ try {
         'string context revision'=>function(&$q){$q['choiceContext']['sharedContextRevision']=(string)$q['choiceContext']['sharedContextRevision'];},
         'missing context title'=>function(&$q){unset($q['choiceContext']['itemTitle']);},
         'missing context description'=>function(&$q){unset($q['choiceContext']['itemDescription']);},
+        'legacy five-field context'=>function(&$q){unset($q['choiceContext']['baseVersionId'],$q['choiceContext']['targetItemIds']);},
+        'wrong base version'=>function(&$q){$q['choiceContext']['baseVersionId']=str_repeat('e',32);},
+        'wrong selected range'=>function(&$q){$q['choiceContext']['targetItemIds']=array('p2');},
         'wrong context title'=>function(&$q){$q['choiceContext']['itemTitle']='已改變的標題';},
         'wrong context description'=>function(&$q){$q['choiceContext']['itemDescription']='已改變的說明';},
         'empty stored question'=>function(&$q){$q['question']='';},
@@ -265,8 +267,8 @@ try {
     $raw=$baseline;$raw['creativeItems'][$index]['messages'][]=array('id'=>newId(),'role'=>'system','text'=>'後續系統紀錄','kind'=>'notice','at'=>nowIso());$store->save($raw,$owner);$project=$app->project($project['id']);
     choiceRejectWithoutCall($app,$model,choiceAnswerInput($app,$project,$question),'CHOICE_STALE','only the last project message is eligible');
 
-    // Switching the selected AI member is not a change to the artwork context.
-    $project=choiceNewQuestion($app,'成員切換仍可回答');$question=choiceLast($project['messages']);$oldMember=$app->status()['memberId'];
+    // A global default selection never reroutes an already-bound project.
+    $project=choiceNewQuestion($app,'中央預設不切換專案模型');$question=choiceLast($project['messages']);$oldMember=$app->status()['memberId'];
     $status=$app->status();$members=$status['members'];$newMember=str_repeat('c',32);
     $members[]=array('id'=>$newMember,'nickname'=>'另一位測試夥伴','enabled'=>true,'provider'=>'ollama',
         'model'=>'fixture-other-local','ollamaUrl'=>'http://127.0.0.1:11434');
@@ -274,12 +276,12 @@ try {
         'members'=>$members,'activeMemberId'=>$oldMember,'usageConsent'=>true));
     $status=$app->status();$app->action(array('action'=>'select_member','expectedSettingsRevision'=>$status['settingsRevision'],'memberId'=>$newMember));
     $calls=$model->calls;$project=$app->action(choiceAnswerInput($app,$project,$question,1))['project'];$reply=choiceLast($project['messages']);
-    choiceCheck($model->calls===$calls+1&&$reply['provenance']['memberId']===$newMember&&$reply['provenance']['requestedModel']==='fixture-other-local','answer uses explicitly selected current member and exactly one inference');
-    choiceCheck($question['provenance']['memberId']===$oldMember&&$project['messages'][count($project['messages'])-3]===$question,'switching member preserves source question provenance and immutable history');
+    choiceCheck($model->calls===$calls+1&&$reply['provenance']['memberId']===$oldMember&&$reply['provenance']['requestedModel']===$project['aiBinding']['model'],'answer stays on fixed project member and model with exactly one inference');
+    choiceCheck($question['provenance']['memberId']===$oldMember&&$project['messages'][count($project['messages'])-3]===$question,'changing global default preserves source question provenance and immutable history');
 
     // Seed a complete official snapshot without extra model calls. Refinement
     // clarification choices must not fabricate a version, promotion or goal edit.
-    $project=$app->action(array('action'=>'new','title'=>'正式版選擇釐清'))['project'];$raw=$store->project($project['id'],$owner);$index=choiceRawItemIndex($raw);
+    $project=$app->action(fixtureBoundNew($app,array('title'=>'正式版選擇釐清')))['project'];$raw=$store->project($project['id'],$owner);$index=choiceRawItemIndex($raw);
     $official=array('id'=>newId(),'number'=>1,'major'=>1,'minor'=>0,'title'=>'日常的光','source'=>'snapshot',
         'items'=>array(array('id'=>'name','label'=>'中文名稱','content'=>'日常的光'),array('id'=>'custom','label'=>'自訂邀請語','content'=>'一起發現日常。')),
         'rationale'=>'原始創作方向。','goalText'=>'邀請一般觀眾發現日常故事。','goalSnapshot'=>array('summary'=>'邀請一般觀眾發現日常故事。'),

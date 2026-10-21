@@ -17,10 +17,11 @@ class OllamaAdapter {
         try{$data=json_decode($body,false,128,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new AppError('MODEL_OUTPUT_INVALID','Ollama 回應不是有效 JSON。請確認埠號上的服務確實是 Ollama。',502);}
         ensure(plain($data),'MODEL_OUTPUT_INVALID','Ollama 回應格式不正確。',502);ensure(!field($data,'error'),'OLLAMA_MODEL_ERROR','Ollama 回報模型錯誤。請確認模型已安裝、可載入且支援結構化輸出。',502);return $data;
     }
-    public function generate($model,$messages,$schema) {
+    public function generate($model,$messages,$schema,$maxOutputTokens=6000) {
+        ensure(is_int($maxOutputTokens)&&$maxOutputTokens>=6000&&$maxOutputTokens<=24000,'MODEL_OUTPUT_BUDGET','輸出長度設定超出允許範圍。');
         ollamaModelName($model);$this->actualModel=null;
         $messages[0]['content'].=' 回傳單一有效 JSON 物件，符合此 JSON Schema：'.jsonEncode($schema);
-        $payload=array('model'=>$model,'messages'=>$messages,'format'=>$schema,'stream'=>false,'options'=>array('temperature'=>0.6,'num_predict'=>6000));
+        $payload=array('model'=>$model,'messages'=>$messages,'format'=>$schema,'stream'=>false,'options'=>array('temperature'=>0.6,'num_predict'=>$maxOutputTokens));
         $result=$this->request('/api/chat',$payload);
         ensure(plain($result)&&field($result,'done')===true,'MODEL_INCOMPLETE','Ollama 尚未完成回覆；未保存不完整內容，也不自動重試。',502);
         ensure(field($result,'done_reason')!=='length','MODEL_INCOMPLETE','Ollama 輸出達上限，沒有保存截斷內容。',502);

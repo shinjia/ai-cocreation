@@ -1,16 +1,24 @@
-/** AI 共創室: local PHP-backed UI. No key or project content is written to browser storage. */
+/** AI共創工作室: local PHP-backed UI. No key or project content is written to browser storage. */
 export const DEFAULT_MODEL = 'gpt-5.4-mini';
 export const MODULES = [
   {id:'titles',label:'標題名稱',enabled:true},
-  {id:'article',label:'文章',enabled:false},
+  {id:'short_text',label:'短文',enabled:true},
+  {id:'article',label:'長篇文章',enabled:true},
+  {id:'illustrated',label:'圖文',enabled:false},
+  {id:'table',label:'表格',enabled:false},
+  {id:'chart',label:'圖表',enabled:false},
+  {id:'mindmap',label:'心智圖',enabled:false},
+  {id:'vector',label:'向量圖形',enabled:false},
+  {id:'image',label:'圖片創作',enabled:false},
   {id:'poster',label:'海報設計',enabled:false},
-  {id:'webpage',label:'網頁設計',enabled:false},
-  {id:'interactive',label:'互動程式',enabled:false}
+  {id:'webpage',label:'網頁',enabled:false},
+  {id:'interactive',label:'互動視覺程式',enabled:false}
 ];
-const CREATIVE = new Set(['discuss','summarize','approve_goal','generate','snapshot','promote','compare','archive_version','restore_version']);
+const CREATIVE = new Set(['discuss','summarize','approve_goal','confirm_generate','generate','fuse','snapshot','promote','compare','archive_version','restore_version']);
 export const LIFECYCLE_LABELS = {created:'已建立',in_progress:'討論中',finalized:'已定稿'};
-export function canCreate(project) { return !!project && project.lifecycle !== 'finalized' && project.projectLifecycle !== 'finalized' && !project.activeItem?.archived && (!('creativeItems' in project) || project.activeItem?.type==='titles'); }
-const PAID = new Set(['discuss','summarize','generate','compare']);
+export function contentType(project) { return project?.activeItem?.type || project?.module || 'titles'; }
+export function canCreate(project) { return !!project && project.lifecycle !== 'finalized' && project.projectLifecycle !== 'finalized' && !project.activeItem?.archived && (!('creativeItems' in project) || MODULES.some(module=>module.id===project.activeItem?.type && module.enabled)); }
+const PAID = new Set(['discuss','summarize','confirm_generate','generate','compare','fuse']);
 export function memberRosterError(members) {
   if(!Array.isArray(members) || members.length>20)return '最多可保存 20 位 AI 成員。';
   const names=new Set();
@@ -24,9 +32,17 @@ export function memberRosterError(members) {
 }
 export function enabledMembers(state) { return (state?.members || []).filter(member=>member.enabled); }
 export function activeMember(state) { return enabledMembers(state).find(member=>member.id===(state?.memberId || state?.activeMemberId)) || null; }
-export function aiSetupReason(state,demo=false) {
+export function projectMember(state,project) {
+  const binding=project?.aiBinding;if(!binding)return null;
+  const member=enabledMembers(state).find(value=>value.id===binding.memberId);
+  if(!member || member.provider!==binding.provider || member.model!==binding.model || (member.ollamaUrl || '')!==(binding.ollamaUrl || ''))return null;
+  return {...member,nickname:binding.memberNickname || member.nickname};
+}
+export function aiSetupReason(state,demo=false,project=undefined) {
   if(!state?.usageConsent)return '請先到「AI 系統設定」閱讀傳送範圍與費用說明，勾選同意後保存。';
-  const member=activeMember(state);if(!member)return '尚未選擇可用的 AI 成員。請在系統設定勾選成員，再從討論下拉選單選擇。';
+  if(project!==undefined && !project?.aiBinding)return '請先為這個專案一次選定 AI 模型。選定後，專案內不再逐句切換。';
+  const member=project===undefined?activeMember(state):projectMember(state,project);
+  if(!member)return project?.aiBinding?'此專案綁定的 AI 成員已停用或模型設定已變更。請到系統設定恢復原成員與模型；不會自動改用其他模型。':'尚未選擇可用的 AI 成員。請先在系統設定啟用成員。';
   if(!demo && member.provider==='openai' && !state.keyPresent)return 'OpenAI 金鑰尚未設定或已到期。請到「AI 系統設定」重新提供金鑰。';
   return '';
 }
@@ -45,14 +61,37 @@ export function officialItemTitle(items) {
   const name=String(main?.content || '').replace(/\s+/gu,' ').trim(),points=Array.from(name);
   return points.length>59?points.slice(0,59).join('')+'…':name;
 }
-export function validItems(items) {
-  if(!Array.isArray(items) || items.length<1 || items.length>12)return false;
+export function validItems(items,type='titles') {
+  if(!['titles','short_text','article'].includes(type))return false;
+  const max=type==='short_text'?1:type==='article'?80:12,limit=type==='short_text'?12000:6000,total=type==='short_text'?12000:type==='article'?120000:24000;
+  if(!Array.isArray(items) || items.length<1 || items.length>max)return false;
+  if(type==='short_text' && (items[0].id!=='body' || items[0].label!=='全文'))return false;
   const bytes=value=>new TextEncoder().encode(value).length;
-  return new Set(items.map(item=>item.id)).size===items.length && new Set(items.map(item=>typeof item.label==='string'?item.label.trim():item.label)).size===items.length && items.every(item=>typeof item.id==='string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(item.id) && typeof item.label==='string' && item.label.trim() && bytes(item.label)<=120 && typeof item.content==='string' && item.content.trim() && bytes(item.content)<=6000) && items.reduce((total,item)=>total+bytes(item.content),0)<=24000;
+  return new Set(items.map(item=>item.id)).size===items.length && new Set(items.map(item=>typeof item.label==='string'?item.label.trim():item.label)).size===items.length && items.every(item=>typeof item.id==='string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(item.id) && typeof item.label==='string' && item.label.trim() && bytes(item.label)<=120 && typeof item.content==='string' && item.content.trim() && bytes(item.content)<=limit) && items.reduce((sum,item)=>sum+bytes(item.content),0)<=total;
 }
-export function canSummarize(project) { return canCreate(project) && project.messages.filter(m => m.role === 'student' && (!m.kind || m.kind==='discussion')).length >= 3; }
+export function contentItemsError(items,type='titles') {
+  if(validItems(items,type))return '';
+  const max=type==='article'?80:type==='short_text'?1:12,limit=type==='short_text'?12000:6000,total=type==='article'?120000:type==='short_text'?12000:24000;
+  if(!Array.isArray(items) || !items.length || items.length>max)return `請保留 1–${max} 個完整內容欄位。`;
+  if(type==='short_text' && (items.length!==1 || items[0].id!=='body' || items[0].label!=='全文'))return '短文需完整保存在「全文」欄位。';
+  if(items.some(item=>typeof item.label!=='string' || !item.label.trim() || typeof item.content!=='string' || !item.content.trim()))return '請填妥每個保留欄位的名稱與內容。';
+  if(new Set(items.map(item=>item.label.trim())).size!==items.length)return '段落或內容欄位名稱不可重複。';
+  const oversized=items.find(item=>new TextEncoder().encode(item.content).length>limit);
+  if(oversized)return `「${oversized.label}」超過 ${limit.toLocaleString('en-US')} 位元組，請縮短後再保存；不會自動截斷。`;
+  if(items.reduce((sum,item)=>sum+new TextEncoder().encode(item.content).length,0)>total)return `完整內容超過 ${total.toLocaleString('en-US')} 位元組，請縮短後再保存。`;
+  return '內容欄位名稱或識別碼不符格式，請檢查後再保存。';
+}
+export function canSummarize(project) { return canCreate(project) && project.messages.some(message=>message.role==='student' && (!message.kind || message.kind==='discussion')); }
+export function canConfirmGenerate(project) { return !!(canCreate(project) && project.brief && project.phase==='summary' && Number.isInteger(project.summaryRevision) && project.summaryRevision<=project.revision); }
 export function canGenerate(project) { return !!(canCreate(project) && project.goalApprovedAt && ['ready','work'].includes(project.phase)); }
-export function canSnapshot(project) { return !!(canCreate(project) && (project.goalApprovedAt || project.versions?.some(v=>v.id===project.officialVersionId))); }
+export function canSnapshot(project,baseVersionId=null) { return !!(canCreate(project) && (project.goalApprovedAt || project.versions?.some(v=>v.id===project.officialVersionId || (v.id===baseVersionId && !isArchivedVersion(project,v.id))))); }
+export function refinementRangeError(project,baseVersionId,targetItemIds=[]) {
+  if(!baseVersionId)return '';
+  const base=project?.versions?.find(version=>version.id===baseVersionId);
+  if(!base || isArchivedVersion(project,baseVersionId))return '請選擇未封存的來源版本。';
+  if(contentType(project)==='article' && (!Array.isArray(targetItemIds) || !targetItemIds.length || new Set(targetItemIds).size!==targetItemIds.length || targetItemIds.some(id=>!versionItems(base).some(item=>item.id===id))))return '請明確勾選這次要修改的段落。未選段落會保持原文，不會自動修改全文。';
+  return '';
+}
 // Only structured, saved questions become buttons. Never infer answers from prose.
 export function discussionChoices(message) {
   const bytes=value=>new TextEncoder().encode(value).length,choices=message?.choices;
@@ -62,20 +101,20 @@ export function discussionChoices(message) {
   if(new Set(choices.map(choice=>choice.id)).size!==choices.length || new Set(choices.map(choice=>choice.value)).size!==choices.length)return [];
   return choices;
 }
-export function currentChoiceQuestion(project,message) {
+export function currentChoiceQuestion(project,message,{baseVersionId=project?.officialVersionId || null,targetItemIds=[]}={}) {
   const context=message?.choiceContext,last=project?.messages?.at(-1);
-  return !!(message?.id && last?.id===message.id && discussionChoices(message).length && context && typeof project.activeItemId==='string' && context.itemId===project.activeItemId && context.officialVersionId===project.officialVersionId && Number.isInteger(project.sharedContextRevision) && context.sharedContextRevision===project.sharedContextRevision && typeof context.itemTitle==='string' && context.itemTitle===project.activeItem?.title && typeof context.itemDescription==='string' && context.itemDescription===project.activeItem?.description);
+  return !!(message?.id && last?.id===message.id && discussionChoices(message).length && context && typeof project.activeItemId==='string' && context.itemId===project.activeItemId && context.officialVersionId===project.officialVersionId && Number.isInteger(project.sharedContextRevision) && context.sharedContextRevision===project.sharedContextRevision && typeof context.itemTitle==='string' && context.itemTitle===project.activeItem?.title && typeof context.itemDescription==='string' && context.itemDescription===project.activeItem?.description && Object.hasOwn(context,'baseVersionId') && context.baseVersionId===baseVersionId && Array.isArray(context.targetItemIds) && JSON.stringify([...context.targetItemIds].sort())===JSON.stringify([...targetItemIds].sort()));
 }
 export function newestPendingRevision(project) {
-  if(!project?.officialVersionId)return null;
+  if(!project?.versions?.length)return null;
   const adopted=new Set((project.messages || []).filter(m=>['promotion','promote'].includes(m.kind)).flatMap(m=>m.versionIds || []));
-  return [...project.versions].reverse().find(v=>v.source==='revision' && v.basedOnVersionId===project.officialVersionId && v.id!==project.officialVersionId && !isArchivedVersion(project,v.id) && !adopted.has(v.id)) || null;
+  return [...project.versions].reverse().find(v=>v.source==='revision' && v.id!==project.officialVersionId && !isArchivedVersion(project,v.id) && !adopted.has(v.id)) || null;
 }
 export function revisionChanges(base,version) {
   const before=versionItems(base),after=versionItems(version),ids=[...new Set([...before,...after].map(item=>item.id))];
   return ids.map(id=>{const from=before.find(item=>item.id===id),to=after.find(item=>item.id===id);return {id,before:from,after:to,kind:!from?'added':!to?'removed':from.label!==to.label || from.content!==to.content?'changed':'unchanged'};});
 }
-export function versionSourceLabel(version,demo=false) { return version.source==='revision'?(demo?'腳本修改版':'AI 討論修改版'):version.source==='generated'?(demo?'腳本候選':'AI 候選'):'手動保存'; }
+export function versionSourceLabel(version,demo=false) { return version.source==='fusion'?(demo?'腳本融合候選':'AI 融合候選'):version.source==='revision'?(demo?'腳本修改版':'AI 討論修改版'):version.source==='generated'?(demo?'腳本候選':'AI 候選'):'手動保存'; }
 export function isArchivedVersion(project,id) { return (project?.archivedVersionIds || project?.activeItem?.archivedVersionIds || []).includes(id); }
 export function validComparison(ids, project) {
   return Array.isArray(ids) && ids.length >= 2 && ids.length <= 5 && new Set(ids).size === ids.length && ids.every(id => project?.versions.some(v => v.id === id) && !isArchivedVersion(project,id));
@@ -133,8 +172,8 @@ export function nextVersionCoordinates(project,mode='major',base=null) {
 }
 export function exportProject(project) {
   // An explicit allowlist prevents accidentally exporting connection/session fields.
-  const {id,title,description,lifecycle,projectLifecycle,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons} = project;
-  return {format:'ai-cocreation-project',formatVersion:1,exportedAt:new Date().toISOString(),project:{id,title,description,lifecycle,projectLifecycle,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons}};
+  const {id,title,description,lifecycle,projectLifecycle,aiBinding,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons} = project;
+  return {format:'ai-cocreation-project',formatVersion:1,exportedAt:new Date().toISOString(),project:{id,title,description,lifecycle,projectLifecycle,aiBinding,activeItemId,creativeItems,projectFinalizedAt,projectFinalizations,module,phase,revision,messages,brief,goalApprovedAt,versions,archivedVersionIds,officialVersionId,finalizedVersionId,finalizedAt,finalizations,comparisons}};
 }
 export class ApiError extends Error {
   constructor(message,status=0,data=null,uncertain=false) { super(message);this.name='ApiError';this.status=status;this.data=data;this.uncertain=uncertain; }
@@ -192,12 +231,12 @@ export function formatDate(value) {
 function readable(value) { return Array.isArray(value) ? value.join('、') : typeof value === 'object' && value ? JSON.stringify(value) : String(value || '尚未指定'); }
 export async function createTitleApp({root=document.getElementById('app'),adapter=createApiAdapter(),demo=false}={}) {
   let state=null,project=null,busy=false,error='',toastTimer=null,uncertain=null,selectedComparison=null,comparisonError='',settingsDraft=null;
-  const selected=new Set(),drafts=new Map(),officialViews=new Map();
+  const selected=new Set(),drafts=new Map(),officialViews=new Map(),treeViews=new Map();
   const draft=()=> {
     const id=project?`${project.id}:${project.activeItemId || 'default'}`:'_empty';
     if(!drafts.has(id)) {
       const official=project?.versions.find(v=>v.id===project.officialVersionId);
-      drafts.set(id,{chat:'',items:official?versionItems(official):[{id:createRequestId(),label:'中文名稱',content:''}],goalAndRationale:official?versionGoalAndRationale(official):project?.goalApprovedAt?project.brief?.summary || '':'',metadataEdited:false,basedOnVersionId:official?.id || null,dirty:false,instruction:'',question:''});
+      drafts.set(id,{chat:'',items:official?versionItems(official):[{id:contentType(project)==='short_text'?'body':createRequestId(),label:contentType(project)==='short_text'?'全文':contentType(project)==='article'?'第 1 段':'中文名稱',content:''}],goalAndRationale:official?versionGoalAndRationale(official):project?.goalApprovedAt?project.brief?.summary || '':'',metadataEdited:false,basedOnVersionId:official?.id || null,dirty:false,instruction:'',question:'',fusionQuestion:'',targetItemIds:[]});
     }
     const saved=drafts.get(id);
     if(!saved.basedOnVersionId && !saved.metadataEdited && !saved.goalAndRationale && project?.goalApprovedAt)saved.goalAndRationale=project.brief?.summary || '';
@@ -254,9 +293,9 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const paid=PAID.has(action);
     try {
       if(paid) {
-        const setup=aiSetupReason(state,demo);if(setup){error=setup;return false;}
+        const setup=aiSetupReason(state,demo,project);if(setup){error=setup;return false;}
         if(options.retry) body={...uncertain.payload};
-        else {const member=activeMember(state);body={...body,consent:true,approvedMemberId:member.id,approvedProvider:member.provider,approvedModel:member.model,approvedSettingsRevision:state.settingsRevision,requestId:createRequestId()};if(member.provider==='openai')body.approvedKeyRevision=state.keyRevision;}
+        else {const member=projectMember(state,project);body={...body,consent:true,approvedMemberId:member.id,approvedProvider:member.provider,approvedModel:member.model,approvedSettingsRevision:state.settingsRevision,requestId:createRequestId()};if(member.provider==='openai')body.approvedKeyRevision=state.keyRevision;}
       }
       const result=await adapter.request(action,body);
       if(result.project)applyProject(result.project);
@@ -289,11 +328,15 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const form=el('form');form.addEventListener('submit',e=>e.preventDefault());
     const input=el('input','',null,{id:'project-name',maxlength:'80',required:true,placeholder:'例如：社區影像展主標題'});
     const description=el('textarea','',null,{id:'project-description',maxlength:'4000',rows:'4',placeholder:'這次創作的背景、用途或想完成的事…'});
+    const memberSelect=el('select','',null,{id:'project-member',required:!edit && enabledMembers(state).length>0,disabled:edit || !enabledMembers(state).length});
+    memberSelect.append(el('option','',enabledMembers(state).length?'請選定這個專案的 AI 成員':'尚無已啟用成員，建立後先完成 AI 設定',{value:''}));
+    enabledMembers(state).forEach(member=>memberSelect.append(el('option','',`${member.nickname} · ${member.provider==='openai'?'OpenAI':'Ollama'} · ${member.model}`,{value:member.id})));
     if(edit){input.value=project.title;description.value=project.description || '';}
     append(form,field('專案名稱（不是創作內容）',input),field('專案說明',description),el('p','privacy-note',edit?'修改專案名稱或說明後，各創作項目都需要重新整理並確認目標。已有的對話、版本與定稿紀錄都會保留。':'每個專案分開保存對話、候選、正式版與比較。建立專案不會呼叫 AI。專案說明會作為後續 AI 討論的背景。'));
+    if(!edit)append(form,field('專案固定 AI 模型',memberSelect),el('p','privacy-note','一次選好，這個專案的所有創作項目都使用同一模型。之後不在對話間切換；建立專案不會呼叫 AI。'));
     if(!await showDialog({title:edit?'編輯專案資料':'建立新的創作專案',form,confirmLabel:edit?'保存專案資料':'建立專案'}))return;
     const payload={title:input.value.trim(),description:description.value.trim()};
-    if(edit){payload.id=project.id;payload.revision=project.revision;}
+    if(edit){payload.id=project.id;payload.revision=project.revision;}else if(memberSelect.value){payload.memberId=memberSelect.value;payload.expectedSettingsRevision=state.settingsRevision;}
     if(await mutate(edit?'edit_project':'new',payload,edit?'專案資料已保存。':'新專案已建立，先從一個問題開始。')){if(!edit){selected.clear();selectedComparison=null;}render();}
   }
   const newProject=()=>projectMetadata(false);
@@ -314,7 +357,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     let selectedMemberId=settingsDraft?settingsDraft.activeMemberId:activeMember(state)?.id || null;
     const usage=el('input','',null,{id:'ai-usage-consent',type:'checkbox',checked:settingsDraft?settingsDraft.usageConsent:!!state.usageConsent});
     const destinations=el('ul','member-destinations');
-    const active=el('select','',null,{id:'settings-active-member','aria-label':'保存後選取的 AI 成員'});
+    const active=el('select','',null,{id:'settings-active-member','aria-label':'系統連線測試成員，不變更專案模型'});
     const list=el('div','member-settings-list');
     const updateDestinations=()=>{
       destinations.replaceChildren(...roster.filter(member=>member.enabled).map(member=>el('li','',`${member.nickname || '未命名成員'}：${member.provider==='openai'?'OpenAI API':`Ollama ${member.ollamaUrl || '（未填位址）'}`} · ${member.model || '（未填模型）'}${member.enabled?'':' · 未勾選'}`)));
@@ -335,7 +378,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
         settingsDraft=null;key.value='';form.closest('dialog')?.dispatchEvent(new Event('cancel',{cancelable:true}));await refresh();render();await keySettings();
       },'small'));
     }
-    append(form,el('p','',demo?'離線腳本設定示範：可練習命名、勾選與切換成員，但不連線、不取得真實模型清單，也不執行 AI。':'勾選想使用的成員，給他一個容易辨識的名字。討論區只列出已勾選的成員；切換只影響下一次操作。'),field('OpenAI API 金鑰（本次工作階段的 OpenAI 成員共用）',key),keyStatus);
+    append(form,el('p','',demo?'離線腳本設定示範：可練習建立與啟用成員，但不連線、不取得真實模型清單，也不執行 AI。':'這裡管理可供新專案選用的 AI 成員。每個專案開始時一次選好模型；變更中央設定不會把既有專案改綁其他模型。'),field('OpenAI API 金鑰（本次工作階段的 OpenAI 成員共用）',key),keyStatus);
     if(!demo)append(form,button('暫存金鑰以讀取清單',storeKey,'small'),el('p','privacy-note','金鑰最多可使用 30 分鐘，到期後需重新提供。只暫存在這個安裝網站的伺服器，不會寫入成員、專案、匯出檔或瀏覽器儲存空間。請只在你信任的本機 localhost 網站貼上。'));
     if(state.keyPresent && !demo)form.append(button('清除目前伺服器金鑰',async()=>{key.value='';const ok=await mutate('clear_key',{},'暫存金鑰已清除。');keyStatus.textContent=ok?'金鑰已清除。':error;},'danger small'));
     const renderRoster=()=>{
@@ -374,8 +417,8 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     };
     append(form,list);renderRoster();
     const add=button('＋ 新增 AI 成員',()=>{if(roster.length>=20)return;roster.push({id:createRequestId(),nickname:`共創夥伴 ${roster.length+1}`,enabled:false,provider:'openai',model:'',ollamaUrl:'http://127.0.0.1:11434'});usage.checked=false;renderRoster();add.disabled=roster.length>=20;},'small',roster.length>=20);
-    append(form,add,el('p','composer-hint','最多 20 位成員。沒有勾選或沒有選取成員時，不會自動換用其他模型。'),field('保存後選取的成員',active));
-    const disclosure=el('section','usage-disclosure');append(disclosure,el('h3','','一次設定，之後由你按下操作就執行'),el('p','',demo?'此頁是固定腳本示範，不會將內容傳出或產生費用。正式系統需同意下列範圍：':'以下是已勾選成員的服務、位址與模型；未勾選成員不會收到內容：'),destinations,el('p','','只有你主動按下送出討論、整理目標、產生候選或比較版本時，才會把專案名稱與說明、目前創作項目的資料、討論、版本目標、作品內容、修改意見及固定引用傳送給當下選取成員的服務。'),el('p','','OpenAI API 費用由你的 API 帳戶另行計費，不包含在 ChatGPT 訂閱中；金額依模型與用量而定。Ollama 使用 PHP 主機的本機服務，該服務仍可能連接雲端、轉送資料或另行收費，取決於你的部署。'),el('p','','不會背景呼叫、不會同時呼叫多個成員，也不會在失敗時自動換模型。勾選後不再逐次彈出詢問；更換服務、位址或模型時需重新確認這份設定。'),append(el('label','usage-consent-label'),usage,el('span','','我同意依上述範圍使用這些成員；之後我主動按下 AI 操作時直接執行，不再逐次詢問。')));
+    append(form,add,el('p','composer-hint','最多 20 位成員。停用或變更既有專案綁定成員的模型／位址，會暫停該專案的 AI 操作，直到恢復原設定；不會自動換模型。'),field('系統連線測試成員（不變更專案模型）',active));
+    const disclosure=el('section','usage-disclosure');append(disclosure,el('h3','','一次設定，之後由你按下操作就執行'),el('p','',demo?'此頁是固定腳本示範，不會將內容傳出或產生費用。正式系統需同意下列範圍：':'以下是已勾選成員的服務、位址與模型；未勾選成員不會收到內容：'),destinations,el('p','','只有你主動按下送出討論、整理方向、確認生成、比較或融合版本時，才會把專案名稱與說明、目前創作項目的資料、討論、版本目標、作品內容、修改意見及固定引用，傳送給該專案綁定成員的服務。'),el('p','','OpenAI API 費用由你的 API 帳戶另行計費，不包含在 ChatGPT 訂閱中；金額依模型與用量而定。Ollama 使用 PHP 主機的本機服務，該服務仍可能連接雲端、轉送資料或另行收費，取決於你的部署。'),el('p','','不會背景呼叫、不會同時呼叫多個成員，也不會在失敗時自動換模型。勾選後不再逐次彈出詢問；更換服務、位址或模型時需重新確認這份設定。'),append(el('label','usage-consent-label'),usage,el('span','','我同意依上述範圍使用這些成員；之後我主動按下 AI 操作時直接執行，不再逐次詢問。')));
     const validation=el('p','settings-validation','',{id:'member-settings-error',role:'alert'});append(form,disclosure,validation);
     const approved=await showDialog({title:demo?'AI 系統設定 · 離線腳本示範':'完整 AI 系統設定',form,confirmLabel:'保存成員與使用設定',validate:()=>{const reason=memberRosterError(roster);validation.textContent=reason;if(reason){validation.scrollIntoView({behavior:'smooth',block:'center'});return false;}return true;}});
     if(!approved){key.value='';return;}
@@ -396,11 +439,14 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   async function submitDiscussion(text,{choiceAnswer=null,clearDraft=false}={}) {
     const d=draft();if(!text)return;
     if(new TextEncoder().encode(text).length>4000){flash('這段想法超過 4,000 位元組，請分成較短的段落再送出。草稿仍保留。');return;}
-    const officialVersionId=project.officialVersionId || null;let revisionVersionId=null;
-    const payload={id:project.id,revision:project.revision,text,officialVersionId};if(choiceAnswer)payload.choiceAnswer=choiceAnswer;
+    const officialVersionId=project.officialVersionId || null,baseVersionId=d.basedOnVersionId || officialVersionId,rangeError=refinementRangeError(project,baseVersionId,d.targetItemIds);let revisionVersionId=null;
+    if(rangeError){flash(rangeError);return;}
+    const payload={id:project.id,revision:project.revision,text,officialVersionId};
+    if(baseVersionId){payload.baseVersionId=baseVersionId;if(contentType(project)==='article')payload.targetItemIds=[...d.targetItemIds];}
+    if(choiceAnswer)payload.choiceAnswer=choiceAnswer;
     if(await mutate('discuss',payload,result=>{
       revisionVersionId=result.revisionVersionId || null;
-      return revisionVersionId?'新的修改版已保存，請閱讀完整內容與差異，再決定是否採用。正式版尚未變更。':officialVersionId?'討論已保存；這次沒有新增修改版，正式內容維持不變。':'討論已保存。';
+      return revisionVersionId?'新的修改版已保存。你可以繼續修改候選，或閱讀差異後採用；正式版尚未變更。':result.project?.phase==='summary'?'主軸已整理好。閱讀後按「確認方向並生成候選」，或繼續補充想法。':baseVersionId?'討論已保存；這次沒有新增修改版，正式內容維持不變。':'討論已保存。';
     })){if(clearDraft)d.chat='';render();if(revisionVersionId)document.getElementById('revision-review')?.scrollIntoView({behavior:'smooth',block:'start'});}
   }
   async function sendDiscussion() {
@@ -410,8 +456,8 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     if(busy)return '正在處理上一個操作，請稍候。輸入中的草稿會保留。';
     if(uncertain)return '請先檢查上次操作的結果，再回應選項。輸入中的草稿會保留。';
     if(!canCreate(project))return '目前項目為唯讀，這些選項僅供查看。';
-    if(!currentChoiceQuestion(project,message))return '這題已不是目前可回應的問題，選項僅供紀錄查看。';
-    return aiSetupReason(state,demo);
+    if(!currentChoiceQuestion(project,message,{baseVersionId:draft().basedOnVersionId || project.officialVersionId || null,targetItemIds:contentType(project)==='article'?draft().targetItemIds:[]}))return '這題已不是目前可回應的問題，選項僅供紀錄查看。';
+    return refinementRangeError(project,draft().basedOnVersionId || project.officialVersionId,draft().targetItemIds) || aiSetupReason(state,demo,project);
   }
   async function answerChoice(projectId,messageId,choiceId) {
     const message=project?.messages?.at(-1);
@@ -423,27 +469,24 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   async function summarizeGoal() {
     await mutate('summarize',{id:project.id,revision:project.revision},'目標整理完成，請先閱讀再確認。');
   }
-  async function approveGoal() {
-    if(await showDialog({title:'這就是這次的創作目標嗎？',body:[project.brief?.summary || '請確認工作區中的目標內容。','確認後不會自動產生標題。你仍可補充方向，再另外決定是否呼叫 AI 產生候選。'],confirmLabel:'確認目標，不生成'}))
-      await mutate('approve_goal',{id:project.id,revision:project.revision},'目標已確認。你可以另外選擇產生候選。');
-  }
   async function generate() {
-    await mutate('generate',{id:project.id,revision:project.revision,instruction:draft().instruction.trim()},'新候選已加入，原本的版本與正式版都保留。');
+    if(!canConfirmGenerate(project) && !canGenerate(project))return;
+    await mutate(canConfirmGenerate(project)?'confirm_generate':'generate',{id:project.id,revision:project.revision,instruction:draft().instruction.trim()},'新候選已加入。只執行這次生成，原本版本與正式版都保留。');
   }
-  async function editVersion(version) {
+  async function editVersion(version,{focus='editor-title'}={}) {
     if(!canCreate(project) || isArchivedVersion(project,version.id)){flash('請先還原這個版本，再帶入工作區編輯。');return;}
     const d=draft();
     if(d.dirty && !await showDialog({title:'改用這個版本繼續編輯？',body:['目前工作區有尚未保存的修改。改用另一個版本會替換這份編輯草稿；已保存的所有版本都不受影響。'],confirmLabel:'替換編輯草稿'})){render();return;}
-    d.items=versionItems(version);d.goalAndRationale=versionGoalAndRationale(version);d.metadataEdited=false;d.basedOnVersionId=version.id;d.dirty=false;
-    render();document.getElementById('editor-title')?.focus();
+    d.items=versionItems(version);d.goalAndRationale=versionGoalAndRationale(version);d.metadataEdited=false;d.basedOnVersionId=version.id;d.targetItemIds=[];d.dirty=false;
+    render();if(focus){document.getElementById(focus)?.focus();document.getElementById(focus)?.scrollIntoView({behavior:'smooth',block:'center'});}
   }
   async function saveSnapshot(versionMode='major') {
     const d=draft(),base=project.versions.find(v=>v.id===d.basedOnVersionId);
     if(combinedMetadataError(d.goalAndRationale)){flash(combinedMetadataError(d.goalAndRationale));return;}
-    if(!canSnapshot(project) || !validItems(d.items)){flash('請先確認目標，並填妥每個保留項目的名稱與內容。');return;}
+    if(!canSnapshot(project,d.basedOnVersionId) || !validItems(d.items,contentType(project))){flash(contentItemsError(d.items,contentType(project)) || '請先確認目標或選擇既有來源版本。');return;}
     if((versionMode==='minor' && !base) || (base && isArchivedVersion(project,base.id))){flash('請先選擇一個未封存的來源版本，或還原原本的來源。');return;}
     const target=versionLabel(nextVersionCoordinates(project,versionMode,base));
-    const ok=await mutate('snapshot',{id:project.id,revision:project.revision,items:d.items.map(item=>({id:item.id,label:item.label.trim(),content:item.content.trim()})),goalAndRationale:d.goalAndRationale,basedOnVersionId:d.basedOnVersionId,versionMode},`已保存 ${target}。原版本沒有被修改，也沒有自動變更正式版。`);
+    const ok=await mutate('snapshot',{id:project.id,revision:project.revision,items:d.items.map(item=>({id:item.id,label:item.label.trim(),content:contentType(project)==='titles'?item.content.trim():item.content})),goalAndRationale:d.goalAndRationale,basedOnVersionId:d.basedOnVersionId,versionMode},`已保存 ${target}。原版本沒有被修改，也沒有自動變更正式版。`);
     if(ok){d.basedOnVersionId=project.versions[project.versions.length-1]?.id || d.basedOnVersionId;d.dirty=false;render();}
   }
   async function archiveVersion(version,restore=false) {
@@ -456,14 +499,19 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     if(isArchivedVersion(project,version.id)){flash('請先還原這個版本，再設為正式版。');return;}
     const prior=project.versions.find(v=>v.id===project.officialVersionId);
     const body=[`將 ${versionLabel(version)}「${version.title}」的全部 ${versionItems(version).length} 個項目一起設為正式版。`,prior?`原正式版 ${versionLabel(prior)} 仍會保留為候選，不會刪除或覆寫任何版本。`:'只有你能決定正式版。AI 比較不會自動替你選定。'];
-    body.push(`創作項目會同步更名為「${officialItemTitle(versionItems(version))}」，專案名稱不變。`);
+    if(contentType(project)==='titles')body.push(`創作項目會同步更名為「${officialItemTitle(versionItems(version))}」，專案名稱不變。`);
     if(await showDialog({title:adoptingRevision?'採用這次修改為正式版？':'指定這個版本為正式版？',body,confirmLabel:adoptingRevision?'確認採用這次修改':'設為正式版'}))await mutate('promote',{id:project.id,revision:project.revision,versionId:version.id},`${versionLabel(version)} 已設為正式版。你仍可在對話中繼續修改。`);
   }
   async function compare() {
-    const ids=[...selected],reason=comparisonDisabledReason(project,ids,{busy,uncertain:!!uncertain,question:draft().question}) || aiSetupReason(state,demo);if(reason){comparisonError=reason;render();document.getElementById('comparison-status')?.scrollIntoView({behavior:'smooth',block:'center'});return;}
+    const ids=[...selected],reason=comparisonDisabledReason(project,ids,{busy,uncertain:!!uncertain,question:draft().question}) || aiSetupReason(state,demo,project);if(reason){comparisonError=reason;render();document.getElementById('comparison-status')?.scrollIntoView({behavior:'smooth',block:'center'});return;}
     comparisonError='';
     if(await mutate('compare',{id:project.id,revision:project.revision,versionIds:ids,question:draft().question.trim()},'比較意見已保存；沒有自動改動正式版。')){selectedComparison=project.comparisons[project.comparisons.length-1]?.id;render();document.getElementById('comparison-section')?.scrollIntoView({behavior:'smooth',block:'center'});}
     else if(error){comparisonError=error;render();document.getElementById('comparison-status')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('compare-question')?.focus();}
+  }
+  async function fuse(ids=[...selected]) {
+    const reason=comparisonDisabledReason(project,ids,{busy,uncertain:!!uncertain,question:draft().fusionQuestion}) || aiSetupReason(state,demo,project);
+    if(reason){flash(reason);return;}
+    if(await mutate('fuse',{id:project.id,revision:project.revision,versionIds:ids,question:draft().fusionQuestion.trim()},'融合已保存成一個新的大版本候選。來源版本與正式版都沒有變更。')){revealVersion(project.versions.at(-1)?.id);}
   }
   function choose(id,value) {
     if(value && isArchivedVersion(project,id)){flash('已封存版本需先還原，才能加入比較。');render();return;}
@@ -483,9 +531,9 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   }
   function renderHeader(shell) {
     const header=el('header','masthead');
-    const brand=el('div','brand');append(brand,el('div','brand-mark','✳',{'aria-hidden':'true'}),append(el('div'),el('div','brand-name','AI 共創室'),el('div','brand-sub','THINK TOGETHER, CREATE FURTHER')));
+    const brand=el('div','brand');append(brand,el('div','brand-mark','✳',{'aria-hidden':'true'}),append(el('div'),el('div','brand-name','AI共創工作室'),el('div','brand-sub','THINK TOGETHER, CREATE FURTHER')));
     const actions=el('div','header-actions');
-    const connection=el('p','connection');append(connection,el('span',`status-dot ${!aiSetupReason(state,demo)?'connected':''}`),el('span','',demo?'無連線 · 無費用':activeMember(state)?`${activeMember(state).nickname} · ${activeMember(state).model}`:'尚未選取 AI 成員'));
+    const connection=el('p','connection');append(connection,el('span',`status-dot ${!aiSetupReason(state,demo,project)?'connected':''}`),el('span','',demo?'無連線 · 無費用':project?.aiBinding?`${project.aiBinding.memberNickname} · ${project.aiBinding.model}`:'請為專案選定模型'));
     append(actions,connection,button(demo?'AI 系統設定（示範）':'系統設定',keySettings,'',busy || !!uncertain));
     if(!demo)append(actions,button('測試連線',testConnection,'subtle small',busy || !!uncertain),el('a','button subtle','先看示範',{href:'./demo.html',target:'_blank',rel:'noopener'}));
     append(header,brand,actions);shell.append(header);
@@ -568,7 +616,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const item=project.activeItem,section=el('section','active-item-header');
     const info=el('div');append(info,el('p','eyebrow',`目前創作項目 / ${MODULES.find(m=>m.id===item.type)?.label || item.type}`),el('h2','',item.title),el('p','project-description',item.description || '這個項目還沒有補充說明。'));
     const actions=el('div','project-actions');append(actions,el('span',`badge ${project.lifecycle==='finalized'?'official':''}`,LIFECYCLE_LABELS[project.lifecycle] || '已建立'),button('編輯項目',()=>creativeItemMetadata(true),'small',busy || !!uncertain || item.archived || project.lifecycle==='finalized' || project.projectLifecycle==='finalized'));
-    if(item.type==='titles' && !item.archived){
+    if(MODULES.some(module=>module.id===item.type && module.enabled) && !item.archived){
       if(project.lifecycle==='finalized')actions.append(button('重新開啟此項目',reopenProject,'small',busy || !!uncertain || project.projectLifecycle==='finalized'));
       else actions.append(button('此項目定稿',finalizeProject,'dark small',busy || !!uncertain || !project.officialVersionId || !project.goalApprovedAt || project.projectLifecycle==='finalized'));
     }
@@ -606,20 +654,30 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       section.append(card);
     });return section;
   }
-  function renderQuickSwitch() {
-    const section=el('div','quick-switch'),members=enabledMembers(state),current=activeMember(state);
-    const select=el('select','',null,{id:'discussion-member','aria-label':'下一次操作的 AI 成員',disabled:busy || !!uncertain || !members.length});
-    select.append(el('option','',members.length?'請選擇成員（不會自動替換）':'尚未勾選任何成員',{value:''}));
-    members.forEach(member=>select.append(el('option','',`${member.nickname} · ${member.provider==='openai'?'OpenAI':'Ollama'} · ${member.model}`,{value:member.id})));select.value=current?.id || '';
-    select.addEventListener('change',async()=>{await mutate('select_member',{memberId:select.value || null,expectedSettingsRevision:state.settingsRevision},'已切換下一次操作的 AI 成員；既有討論與來源標記保持不變。');});
-    append(section,field('下一次操作使用這位 AI 成員',select),el('p','composer-hint','只列出已勾選成員。切換不會執行 AI、不會清除內容；歷史回覆保留當時的名稱與模型。'),el('p','ai-setup-status',aiSetupReason(state,demo) || (demo?'固定腳本示範，非真實 AI。':'使用設定已同意。按下 AI 操作即執行，不再逐次詢問。'),{id:'ai-setup-status',role:'status'}),button('AI 系統設定',keySettings,'subtle small',busy || !!uncertain));return section;
+  function renderProjectModel() {
+    const section=el('div','project-model'),binding=project.aiBinding;
+    if(binding){
+      append(section,el('p','field-label','專案固定模型'),el('p','fixed-model',`${binding.memberNickname} · ${binding.provider==='ollama'?'Ollama':'OpenAI'} · ${binding.model}`),el('p','composer-hint','此專案所有項目共用這個模型，不在對話間切換。歷史來源完整保留。'));
+    }else{
+      const select=el('select','',null,{id:'bind-project-member','aria-label':'為這個專案一次選定 AI 模型',disabled:busy || !!uncertain || !enabledMembers(state).length});
+      select.append(el('option','','請選定專案模型',{value:''}));
+      enabledMembers(state).forEach(member=>select.append(el('option','',`${member.nickname} · ${member.provider} · ${member.model}`,{value:member.id})));
+      append(section,field('舊專案需先一次選定 AI 模型',select),button('選定模型，開始共創',async()=>{if(!select.value){flash('請先選擇這個專案的 AI 成員。');return;}await mutate('bind_project_model',{id:project.id,revision:project.revision,memberId:select.value,expectedSettingsRevision:state.settingsRevision},'此專案模型已固定，原有討論與版本都保留。');},'small',busy || !!uncertain || !enabledMembers(state).length || project.projectLifecycle==='finalized'));
+    }
+    append(section,el('p','ai-setup-status',aiSetupReason(state,demo,project) || (demo?'固定腳本示範，非真實 AI。':'傳送範圍已同意。只有按下操作按鈕才會執行 AI。'),{id:'ai-setup-status',role:'status'}),button('AI 系統設定',keySettings,'subtle small',busy || !!uncertain));return section;
+  }
+  function discussionBlocked() { return busy || !canCreate(project) || !!uncertain || !!aiSetupReason(state,demo,project) || !!refinementRangeError(project,draft().basedOnVersionId || project.officialVersionId,draft().targetItemIds); }
+  function revealVersion(id) {
+    let node=document.getElementById(`version-${id}`) || document.getElementById(`tree-version-${id}`);
+    for(let parent=node?.parentNode;parent;parent=parent.parentNode)if(parent.tagName==='DETAILS')parent.open=true;
+    node?.scrollIntoView({behavior:'smooth',block:'center'});
   }
   function renderConversation() {
     const panel=el('aside','panel dialogue-panel',null,{'aria-labelledby':'dialogue-heading'});
-    append(panel,append(el('div','panel-heading dialogue-head'),append(el('div'),el('p','step-label','01 釐清想法'),el('h2','','和 AI 慢慢聊',{id:'dialogue-heading'}),el('p','panel-subtitle','一次想清楚一件事，對話都留在這裡。')),el('span','badge',`${project.messages.length} 則紀錄`)));
-    panel.append(renderQuickSwitch());
+    append(panel,append(el('div','panel-heading dialogue-head'),append(el('div'),el('p','step-label','01 對談'),el('h2','','與 AI 一起釐清方向',{id:'dialogue-heading'}),el('p','panel-subtitle','一次想清楚一件事，對話都留在這裡。')),el('span','badge',`${project.messages.length} 則紀錄`)));
+    panel.append(renderProjectModel());
     const list=el('div','conversation',null,{id:'conversation',role:'log','aria-label':'完整討論紀錄','aria-live':'polite','aria-relevant':'additions',tabindex:'0'});
-    if(!project.messages.length)append(list,append(el('div','chat-entry'),el('p','chat-role',demo?'腳本引導':'創作起點'),el('p','chat-text','這次的標題要用在哪裡？\n可以先說用途，不需要一次把所有事情想好。')));
+    if(!project.messages.length)append(list,append(el('div','chat-entry'),el('p','chat-role',demo?'腳本引導':'創作起點'),el('p','chat-text','這次的作品要用在哪裡、給誰看？\n可以先說用途。方向足夠時，我會主動整理，讓你決定是否生成。')));
     project.messages.forEach(message=>{
       const card=el('article',`chat-entry ${message.role}`,null,{id:`message-${message.id}`});
       const role=message.role==='student'?'你':message.role==='system'?'共創紀錄':demo?'腳本示範':'AI 共創夥伴';
@@ -637,49 +695,49 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
           if(choice.label!==choice.value)answer.append(el('span','choice-value',choice.value));
           group.append(answer);
         });
-        group.append(el('p','choice-hint',disabledReason || `按一下即送出單一選項，由目前成員「${activeMember(state)?.nickname || ''}」回應；輸入中的草稿會保留，也可以自行打字回答。`,{id:hintId}));card.append(group);
+        group.append(el('p','choice-hint',disabledReason || `按一下即送出單一選項，由目前成員「${projectMember(state,project)?.nickname || ''}」回應；輸入中的草稿會保留，也可以自行打字回答。`,{id:hintId}));card.append(group);
       }
       if(message.role==='student' && message.choiceAnswer?.questionMessageId && project.messages.some(m=>m.id===message.choiceAnswer.questionMessageId)){
         const link=el('a','choice-history-link','查看回應的問題',{href:`#message-${encodeURIComponent(message.choiceAnswer.questionMessageId)}`});card.append(link);
       }
       if(message.versionIds?.length || message.comparisonId) {
         const links=el('div','chat-links');
-        message.versionIds?.forEach(id=>{const v=project.versions.find(v=>v.id===id);if(v)links.append(button(`查看 ${versionLabel(v)}`,()=>document.getElementById(`version-${id}`)?.scrollIntoView({behavior:'smooth',block:'center'}),'small'));});
+        message.versionIds?.forEach(id=>{const v=project.versions.find(v=>v.id===id);if(v)links.append(button(`查看 ${versionLabel(v)}`,()=>revealVersion(id),'small'));});
         if(message.comparisonId)links.append(button('查看比較',()=>{selectedComparison=message.comparisonId;render();document.getElementById('comparison-section')?.scrollIntoView({behavior:'smooth',block:'center'});},'small'));
         card.append(links);
       }
       list.append(card);
     });panel.append(list);
     const form=el('form','chat-composer');form.addEventListener('submit',e=>{e.preventDefault();sendDiscussion();});
-    const input=el('textarea','',null,{id:'chat-input',maxlength:'6000',rows:'3',placeholder:project.officialVersionId?'告訴 AI 要修改正式版的哪一項、怎麼改，其他項目會保留…':'寫下你的想法，或回應上一個問題…',disabled:busy || !canCreate(project)});input.value=draft().chat;
-    input.addEventListener('input',()=>{draft().chat=input.value;const send=document.getElementById('send-chat');if(send)send.disabled=busy || !canCreate(project) || !input.value.trim() || !!uncertain || !!aiSetupReason(state,demo);});
-    const discussionTurns=project.messages.filter(m=>m.role==='student' && (!m.kind || m.kind==='discussion')).length;
-    append(form,el('label','field-label',project.officialVersionId?'針對正式版繼續修改或討論':'你的想法',{for:'chat-input'}),input,el('p','composer-hint',!canCreate(project)?'目前項目為唯讀，對話完整保留。請先還原封存或重新開啟定稿項目。':project.officialVersionId?'以目前正式版為基礎。明確修改會另存完整修改版，先看差異，再按「採用這次修改」；若只是追問，內容不會改變。':project.goalApprovedAt?'繼續討論會重新開放目標確認，不會刪除現有版本。':discussionTurns<3?`先聊清楚用途、對象與重點，再整理目標（目前 ${discussionTurns}/3 次回應）。`:'想法準備好了嗎？可以請 AI 整理目標，不會直接生成標題。'));
-    if(demo && project.officialVersionId)form.append(el('p','composer-hint','固定修改示範格式：請把第一項內容改為「你的新名稱」，或請把本版目標改為「你的新目標」。只逐字替換指定文字，不是真實 AI。'));
-    if(newestPendingRevision(project))form.append(el('p','composer-hint pending-revision-hint','有一份修改尚未採用。要接著修改這次結果，請先採用；未採用時，下次仍以目前正式版為起點。'));
+    const input=el('textarea','',null,{id:'chat-input',maxlength:'6000',rows:'3',placeholder:draft().basedOnVersionId?'描述對所選來源版本的修改，未選段落保持原文…':'寫下你的想法，或回應上一個問題…',disabled:busy || !canCreate(project)});input.value=draft().chat;
+    input.addEventListener('input',()=>{draft().chat=input.value;const send=document.getElementById('send-chat');if(send)send.disabled=discussionBlocked() || !input.value.trim();});
+    const source=project.versions.find(version=>version.id===(draft().basedOnVersionId || project.officialVersionId));
+    append(form,el('label','field-label',source?`以 ${versionLabel(source)} 為來源繼續討論`:'你的想法',{for:'chat-input'}),input,el('p','composer-hint',!canCreate(project)?'目前項目為唯讀，對話完整保留。請先還原或重新開啟。':source?'明確修改會另存完整的小版本，不會自動採用。可直接選擇候選作為來源，不必先設為正式版。':project.phase==='summary'?'方向已準備好，可以確認並生成；你也可以繼續輸入補充，不會自動開始生成。':'方向足夠時，AI 會主動整理。你也可以隨時按「整理目前方向」，不必固定聊滿幾次。'));
+    if(source)append(form,el('p','composer-hint',`目前修改來源：${versionLabel(source)}${source.id===project.officialVersionId?' · 正式版':' · 候選'}。在下方工作區的來源選單或版本樹可更換。`),button('選擇來源與修改範圍',()=>{document.getElementById('editor-source')?.focus();document.getElementById('editor-source')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy));
+    const rangeReason=refinementRangeError(project,source?.id,draft().targetItemIds);if(rangeReason)form.append(el('p','composer-hint range-warning',rangeReason,{role:'status'}));
+    if(demo && source)form.append(el('p','composer-hint',contentType(project)==='article'?'固定修改示範：先勾選段落，再輸入「請把選取段落改為「你的新文字」」。僅逐字替換，不是真實 AI。':contentType(project)==='short_text'?'固定修改示範：請把全文改為「你的新文字」。僅逐字替換，不是真實 AI。':'固定修改示範：請把第一項內容改為「你的新文字」，或請把本版目標改為「你的新目標」。僅逐字替換，不是真實 AI。'));
     const actions=el('div','composer-actions');
-    const send=button(busy?'處理中…':'送出想法 ↗',sendDiscussion,'primary',busy || !canCreate(project) || !draft().chat.trim() || !!uncertain || !!aiSetupReason(state,demo));send.id='send-chat';
-    append(actions,button('整理目前目標',summarizeGoal,'small',busy || !canSummarize(project) || !!uncertain || !!aiSetupReason(state,demo)),send);append(form,actions);panel.append(form);return panel;
+    const send=button(busy?'處理中…':'送出想法 ↗',sendDiscussion,'primary',discussionBlocked() || !draft().chat.trim());send.id='send-chat';
+    append(actions,button('整理目前方向',summarizeGoal,'small',busy || !canSummarize(project) || !!uncertain || !!aiSetupReason(state,demo,project)),send);append(form,actions);panel.append(form);return panel;
   }
   function renderGoal() {
-    const box=el('section','panel goal-panel',null,{'aria-labelledby':'goal-heading'});
-    append(box,append(el('div','goal-title'),append(el('div'),el('p','step-label','02 對齊方向'),el('h2','',project.versions.length?'下一輪候選的起始方向':'這次，我們想做到什麼？',{id:'goal-heading'})),el('span',`badge ${project.goalApprovedAt?'':'pending'}`,project.goalApprovedAt?'目標已確認':project.brief?'待你確認':'討論進行中')));
-    if(project.versions.length)box.append(el('p','composer-hint','這是新候選的共用起始方向。各版本的目標、討論變更與修改意見分別保存，不會隨這裡更新。'));
-    if(!project.brief) {
-      append(box,el('p','goal-intro',project.officialVersionId?'目前已有正式版，可以直接在對話中提出修改，或手動編輯另存。要產生全新候選，仍需先整理並確認目標。':'先在左側聊聊用途、讀者與想傳達的重點。整理後，你會在這裡看到一份清楚的目標。確認之前，AI 不會開始生成標題。'),el('p','goal-intro','不用調整任何風格滑桿，直接用自己的話說明就好。'));
-    } else {
-      append(box,el('p','goal-summary',project.brief.summary));
-      const grid=el('dl','brief-grid');
-      [['purpose','使用情境'],['audience','主要對象'],['message','核心訊息'],['tone','文字語氣'],['constraints','需要注意']].forEach(([key,label])=>append(grid,append(el('div','brief-item'),el('dt','',label),el('dd','',readable(project.brief[key])))));
-      box.append(grid);
-      if(project.brief.items?.length){const agreed=el('div','agreed-items');append(agreed,el('span','field-label','這次同意創作的項目'));project.brief.items.forEach(item=>agreed.append(el('span','badge',item.label)));box.append(agreed);}
-      if(project.phase==='discussion')box.append(el('p','composer-hint',project.officialVersionId?'這份目標尚待重新確認，但不影響針對現有正式版繼續修改或另存。要產生全新候選或定稿，仍需整理並確認目標；比較可依版本保存的目標進行。':'你補充了新的想法。這是上一份目標，請先重新整理，再確認新的方向。'));
-      const footer=el('div','goal-footer');
-      append(footer,el('p','goal-note',project.goalApprovedAt?'目標確認與 AI 生成是兩個獨立步驟。新候選會加進來，不會取代正式版。':project.officialVersionId?'可直接修改現有正式版。只有全新候選或定稿需要整理並確認目標；比較可依版本保存的目標進行。':'覺得不準確？回到對話補充，再請 AI 重新整理。'),button(project.goalApprovedAt?'已確認目標':'確認這份目標',approveGoal,project.goalApprovedAt?'':'primary',busy || !!uncertain || !!project.goalApprovedAt || !canCreate(project) || project.phase!=='summary'));box.append(footer);
+    const box=el('section','panel goal-panel',null,{'aria-labelledby':'goal-heading'}),ready=canConfirmGenerate(project),approved=canGenerate(project);
+    append(box,append(el('div','goal-title'),append(el('div'),el('p','step-label','02 主軸與方向'),el('h2','','這次要完成的方向',{id:'goal-heading'})),el('span',`badge ${ready?'pending':''}`,ready?'方向已備妥':project.goalApprovedAt?'方向已確認':'討論進行中')));
+    if(!project.brief)box.append(el('p','goal-intro','先談用途、對象與核心重點。AI 判斷方向足夠後，會主動在這裡整理，等待你確認並生成，不會一直追問或自動生成。'));
+    else {
+      box.append(el('p','goal-summary',project.brief.summary));
+      if(contentType(project)!=='titles'){
+        const details=el('details','direction-details');append(details,el('summary','','查看內容範圍與限制'));
+        const grid=el('dl','brief-grid');[['purpose','使用情境'],['audience','主要對象'],['message','核心訊息'],['tone','文字語氣'],['constraints','需要注意']].forEach(([key,label])=>append(grid,append(el('div','brief-item'),el('dt','',label),el('dd','',readable(project.brief[key])))));
+        append(details,grid);if(project.brief.items?.length)details.append(el('p','composer-hint',`內容範圍：${project.brief.items.map(item=>item.label).join('、')}`));box.append(details);
+      }
+      box.append(el('p','goal-note',ready?'主軸已足夠，可以進行下一步。若想再討論，直接輸入即可；只有按下按鈕才會生成。':approved?'新候選會另外保存，不會取代正式版。各版的目標、意見與來源也各自保留。':'這是上次整理的方向。請繼續補充或重新整理，確認最新內容後再生成。'));
     }
-    const controls=el('div','generation-control');
-    const instruction=el('input','',null,{id:'generate-instruction',maxlength:'1000',placeholder:'這一輪想補充的方向（可留空）',disabled:busy || !canGenerate(project)});instruction.value=draft().instruction;instruction.addEventListener('input',()=>{draft().instruction=instruction.value;});
-    append(controls,field('下一輪候選，可另外加一點方向',instruction),button(project.versions.length?'再產生一組候選 ↗':'產生第一組候選 ↗',generate,'primary wide',busy || !!uncertain || !canGenerate(project) || !!aiSetupReason(state,demo)));if(aiSetupReason(state,demo))controls.append(el('p','ai-setup-status',aiSetupReason(state,demo)));box.append(controls);return box;
+    const controls=el('div','generation-control'),instruction=el('input','',null,{id:'generate-instruction',maxlength:'1000',placeholder:'這一輪想補充的方向（可留空）',disabled:busy || (!ready && !approved)});
+    instruction.value=draft().instruction;instruction.addEventListener('input',()=>{draft().instruction=instruction.value;});
+    const generateButton=button(ready?'確認方向並生成候選 ↗':project.versions.length?'再產生一組候選 ↗':'確認方向並生成候選 ↗',generate,'primary wide',busy || !!uncertain || (!ready && !approved) || !!aiSetupReason(state,demo,project));generateButton.id='confirm-generate';
+    append(controls,field('生成前可補充的方向',instruction),generateButton,el('p','composer-hint',demo?'按一下僅執行一次固定腳本示範，不是真實 AI。':'按一下會確認目前方向並執行一次生成，依固定模型計費。不會自動連續生成。'));
+    if(aiSetupReason(state,demo,project))controls.append(el('p','ai-setup-status',aiSetupReason(state,demo,project)));box.append(controls);return box;
   }
   function renderRevisionReview() {
     const version=newestPendingRevision(project);if(!version)return null;
@@ -687,7 +745,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const section=el('section','panel revision-review',null,{id:'revision-review','aria-labelledby':'revision-heading'});
     append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','最新修改 · 等你決定'),el('h2','','先看這次修改，再決定是否採用',{id:'revision-heading'})),el('span','badge pending','待審閱，尚未採用')));
     const card=el('article','revision-full-bundle',null,{id:`revision-version-${version.id}`});
-    append(card,el('p','revision-lineage',`${versionLabel(base)} 正式版 → ${versionLabel(version)} ${versionSourceLabel(version,demo)}`),el('p','composer-hint',`目前正式版仍是 ${versionLabel(base)}。以下是修改後的完整 ${versionItems(version).length} 項，不只是文字建議。`),el('p','pending-revision-hint','要接著修改這次結果，請先採用；未採用時，下次仍以目前正式版為起點。舊的待審版本也會留在候選與版本歷程。'),renderBundle(version),renderVersionContext(version),el('p','model-provenance',provenanceLabel(version.provenance)));
+    append(card,el('p','revision-lineage',`${versionLabel(base)} 來源版 → ${versionLabel(version)} ${versionSourceLabel(version,demo)}`),el('p','composer-hint',`正式版${project.officialVersionId?`仍是 ${versionLabel(project.versions.find(v=>v.id===project.officialVersionId))}`:"尚未指定"}。以下是修改後的完整 ${versionItems(version).length} 項。`),el('p','pending-revision-hint','可直接以這個候選繼續修改，不必先採用。來源與所有修改版都會保留在版本樹。'),renderBundle(version),renderVersionContext(version),el('p','model-provenance',provenanceLabel(version.provenance)));
     const diff=el('div','revision-diff');append(diff,el('h3','',`本次差異 · ${changed.length} 項有變動，${changes.length-changed.length} 項維持不變${goalChanged?'；本版目標有更新':''}`));
     changed.forEach(change=>{
       const row=el('div','revision-diff-item',null,{'data-item-id':change.id});
@@ -702,16 +760,16 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       [['修改前的目標',base],['修改後的目標',version]].forEach(([label,value])=>append(columns,append(el('div'),el('p','diff-side-label',label),el('p','diff-content',versionGoalText(value) || '（未保存目標文字）'))));append(row,columns);diff.append(row);
     }
     if(!changed.length && !goalChanged)diff.append(el('p','composer-hint','這份版本沒有可見的內容或目標差異，請查看來源對話確認原因。'));
-    append(card,diff,append(el('div','card-actions'),button('採用這次修改',()=>promote(version,true),'primary',busy || !!uncertain || !canCreate(project)),button('先手動調整這一版',()=>editVersion(version),'small',busy || !!uncertain || !canCreate(project)),selection(version),linkMessage(version.messageId,'查看修改對話')));
+    append(card,diff,append(el('div','card-actions'),button('採用這次修改',()=>promote(version,true),'primary',busy || !!uncertain || !canCreate(project)),button('請 AI 修改這一版',()=>editVersion(version,{focus:'chat-input'}),'small',busy || !!uncertain || !canCreate(project)),button('先手動調整這一版',()=>editVersion(version),'small',busy || !!uncertain || !canCreate(project)),selection(version),linkMessage(version.messageId,'查看修改對話')));
     if(!canCreate(project))card.append(el('p','composer-hint','目前為唯讀，請先重新開啟或還原項目，才能採用這份修改。'));
     append(section,card);return section;
   }
-  function comparisonReadyNote() { return aiSetupReason(state,demo) || (demo?'可以執行固定腳本示範，不是真實 AI 評估。':`按下比較將直接由「${activeMember(state)?.nickname || ''}」執行，使用已同意的傳送範圍。`); }
+  function comparisonReadyNote() { return aiSetupReason(state,demo,project) || (demo?'可以執行固定腳本示範，不是真實 AI 評估。':`按下比較將直接由「${projectMember(state,project)?.nickname || ''}」執行，使用已同意的傳送範圍。`); }
   function renderOfficial() {
     const section=el('section','official-overview',null,{id:'official-section','aria-labelledby':'official-heading'});
     const official=project.versions.find(v=>v.id===project.officialVersionId);
     const status=project.activeItem?.archived?'已封存 · 唯讀':project.lifecycle==='finalized'?'已定稿':official?'討論中 · 可繼續修改':'尚未指定正式版';
-    append(section,append(el('div','work-heading'),append(el('div'),el('h2','','03 正式版',{id:'official-heading'}),el('p','panel-subtitle','目前討論與修改的基準；候選不會自動取代這一版。')),el('span','badge official-status',status,{id:'official-status'})));
+    append(section,append(el('div','work-heading'),append(el('div'),el('h2','','正式版',{id:'official-heading'}),el('p','panel-subtitle','目前採用的完整內容。修改來源可以另外選擇；候選不會自動取代正式版。')),el('span','badge official-status',status,{id:'official-status'})));
     if(!official){
       append(section,append(el('div','official-empty'),el('h3','','目前尚未指定正式版'),el('p','',project.versions.length?'從下方候選選擇「設為正式版」後，這裡會顯示目前採用的內容與版本。':'先與 AI 討論並產生候選，或保存自己的版本，再明確選為正式版。')));return section;
     }
@@ -721,39 +779,46 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const context=el('details','official-details',null,{id:'official-details'});append(context,el('summary','','本版目標、修改意見與模型來源'),renderVersionContext(official),official.provenance?el('p','model-provenance',provenanceLabel(official.provenance)):null);
     append(card,append(el('div','official-top'),el('span','badge official',`正式版 · ${versionLabel(official)}`),selection(official)),content,context);
     if(newestPendingRevision(project))card.append(el('p','pending-revision-hint','有待審閱的修改，尚未取代目前正式版。請在下方查看差異，再決定是否採用。'));
-    append(card,el('p','composer-hint','想請 AI 改內容：在對話中提出具體修改，閱讀新修改版後再採用。想自己改：按「手動編輯這一版」，修改後另存。兩種方式都會保留原版。'),append(el('div','card-actions'),button('請 AI 繼續修改',()=>{document.getElementById('chat-input')?.focus();document.getElementById('chat-input')?.scrollIntoView({behavior:'smooth',block:'center'});},'primary small',busy || !!uncertain || !canCreate(project)),button('手動編輯這一版',()=>editVersion(official),'subtle small',busy || !!uncertain || !canCreate(project)),linkMessage(official.messageId)));
+    append(card,el('p','composer-hint','想請 AI 改內容：在對話中提出具體修改，閱讀新修改版後再採用。想自己改：按「手動編輯這一版」，修改後另存。兩種方式都會保留原版。'),append(el('div','card-actions'),button('請 AI 繼續修改',()=>editVersion(official,{focus:'chat-input'}),'primary small',busy || !!uncertain || !canCreate(project)),button('手動編輯這一版',()=>editVersion(official),'subtle small',busy || !!uncertain || !canCreate(project)),linkMessage(official.messageId)));
     section.append(card);return section;
   }
   function renderVersions() {
-    const section=el('section','',null,{'aria-labelledby':'versions-heading'});
-    append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','保留不同方向'),append(el('h2','',null,{id:'versions-heading'}),document.createTextNode('候選與版本'),el('span','counter',`${project.versions.length} 個版本`))),el('span','badge','保存後不覆寫')));
-    const pending=newestPendingRevision(project),candidates=project.versions.filter(v=>v.id!==project.officialVersionId && !isArchivedVersion(project,v.id)),archived=project.versions.filter(v=>isArchivedVersion(project,v.id));
-    if(candidates.length)section.append(el('p','section-label','保留的候選'));
-    if(!project.versions.length) {
-      append(section,append(el('div','empty-state'),el('div','empty-symbol','✧',{'aria-hidden':'true'}),el('h3','','好標題，從清楚的目標開始'),el('p','','目標確認後，另行按下「產生候選」。所有候選都會留在這裡，也可以保存自己寫的版本。')));
-    } else if(!candidates.length)append(section,el('p','composer-hint',pending?'最新待審修改版在上方，正式版尚未變更。':'目前只有正式版。你仍可繼續討論修改、產生其他候選，或把編輯成果保存成新版本。'));
-    const grid=el('div','candidate-grid');
-    candidates.forEach(version=> {
-      const card=el('article',`version-card ${selected.has(version.id)?'selected':''}`,null,{id:`version-${version.id}`});
-      append(card,append(el('div','version-top'),el('span','',`${versionLabel(version)} · ${versionSourceLabel(version,demo)}${version.id===pending?.id?' · 待審閱':''}`),selection(version)),renderBundle(version),renderVersionContext(version));
-      const base=project.versions.find(v=>v.id===version.basedOnVersionId);
-      append(card,el('p','version-source',`${base?`延續 ${versionLabel(base)} · `:'獨立起點 · '}${formatDate(version.createdAt)}`),['generated','revision'].includes(version.source)?el('p','model-provenance',provenanceLabel(version.provenance)):null,append(el('div','card-actions'),button('編輯',()=>editVersion(version),'small',busy || !!uncertain || !canCreate(project)),button('設為正式版',()=>promote(version),'subtle small',busy || !!uncertain || !canCreate(project)),button('封存',()=>archiveVersion(version),'subtle small',busy || !!uncertain || !canCreate(project))));
-      grid.append(card);
-    });section.append(grid);
-    if(archived.length) {
-      const archive=el('details','archived-versions',null,{id:'archived-versions'});
-      append(archive,el('summary','',`已封存版本 · ${archived.length} 個，可隨時還原`),el('p','composer-hint','完整內容與歷程仍保留。先還原，才能編輯、設為正式版或加入新的比較。'));
-      archived.forEach(version=>append(archive,append(el('article','version-card archived-version',null,{id:`version-${version.id}`}),el('p','version-top',`${versionLabel(version)} · 已封存 · ${versionSourceLabel(version,demo)}`),renderBundle(version),renderVersionContext(version),append(el('div','card-actions'),button('還原版本',()=>archiveVersion(version,true),'small',busy || !!uncertain || !canCreate(project)),linkMessage(version.messageId,'來源對話')))));
-      section.append(archive);
-    }
+    const section=el('section','versions-section',null,{'aria-labelledby':'versions-heading'});
+    append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','03 候選'),append(el('h2','',null,{id:'versions-heading'}),document.createTextNode('候選與版本樹'),el('span','counter',`${project.versions.length} 個版本`))),el('span','badge','保存後不覆寫')));
+    if(!project.versions.length)append(section,append(el('div','empty-state'),el('div','empty-symbol','✧',{'aria-hidden':'true'}),el('h3','','方向清楚，就能開始創作'),el('p','','閱讀主軸後按「確認方向並生成候選」。所有候選都會保留，只有你可以指定正式版。')));
+    const tree=el('div','version-tree',null,{id:'version-tree','aria-label':'依大版本分組的完整版本歷程'}),groups=new Map(),pending=newestPendingRevision(project);
+    project.versions.forEach(version=>{const {major}=versionCoordinates(version);if(!groups.has(major))groups.set(major,[]);groups.get(major).push(version);});
+    [...groups].sort(([a],[b])=>b-a).forEach(([major,versions])=>{
+      const group=el('details','version-major',null,{id:`version-major-${major}`,'data-tree-key':`${project.id}:${project.activeItemId}:major:${major}`});
+      group.open=major===Math.max(...groups.keys()) || versions.some(version=>version.id===project.officialVersionId);
+      append(group,el('summary','version-major-heading',`V${major} · ${versions.length} 個版本${versions.some(version=>version.id===project.officialVersionId)?' · 包含正式版':''}`));
+      versions.sort((a,b)=>versionCoordinates(a).minor-versionCoordinates(b).minor).forEach(version=>{
+        const official=version.id===project.officialVersionId,archived=isArchivedVersion(project,version.id),base=project.versions.find(v=>v.id===version.basedOnVersionId),minor=versionCoordinates(version).minor;
+        const node=el('article',`version-card tree-version ${minor?'minor-version':''} ${archived?'archived-version':''} ${selected.has(version.id)?'selected':''}`,null,{id:`${official?'tree-version':'version'}-${version.id}`});
+        const heading=el('div','version-top');append(heading,el('strong','',versionLabel(version)),el('span',`badge ${official?'official':archived?'archived':'pending'}`,official?'正式版':archived?'已封存':'候選'),el('span','',versionSourceLabel(version,demo)),archived?null:selection(version));node.append(heading);
+        const fusion=(version.fusionSourceVersionIds || []).map(id=>versionLabel(project.versions.find(v=>v.id===id))).join('、');
+        append(node,el('p','version-lineage',fusion?`融合來源：${fusion}`:base?`實際來源：${versionLabel(base)} → ${versionLabel(version)}`:'獨立大版本起點'),el('p','version-source',`${version.title || versionItems(version)[0]?.content || ''} · ${formatDate(version.createdAt)}`));
+        if(version.id===pending?.id)node.append(el('p','composer-hint','最新修改候選，尚未採用。可直接選為下一次微調來源。'));
+        const details=el('details','version-content-details',null,{'data-tree-key':`${project.id}:${project.activeItemId}:content:${version.id}`});
+        append(details,el('summary','',official?'查看正式版內容與來源紀錄':'查看完整內容與來源紀錄'),renderBundle(version),renderVersionContext(version),version.provenance?el('p','model-provenance',provenanceLabel(version.provenance)):null);node.append(details);
+        const actions=el('div','card-actions');
+        if(archived)actions.append(button('還原版本',()=>archiveVersion(version,true),'small',busy || !!uncertain || !canCreate(project)));
+        else append(actions,button('以此版繼續微調',()=>editVersion(version,{focus:'chat-input'}),'small',busy || !!uncertain || !canCreate(project)),button('編輯',()=>editVersion(version),'subtle small',busy || !!uncertain || !canCreate(project)),official?button('查看頂端正式版',()=>document.getElementById('official-section')?.scrollIntoView({behavior:'smooth',block:'start'}),'subtle small'):button('設為正式版',()=>promote(version),'subtle small',busy || !!uncertain || !canCreate(project)),official?null:button('封存',()=>archiveVersion(version),'subtle small',busy || !!uncertain || !canCreate(project)));
+        append(actions,linkMessage(version.messageId,'來源對話'));node.append(actions);group.append(node);
+      });tree.append(group);
+    });section.append(tree);
     if(project.versions.length>=2) {
-      const toolbar=el('div','compare-toolbar');
-      const prompt=el('div');append(prompt,el('p','',`已選 ${selected.size} 個版本`),el('small','','候選與正式版可以一起比較（2–5 個）'));
-      const question=el('input','',null,{id:'compare-question',maxlength:'2000','aria-label':'本次比較想特別注意什麼','aria-describedby':'comparison-status',placeholder:'比較重點（最多 2,000 位元組，可留空）',disabled:busy});question.value=draft().question;question.addEventListener('input',()=>{draft().question=question.value;comparisonError='';const reason=comparisonDisabledReason(project,[...selected],{busy,uncertain:!!uncertain,question:question.value}) || aiSetupReason(state,demo);const status=document.getElementById('comparison-status'),submit=document.getElementById('compare-versions');if(submit)submit.disabled=!!reason;if(status){status.textContent=reason || comparisonReadyNote();status.className=`comparison-status ${reason || comparisonError?'blocked':''}`;}question.setAttribute('aria-invalid',comparisonQuestionError(question.value)?'true':'false');});
-      if(comparisonUsesSnapshots(project))append(toolbar,el('p','comparison-basis-note',COMPARISON_SNAPSHOT_NOTE));
-      const reason=comparisonDisabledReason(project,[...selected],{busy,uncertain:!!uncertain,question:draft().question}) || aiSetupReason(state,demo);
+      const toolbar=el('div','compare-toolbar'),prompt=el('div');append(prompt,el('p','',`已選 ${selected.size} 個版本`),el('small','','比較與融合是獨立操作，都需選 2–5 個未封存版本。'));
+      const question=el('input','',null,{id:'compare-question',maxlength:'2000','aria-label':'本次比較想特別注意什麼','aria-describedby':'comparison-status',placeholder:'比較重點（最多 2,000 位元組，可留空）',disabled:busy});question.value=draft().question;
+      question.addEventListener('input',()=>{draft().question=question.value;comparisonError='';const reason=comparisonDisabledReason(project,[...selected],{busy,uncertain:!!uncertain,question:question.value}) || aiSetupReason(state,demo,project),status=document.getElementById('comparison-status'),submit=document.getElementById('compare-versions');if(submit)submit.disabled=!!reason;if(status){status.textContent=reason || comparisonReadyNote();status.className=`comparison-status ${reason?'blocked':''}`;}question.setAttribute('aria-invalid',comparisonQuestionError(question.value)?'true':'false');});
+      const reason=comparisonDisabledReason(project,[...selected],{busy,uncertain:!!uncertain,question:draft().question}) || aiSetupReason(state,demo,project);
       const compareButton=button(demo?'執行腳本比較示範 ↗':'請 AI 提供比較意見 ↗',compare,'',!!reason);compareButton.id='compare-versions';compareButton.setAttribute('aria-describedby','comparison-status');
-      append(toolbar,prompt,question,compareButton,el('p',`comparison-status ${reason || comparisonError?'blocked':''}`,[...new Set([comparisonError,reason].filter(Boolean))].join(' ') || comparisonReadyNote(),{id:'comparison-status',role:'status'}));section.append(toolbar);
+      append(toolbar,prompt,el('p','comparison-basis-note',COMPARISON_SNAPSHOT_NOTE),question,compareButton,el('p',`comparison-status ${reason || comparisonError?'blocked':''}`,[...new Set([comparisonError,reason].filter(Boolean))].join(' ') || comparisonReadyNote(),{id:'comparison-status',role:'status'}));
+      const fusionBox=el('div','fusion-controls');const fusionQuestion=el('input','',null,{id:'fuse-question',maxlength:'2000','aria-label':'融合方向','aria-describedby':'fusion-status',placeholder:'想保留哪些優點、如何融合（可留空）',disabled:busy});fusionQuestion.value=draft().fusionQuestion;
+      const fusionReason=()=>comparisonDisabledReason(project,[...selected],{busy,uncertain:!!uncertain,question:draft().fusionQuestion}) || aiSetupReason(state,demo,project);
+      const fuseButton=button('融合所選版本為新候選 ↗',()=>fuse(),'primary',!!fusionReason());fuseButton.id='fuse-versions';fuseButton.setAttribute('aria-describedby','fusion-status');
+      fusionQuestion.addEventListener('input',()=>{draft().fusionQuestion=fusionQuestion.value;const reason=fusionReason();fuseButton.disabled=!!reason;const status=document.getElementById('fusion-status');if(status)status.textContent=reason || '此按鈕另行呼叫 AI，建立一個新的大版本候選；不會直接採用。';fusionQuestion.setAttribute('aria-invalid',comparisonQuestionError(fusionQuestion.value)?'true':'false');});
+      append(fusionBox,field('獨立融合，不等於比較或採用',fusionQuestion),fuseButton,el('p','composer-hint',fusionReason() || (demo?'僅示範固定腳本組合，不代表真實 AI 融合效果。':'此按鈕另行呼叫 AI，建立一個新的大版本候選；不會直接採用。'),{id:'fusion-status',role:'status'}));append(toolbar,fusionBox);section.append(toolbar);
     }
     return section;
   }
@@ -767,49 +832,57 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     return context;
   }
   function renderBundle(version,official=false) {
-    const bundle=el('div',`naming-bundle ${official?'official-bundle':''}`);
+    const bundle=el('div',`naming-bundle ${official?'official-bundle':''} ${(version?.contentType || contentType(project))==='titles'?'':'text-content-bundle'}`);
     versionItems(version).forEach((item,index)=>{
       const entry=el('div',`bundle-item content-tone-${index%4}`,null,{'data-item-id':item.id});
       append(entry,el('p','bundle-item-label',`作品內容 · ${item.label}`),el(index===0?'h3':'p',index===0?(official?'official-title':'version-title'):'bundle-item-content',item.content));bundle.append(entry);
     });return bundle;
   }
   function renderEditor() {
-    const d=draft(),base=project.versions.find(v=>v.id===d.basedOnVersionId);
-    const section=el('section','panel editor-panel',null,{'aria-labelledby':'editor-heading'});
-    append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','04 選擇與微調'),el('h2','','編輯創作內容',{id:'editor-heading'})),el('span','badge',d.dirty?'尚未保存':'自由修改')));
-    append(section,el('p','editor-provenance',base?`延續 ${versionLabel(base)}。儲存會另建一份完整的新版本，不會修改來源。`:'每個版本保存這個創作項目的全部內容欄位，包括名稱、Slogan、短文與既有自訂內容。'));
-    const source=el('select','',null,{id:'editor-source','aria-label':'選擇編輯來源版本',disabled:busy || !!uncertain || !canCreate(project)});
-    source.append(el('option','','未指定來源（只可另存大版本）',{value:''}));
+    const d=draft(),base=project.versions.find(v=>v.id===d.basedOnVersionId),type=contentType(project);
+    const section=el('section',`panel editor-panel ${type!=='titles'?'text-editor-panel':''}`,null,{'aria-labelledby':'editor-heading'});
+    append(section,append(el('div','work-heading'),append(el('div'),el('p','step-label','版本微調工作區'),el('h2','','編輯創作內容',{id:'editor-heading'})),el('span','badge',d.dirty?'尚未保存':'自由修改')));
+    append(section,el('p','editor-provenance',base?`延續 ${versionLabel(base)}。儲存會另建一份完整的新版本，不會修改來源。`:type==='short_text'?'每個版本完整保存一篇短文。':type==='article'?'每段都有固定識別碼；AI 僅修改你勾選的段落，其餘段落原文保留。':'每個版本保存名稱、Slogan 與既有自訂內容的完整一組欄位。'));
+    const source=el('select','',null,{id:'editor-source','aria-label':'選擇 AI 與手動微調的來源版本',disabled:busy || !!uncertain || !canCreate(project)});
+    source.append(el('option','',project.officialVersionId?'未指定手動來源（AI 仍以目前正式版為起點）':'未指定來源（先討論方向／手動只可另存大版本）',{value:''}));
     project.versions.forEach(version=>{if(isArchivedVersion(project,version.id) && version.id!==d.basedOnVersionId)return;const option=el('option','',`${versionLabel(version)}${version.id===project.officialVersionId?' · 目前正式版':''}${isArchivedVersion(project,version.id)?' · 已封存，需先還原':''} · ${version.title}`,{value:version.id,disabled:isArchivedVersion(project,version.id)});option.selected=version.id===d.basedOnVersionId;source.append(option);});
     source.value=d.basedOnVersionId || '';
-    source.addEventListener('change',async()=>{const chosen=project.versions.find(v=>v.id===source.value);if(chosen)await editVersion(chosen);else{d.basedOnVersionId=null;render();}});
-    append(section,field('編輯來源版本',source),el('p','composer-hint','大改使用下一個整數版本；小修改沿用所選來源的大版號。兩種都保存完整一組內容，不覆寫來源。'));
-    const blocked=()=>busy || !!uncertain || !!combinedMetadataError(d.goalAndRationale) || !validItems(d.items) || !canSnapshot(project) || (!!base && isArchivedVersion(project,base.id));
-    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || '草稿尚未保存。重新整理頁面會遺失草稿。';};
+    source.addEventListener('change',async()=>{const chosen=project.versions.find(v=>v.id===source.value);if(chosen)await editVersion(chosen,{focus:'editor-source'});else{d.basedOnVersionId=null;d.targetItemIds=[];render();}});
+    append(section,field('工作來源版本（AI／手動微調共用）',source),el('p','composer-hint','候選不必先採用，也能直接微調。AI 修改固定另存小版本；手動修改可另存大版或小版，兩種都不覆寫來源。'));
+    if(type==='article' && base){
+      const range=el('fieldset','refinement-range',null,{'aria-describedby':'refinement-range-note'});append(range,el('legend','','這次請 AI 修改哪些段落？'));
+      versionItems(base).forEach(item=>{const label=el('label','range-choice'),check=el('input','',null,{id:`refine-target-${item.id}`,type:'checkbox',checked:d.targetItemIds.includes(item.id),disabled:busy || !!uncertain || !canCreate(project) || isArchivedVersion(project,base.id)});check.addEventListener('change',()=>{if(check.checked){if(!d.targetItemIds.includes(item.id))d.targetItemIds.push(item.id);}else d.targetItemIds=d.targetItemIds.filter(id=>id!==item.id);render();});append(label,check,el('span','',item.label));range.append(label);});
+      append(range,el('p','composer-hint',`已選 ${d.targetItemIds.length} 段。沒有預設全選；未選段落保持原文。這個範圍只控制 AI 微調，下方手動欄位仍是完整版本。`,{id:'refinement-range-note'}));section.append(range);
+    }
+    if(base)append(section,button('回到對談提出修改',()=>{document.getElementById('chat-input')?.focus();document.getElementById('chat-input')?.scrollIntoView({behavior:'smooth',block:'center'});},'subtle small',busy || !canCreate(project)));
+    const blocked=()=>busy || !!uncertain || !!combinedMetadataError(d.goalAndRationale) || !validItems(d.items,contentType(project)) || !canSnapshot(project,d.basedOnVersionId) || (!!base && isArchivedVersion(project,base.id));
+    const update=()=>{d.dirty=true;const save=document.getElementById('save-snapshot'),minor=document.getElementById('save-minor');if(save)save.disabled=blocked();if(minor)minor.disabled=blocked() || !base;const status=document.getElementById('draft-status');if(status)status.textContent=combinedMetadataError(d.goalAndRationale) || contentItemsError(d.items,type) || '草稿尚未保存。重新整理頁面會遺失草稿。';};
     const items=el('div','editor-items');
     d.items.forEach((item,index)=>{
       const row=el('div',`editor-item content-tone-${index%4}`);
       const heading=el('div','editor-item-heading');
-      row.append(el('p','bundle-item-label',`作品內容 · 內容欄位 ${index+1}`));
-      const label=el('input','',null,{id:`item-label-${item.id}`,maxlength:'40','aria-label':`第 ${index+1} 個內容欄位的名稱`,placeholder:'內容欄位名稱，例如：作品簡介',disabled:busy || !canCreate(project)});label.value=item.label;
+      row.append(el('p','bundle-item-label',type==='article'?`作品內容 · 段落 ${index+1}`:type==='short_text'?'作品內容 · 全文':`作品內容 · 內容欄位 ${index+1}`));
+      const label=el('input','',null,{id:`item-label-${item.id}`,maxlength:'40','aria-label':type==='article'?`第 ${index+1} 段的名稱`:`第 ${index+1} 個內容欄位的名稱`,placeholder:type==='article'?'段落名稱':'內容欄位名稱，例如：作品簡介',disabled:busy || !canCreate(project) || type==='short_text'});label.value=item.label;
       label.addEventListener('input',()=>{item.label=label.value;update();});
-      append(heading,el('span','item-number',String(index+1).padStart(2,'0')),label,button('移除',()=>{d.items.splice(index,1);d.dirty=true;render();},'subtle small',busy || !canCreate(project) || d.items.length===1));
-      const text=el('textarea','editor-item-content',null,{id:index===0?'editor-title':`item-content-${item.id}`,maxlength:'6000',rows:index===0?'2':'3','aria-label':`${item.label || `第 ${index+1} 項`}的內容`,placeholder:'寫下這個內容欄位的文字…',disabled:busy || !canCreate(project)});text.value=item.content;text.addEventListener('input',()=>{item.content=text.value;update();});
+      append(heading,el('span','item-number',String(index+1).padStart(2,'0')),label,button(type==='article'?'移除段落':'移除',()=>{d.items.splice(index,1);d.dirty=true;render();},'subtle small',busy || !canCreate(project) || d.items.length===1 || type==='short_text'));
+      const text=el('textarea','editor-item-content',null,{id:index===0?'editor-title':`item-content-${item.id}`,maxlength:type==='short_text'?'12000':'6000',rows:type==='short_text'?'12':type==='article'?'7':index===0?'2':'3','aria-label':`${item.label || `第 ${index+1} 項`}的內容`,placeholder:type==='short_text'?'在這裡編輯完整短文…':type==='article'?'在這裡編輯這一段…':'寫下這個內容欄位的文字…',disabled:busy || !canCreate(project)});text.value=item.content;text.addEventListener('input',()=>{item.content=text.value;update();});
       append(row,heading,text);items.append(row);
     });section.append(items);
-    append(section,el('p','composer-hint','這裡編輯的是同一個創作項目的全部內容欄位。所有現有欄位與自訂內容都會保存到新版本；每個保留欄位都需有名稱與內容，每欄最多 6,000 位元組。'));
+    if(type==='article')append(section,button('＋ 新增段落',()=>{let number=d.items.length+1;const name=()=>type==='article'?`第 ${number} 段`:`自訂內容 ${number}`;while(d.items.some(item=>item.label.trim()===name()))number++;d.items.push({id:createRequestId(),label:name(),content:''});d.dirty=true;render();},'small',busy || !!uncertain || !canCreate(project) || d.items.length>=(type==='article'?80:12)));
+    append(section,el('p','composer-hint',type==='short_text'?'短文固定保存「全文」一欄，最多 12,000 位元組，超過時請先縮短；不會自動截斷。':type==='article'?'下方是完整文章的手動編輯：可改文字、段落名稱或新增／移除段落，另存後才成為新版本。現有段落保留識別碼，新增段落取得新識別碼。AI 微調則只改上方勾選範圍。最多 80 段，每段 6,000、整篇 120,000 位元組，不會自動截斷。':'所有現有欄位與自訂內容會保存到新版本，每欄最多 6,000 位元組、合計 24,000 位元組。'));
+
     const metadata=el('textarea','editor-note',null,{id:'editor-goal',maxlength:'12000',rows:'4',placeholder:'這個版本想達成什麼？你修改了哪些地方、為什麼？可在同一欄自由整理。',disabled:busy || !canCreate(project)});metadata.value=d.goalAndRationale;metadata.addEventListener('input',()=>{d.goalAndRationale=metadata.value;d.metadataEdited=true;update();});
     append(section,field('本版目標與修改意見',metadata),el('p','composer-hint','從所選來源版本帶入，舊版目標、變更摘要與修改意見會完整合併，不重複相同文字。另存後隨本版保存，不改動來源或套用目前共用目標；最多 12,000 位元組。'));
     const save=button(`另存新版本 ${versionLabel(nextVersionCoordinates(project))}`,()=>saveSnapshot('major'),'dark',blocked());save.id='save-snapshot';
     const minor=button(`另存小修改 ${base?versionLabel(nextVersionCoordinates(project,'minor',base)):'V?.?'}`,()=>saveSnapshot('minor'),'',blocked() || !base);minor.id='save-minor';minor.setAttribute('aria-describedby','minor-version-hint');
     append(section,el('p','composer-hint',base?isArchivedVersion(project,base.id)?'編輯來源已封存。草稿仍保留，請先還原來源或改選其他版本。':`小修改將從 ${versionLabel(base)} 另存為 ${versionLabel(nextVersionCoordinates(project,'minor',base))}；不會修改來源或目前正式版。`:'請先選擇來源版本，才能另存小修改。',{id:'minor-version-hint'}));
-    append(section,append(el('div','editor-footer'),el('p','save-state',combinedMetadataError(d.goalAndRationale) || (!canCreate(project)?'目前項目為唯讀。還原或重新開啟後才能修改作品。':!canSnapshot(project)?'先確認創作目標，才能保存新版本。':d.dirty?'草稿尚未保存。重新整理頁面會遺失草稿。':'按下另存才會建立完整版本，不會自動升為正式版。'),{id:'draft-status',role:'status'}),append(el('div','editor-save-actions'),save,minor)));return section;
+    append(section,append(el('div','editor-footer'),el('p','save-state',combinedMetadataError(d.goalAndRationale) || contentItemsError(d.items,type) || (!canCreate(project)?'目前項目為唯讀。還原或重新開啟後才能修改作品。':!canSnapshot(project,d.basedOnVersionId)?'先確認創作目標，才能保存新版本。':d.dirty?'草稿尚未保存。重新整理頁面會遺失草稿。':'按下另存才會建立完整版本，不會自動升為正式版。'),{id:'draft-status',role:'status'}),append(el('div','editor-save-actions'),save,minor)));return section;
   }
   function renderComparison() {
     if(!project.comparisons.length)return null;
     const comparison=project.comparisons.find(c=>c.id===selectedComparison) || project.comparisons[project.comparisons.length-1];
     const section=el('section','panel comparison-panel',null,{id:'comparison-section','aria-labelledby':'comparison-heading'});
-    const heading=el('div','work-heading');append(heading,append(el('div'),el('p','step-label','05 看見差異'),el('h2','','比較意見，不是替你決定',{id:'comparison-heading'})),el('span','badge',`${comparison.versionIds.length} 個版本`));section.append(heading);
+    const heading=el('div','work-heading');append(heading,append(el('div'),el('p','step-label','獨立比較'),el('h2','','比較意見，不是替你決定',{id:'comparison-heading'})),el('span','badge',`${comparison.versionIds.length} 個版本`));section.append(heading);
     if(project.comparisons.length>1) {
       const select=el('select','',null,{'aria-label':'選擇過往比較',id:'comparison-select'});
       project.comparisons.forEach((c,index)=>{const option=el('option','',`比較 ${index+1} · ${c.versionIds.map(id=>versionLabel(project.versions.find(v=>v.id===id))).join(' / ')} · ${formatDate(c.createdAt)}`,{value:c.id});option.selected=c.id===comparison.id;select.append(option);});
@@ -822,7 +895,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       const version=project.versions.find(v=>v.id===item.versionId);
       const card=el('article','comparison-item');append(card,el('h3','',`${versionLabel(version)} · ${version?.title || '版本'}`));
       [['fit',comparison.goalBasis==='version_snapshots'?'本版目標契合':'目標契合'],['strength','優點'],['tradeoff','取捨'],['suggestion','修改方向']].forEach(([key,label])=>append(card,append(el('p'),el('strong','',`${label}　`),document.createTextNode(readable(item[key])))));
-      if(version)append(card,button('帶回工作區修改',()=>editVersion(version),'subtle small',busy || !!uncertain || !canCreate(project) || isArchivedVersion(project,version.id)));
+      if(version)append(card,button('選此版繼續微調',()=>editVersion(version,{focus:'chat-input'}),'subtle small',busy || !!uncertain || !canCreate(project) || isArchivedVersion(project,version.id)));
       if(version && isArchivedVersion(project,version.id))card.append(el('p','composer-hint','此版本已封存。比較紀錄仍保留，請先還原版本才能編輯。'));grid.append(card);
     });section.append(grid);
     append(section,el('p','model-provenance',provenanceLabel(comparison.provenance)),el('p','comparison-foot','這份意見對照當時的目標與已保存版本；之後的修改不會改寫這次比較。'),linkMessage(comparison.messageId,'查看這次比較的對話紀錄'));
@@ -834,22 +907,14 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
         append(details,el('p','context-label',`${label} 的本版目標與修改意見`),el('p','context-copy',versionGoalAndRationale(entry) || '此版本未保存目標與修改意見。'));
       });
     }else details.append(el('p','',readable(comparison.goalSnapshot?.summary)));
-    section.append(details);return section;
-  }
-  function renderHistory() {
-    if(!project.versions.length)return null;
-    const section=el('details','panel history-panel');append(section,el('summary','',`完整版本歷程 · ${project.versions.length} 個不可覆寫的版本`));
-    const list=el('ol','history-list');
-    project.versions.forEach(version=> {
-      const base=project.versions.find(v=>v.id===version.basedOnVersionId),li=el('li','history-row');
-      const info=el('div');append(info,el('p','',`${versionLabel(version)} · ${version.title}${version.id===project.officialVersionId?'（目前正式版）':isArchivedVersion(project,version.id)?'（已封存，可還原）':''}`),el('small','',`${base?`${versionLabel(base)} → ${versionLabel(version)}`:'獨立起點'} · ${versionSourceLabel(version,demo)} · ${formatDate(version.createdAt)}`));
-      const goal=el('details');append(goal,el('summary','','本版目標、變更紀錄與完整內容'),renderVersionContext(version),renderBundle(version),version.provenance?el('p','model-provenance',provenanceLabel(version.provenance)):null);info.append(goal);append(li,info,linkMessage(version.messageId,'來源對話'));list.append(li);
-    });section.append(list);return section;
+    section.append(details);
+    const useSources=button('將這組版本選入融合區',()=>{selected.clear();comparison.versionIds.forEach(id=>selected.add(id));render();document.getElementById('fuse-question')?.focus();document.getElementById('fuse-question')?.scrollIntoView({behavior:'smooth',block:'center'});},'small',busy || !!uncertain || !validComparison(comparison.versionIds,project) || !canCreate(project));
+    append(section,useSources,el('p','composer-hint','比較只提供意見。可選一個版本繼續微調，或到融合區另外按下生成新候選；不會自動融合或採用。'));return section;
   }
   function downloadProject() {
     if(!project)return;
     const blob=new Blob([JSON.stringify(exportProject(project),null,2)],{type:'application/json;charset=utf-8'});
-    const url=URL.createObjectURL(blob),a=el('a','',null,{href:url,download:`共創室-${project.title.replace(/[\\/:*?"<>|]/g,'_').slice(0,60)}.json`});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const url=URL.createObjectURL(blob),a=el('a','',null,{href:url,download:`AI共創工作室-${project.title.replace(/[\\/:*?"<>|]/g,'_').slice(0,60)}.json`});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function render() {
     if(!state)return;
@@ -857,6 +922,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
     const focus=active?.id?{id:active.id,start:active.selectionStart,end:active.selectionEnd}:null;
     const oldOfficial=document.getElementById('official-section'),oldOfficialKey=oldOfficial?.getAttribute('data-view-key');
     if(oldOfficialKey)officialViews.set(oldOfficialKey,{scrollTop:document.getElementById('official-content')?.scrollTop || 0,open:!!document.getElementById('official-details')?.open});
+    root.querySelectorAll('details').forEach(node=>{const key=node.getAttribute('data-tree-key');if(key)treeViews.set(key,!!node.open);});
     const oldList=document.getElementById('conversation');
     const scroll=oldList?{top:oldList.scrollTop,count:oldList.querySelectorAll('article').length,atBottom:oldList.scrollHeight-oldList.scrollTop-oldList.clientHeight<60}:null;
     const shell=el('div','app-shell');renderHeader(shell);
@@ -865,15 +931,16 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
       append(shell,append(el('main','empty-state',null,{id:'workspace'}),el('div','empty-symbol','✳'),el('h2','','把一個想法，變成一組可能。'),el('p','','先建立專案，讓每段討論、每個版本都有自己的位置。'),button('建立第一個專案',newProject,'primary',busy)));
     } else if(project.creativeItems && !project.activeItem) {
       append(shell,append(el('main','empty-state',null,{id:'workspace'}),el('h2','','先選擇一個創作項目'),el('p','','一個專案可以包含多個創作項目，各自留下討論與版本。'),button('新增第一個創作項目',()=>creativeItemMetadata(false),'primary',busy || project.projectLifecycle==='finalized')));
-    } else if(project.activeItem && project.activeItem.type!=='titles') {
-      append(shell,append(el('main','placeholder-workspace',null,{id:'workspace'}),append(el('section','empty-state'),el('h2','',project.activeItem.archived?'這個規劃項目已封存':'這個類型尚未實作'),el('p','','目前只保存項目規劃與引用。尚未提供 AI 對話、生成、比較或定稿功能，不會假裝產生文章、圖片或網站。')),renderReferences()));
+    } else if(project.activeItem && !MODULES.some(module=>module.id===project.activeItem.type && module.enabled)) {
+      append(shell,append(el('main','placeholder-workspace',null,{id:'workspace'}),append(el('section','empty-state'),el('h2','',project.activeItem.archived?'這個規劃項目已封存':'這個類型尚未實作'),el('p','','目前只保存項目規劃與引用。尚未提供此類型的 AI 對話、生成、比較或定稿功能，不會假裝已能產生這類成果。')),renderReferences()));
     } else {
       const main=el('main','item-workspace',null,{id:'workspace','aria-busy':String(busy)}),layout=el('div','workspace-layout');
-      const work=el('div','work-column');append(work,renderRevisionReview(),renderReferences(),renderGoal(),renderVersions(),renderEditor(),renderComparison(),renderHistory());append(layout,renderConversation(),work);append(main,renderOfficial(),layout);shell.append(main);
+      const work=el('div','work-column');append(work,renderRevisionReview(),renderReferences(),renderGoal(),renderVersions(),renderEditor(),renderComparison());append(layout,renderConversation(),work);append(main,renderOfficial(),layout);shell.append(main);
     }
     const footer=el('footer','footer');append(footer,el('p','',demo?'SCRIPTED DEMO · 示範內容只在本頁記憶體，重整即重設。':'專案保存在這個安裝網站的 SQLite 資料庫；編輯草稿需按「另存為新版本」才會保存。'));
     if(project)append(footer,button('匯出此專案 JSON',downloadProject,'subtle small',busy));shell.append(footer);
     root.replaceChildren(shell);
+    root.querySelectorAll('details').forEach(node=>{const key=node.getAttribute('data-tree-key');if(key && treeViews.has(key))node.open=treeViews.get(key);});
     const officialState=officialViews.get(document.getElementById('official-section')?.getAttribute('data-view-key'));
     if(officialState){const content=document.getElementById('official-content'),details=document.getElementById('official-details');if(details)details.open=officialState.open;if(content)content.scrollTop=officialState.scrollTop;}
     const newList=document.getElementById('conversation');
@@ -882,7 +949,7 @@ export async function createTitleApp({root=document.getElementById('app'),adapte
   }
   async function boot() {
     try {await refresh({keepProject:false});render();}
-    catch(e){const box=el('main','panel load-error');append(box,el('h1','','共創室還沒準備好'),el('p','',e.message),button('重新讀取',boot,'primary'),el('p','composer-hint','請確認已完成網頁安裝，並從 public/index.php 開啟。'));root.replaceChildren(box);}
+    catch(e){const box=el('main','panel load-error');append(box,el('h1','','AI共創工作室還沒準備好'),el('p','',e.message),button('重新讀取',boot,'primary'),el('p','composer-hint','請確認已完成網頁安裝，並從 public/index.php 開啟。'));root.replaceChildren(box);}
   }
   globalThis.addEventListener('beforeunload',event=> {
     if([...drafts.values()].some(d=>d.dirty || d.chat.trim()) || busy || uncertain){event.preventDefault();event.returnValue='';}

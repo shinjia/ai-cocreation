@@ -1,5 +1,5 @@
 /** SCRIPTED DEMO ONLY. This adapter has no network, key, or persistent browser storage. */
-import {createTitleApp,MODULES,ApiError,canGenerate,canSummarize,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version7';
+import {createTitleApp,MODULES,ApiError,canGenerate,validComparison,validItems,versionLabel,nextVersionCoordinates,isArchivedVersion,COMPARISON_SNAPSHOT_NOTE,comparisonQuestionError,versionGoalText,versionGoalAndRationale,combinedMetadataError,snapshotMetadataError,memberRosterError,officialItemTitle,currentChoiceQuestion} from './app.js?v=20261021-version8';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const DEMO_PROVENANCE={provider:'scripted',requestedModel:'固定腳本',actualModel:'非 AI'};
 const DEMO_BRIEF={items:[{id:'zh-title',label:'中文名稱'},{id:'en-title',label:'英文名稱'},{id:'tagline',label:'宣傳短句'}],purpose:'社區影像展的主視覺與宣傳海報',audience:'對影像創作有興趣的居民與創作者，以及第一次走進影展的觀眾',message:'從平凡的生活日常中，發現值得被看見的故事。',tone:'溫暖、有畫面感，保留一點想像',constraints:'繁體中文；主標題簡短好讀；避免過度抽象與艱深字詞。',summary:'為社區影像展找到一個溫暖、易讀且有畫面感的主標題，讓觀眾願意停下腳步，看見日常裡值得被記住的故事。'};
@@ -12,55 +12,108 @@ export function createDemoAdapter({seed=true}={}) {
   const projects=new Map(),requests=new Map();let sequence=0;
   const id=prefix=>`${prefix}-${++sequence}`;
   const now=()=>new Date().toISOString();
-  const provenance=()=>({...DEMO_PROVENANCE,memberId:settings.activeMemberId,memberNickname:settings.members.find(member=>member.id===settings.activeMemberId)?.nickname || null,requestedAt:now()});
+  const provenance=project=>{const owner=project?.creativeItems?project:[...projects.values()].find(raw=>raw.creativeItems.some(item=>item.id===project?.id)),binding=owner?.aiBinding;return {...DEMO_PROVENANCE,memberId:binding?.memberId || null,memberNickname:binding?.memberNickname || null,requestedAt:now()};};
   const settings={csrf:'scripted-demo-no-token',provider:'ollama',model:'固定腳本',members:[{id:'11111111111111111111111111111111',nickname:'小光（固定腳本）',enabled:true,provider:'ollama',model:'固定腳本',ollamaUrl:'http://127.0.0.1:11434'}],activeMemberId:'11111111111111111111111111111111',memberId:'11111111111111111111111111111111',memberNickname:'小光（固定腳本）',usageConsent:true,consentAt:'scripted-demo-not-network-consent',keyPresent:false,keyExpiresAt:null,keyRevision:0,settingsRevision:0,ollamaUrl:'http://127.0.0.1:11434',modules:MODULES};
+  const fail=(code,text,status=409)=>{throw new ApiError(text,status,{error:{code,message:text,operationOutcome:'rejected'}});};
+  function bindingFor(memberId,expectedSettingsRevision) {
+    if(expectedSettingsRevision!==settings.settingsRevision)fail('STALE_SETTINGS','AI 成員設定已更新，請重新載入最新設定。');
+    const member=settings.members.find(value=>value.id===memberId);
+    if(!member?.enabled)fail('MEMBER_DISABLED','這位成員尚未勾選或不存在。');
+    return {memberId:member.id,memberNickname:member.nickname,provider:member.provider,model:member.model,ollamaUrl:member.ollamaUrl || '',boundAt:now()};
+  }
+  function requireProjectModel(raw,body) {
+    const binding=raw.aiBinding;if(!binding)fail('PROJECT_MODEL_REQUIRED','請先為此專案選定固定 AI 成員與模型。');
+    const member=settings.members.find(value=>value.id===binding.memberId);
+    if(!member?.enabled)fail('MEMBER_DISABLED','此專案的固定 AI 成員已停用，請到系統設定重新啟用。');
+    if(member.provider!==binding.provider || member.model!==binding.model || (member.ollamaUrl || '')!==binding.ollamaUrl)fail('PROJECT_MODEL_CHANGED','此專案的固定模型設定已變更，請恢復原模型設定；不會改用其他模型。');
+    if(!body.consent || !settings.usageConsent)fail('CONSENT_REQUIRED','請先在系統設定同意使用範圍，並確認這次操作。',400);
+    if(body.approvedMemberId!==undefined && body.approvedMemberId!==binding.memberId)fail('PROJECT_MODEL_CHANGED','這次確認的成員與專案固定模型不同。');
+    if((body.approvedProvider!==undefined && body.approvedProvider!==binding.provider) || (body.approvedModel!==undefined && body.approvedModel!==binding.model))fail('PROJECT_MODEL_CHANGED','這次確認的模型與專案固定模型不同。');
+    if(body.approvedSettingsRevision!==undefined && body.approvedSettingsRevision!==settings.settingsRevision)fail('STALE_SETTINGS','AI 設定已更新。');
+    if(body.approvedKeyRevision!==undefined && body.approvedKeyRevision!==settings.keyRevision)fail('STALE_KEY','金鑰狀態已更新。');
+  }
+  function demoBrief(type) {
+    const brief=clone(DEMO_BRIEF);
+    if(type==='short_text'){brief.items=[{id:'body',label:'全文'}];brief.summary='為社區影像展撰寫一篇溫暖、清楚的宣傳短文，邀請居民與創作者從日常生活看見故事。';}
+    if(type==='article'){brief.items=[{id:'paragraph-1',label:'開場'},{id:'paragraph-2',label:'展覽內容'},{id:'paragraph-3',label:'邀請與結語'}];brief.summary='以開場、展覽內容及邀請結語三段介紹社區影像展，讓居民與創作者理解活動意義，從日常生活看見故事。';}
+    return brief;
+  }
+  function markDirectionReady(raw,p,kind='summary') {
+    p.brief=demoBrief(p.type);p.phase='summary';p.summaryRevision=raw.revision+1;p.goalApprovedAt=null;p.lifecycle='in_progress';
+    message(p,'assistant',`${p.brief.summary}\n主軸已可進入下一步，請按「確認方向並生成候選」；你也可以繼續輸入想法。\n（社區影像展的固定示範方向，不是真實 AI 推論）`,kind,{question:'',choices:[],directionStatus:'ready',direction:clone(p.brief),goalSnapshot:clone(p.brief)});
+  }
   function message(project,role,text,kind='discussion',extra={}) {
     const value={id:id('message'),role,text,kind,at:now(),...extra};
-    if(role==='assistant')value.provenance=provenance();project.messages.push(value);return value;
+    if(role==='assistant')value.provenance=provenance(project);project.messages.push(value);return value;
   }
-  function scriptedQuestion(raw,item,question,choices) {
-    return {question,choices:clone(choices),choiceContext:{itemId:item.id,officialVersionId:item.officialVersionId,sharedContextRevision:raw.sharedContextRevision,itemTitle:item.title,itemDescription:item.description}};
+  function scriptedQuestion(raw,item,question,choices,baseVersionId=null,targetItemIds=[]) {
+    return {question,choices:clone(choices),choiceContext:{itemId:item.id,officialVersionId:item.officialVersionId,sharedContextRevision:raw.sharedContextRevision,itemTitle:item.title,itemDescription:item.description,baseVersionId,targetItemIds:clone(targetItemIds)}};
   }
   function newItem(type,title,description='') {
-    const item={id:id('item'),type,title,description,enabled:type==='titles',archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
-    message(item,'system',type==='titles'?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。':'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
+    const item={id:id('item'),type,title,description,enabled:['titles','short_text','article'].includes(type),archived:false,references:[],lifecycle:'created',phase:'discussion',messages:[],brief:null,summaryRevision:null,goalApprovedAt:null,versions:[],archivedVersionIds:[],officialVersionId:null,finalizedVersionId:null,finalizedAt:null,finalizations:[],comparisons:[],createdAt:now()};
+    message(item,'system',item.enabled?'腳本示範，不是真實 AI。所有回覆事先寫好，不會送出任何網路請求。':'這個類型尚未實作，只能保存規劃與其他項目的固定引用。','demo_notice');return item;
   }
-  function newProject(title,description='') {
+  function newProject(title,description='',aiBinding=null) {
     const item=newItem('titles','標題名稱');
-    const project={id:id('project'),title,description,projectLifecycle:'created',projectFinalizations:[],revision:1,sharedContextRevision:0,activeItemId:item.id,creativeItems:[item],updatedAt:now()};projects.set(project.id,project);return project;
+    const project={id:id('project'),title,description,aiBinding,projectLifecycle:'created',projectFinalizations:[],revision:1,sharedContextRevision:0,activeItemId:item.id,creativeItems:[item],updatedAt:now()};projects.set(project.id,project);return project;
   }
   function view(project) {
     const item=project.creativeItems.find(i=>i.id===project.activeItemId);
     const projection={...project,activeItem:item,module:item.type};
-    for(const field of ['phase','lifecycle','messages','brief','goalApprovedAt','versions','archivedVersionIds','officialVersionId','finalizedVersionId','finalizedAt','finalizations','comparisons','references'])projection[field]=item[field];
+    for(const field of ['phase','lifecycle','messages','brief','summaryRevision','goalApprovedAt','versions','archivedVersionIds','officialVersionId','finalizedVersionId','finalizedAt','finalizations','comparisons','references'])projection[field]=item[field];
     return clone(projection);
   }
   function addGenerated(project) {
-    const msg=message(project,'assistant','這一組候選展示三種不同角度。它們會一起保留，你可以選一個繼續編輯，也可以把幾個版本放在一起比較。\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
-    SCRIPTED_CANDIDATES.forEach((candidate,index)=>{
-      const items=[{id:'zh-title',label:'中文名稱',content:candidate.title},{id:'en-title',label:'英文名稱',content:['Everyday, In Light','Stories Between Us','Frames Unfinished'][index]},{id:'tagline',label:'宣傳短句',content:['每一個平凡瞬間，都值得被看見。','靠近彼此，故事就開始了。','把生活留在畫面裡，讓故事繼續。'][index]}];
-      const v={id:id('version'),number:project.versions.length+1,...nextVersionCoordinates(project),...candidate,items,goalText:['以影像意象讓觀眾重新看見生活日常。','強調觀眾與創作者之間的親近感及共同故事。','以生活片段與未完成的畫面留下想像空間。'][index],goalSource:'ai',changeSummary:`固定腳本候選方向：${candidate.rationale}`,discussionMessageIds:project.messages.filter(m=>['student','assistant'].includes(m.role)).map(m=>m.id),source:'generated',basedOnVersionId:null,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:provenance()};v.goalSnapshot={summary:v.goalText};v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);
+    const msg=message(project,'assistant',(project.type==='article'?'已建立一個包含完整段落的文章候選。你可以選擇來源版本與段落範圍繼續修改，原內容會完整保留。':'這一組候選展示三種不同角度。它們會一起保留，你可以選一個繼續編輯，也可以把幾個版本放在一起比較。')+'\n（固定腳本示範，不是真實 AI 生成）','generation',{versionIds:[]});
+    (project.type==='article'?SCRIPTED_CANDIDATES.slice(0,1):SCRIPTED_CANDIDATES).forEach((candidate,index)=>{
+      let items=[{id:'zh-title',label:'中文名稱',content:candidate.title},{id:'en-title',label:'英文名稱',content:['Everyday, In Light','Stories Between Us','Frames Unfinished'][index]},{id:'tagline',label:'宣傳短句',content:['每一個平凡瞬間，都值得被看見。','靠近彼此，故事就開始了。','把生活留在畫面裡，讓故事繼續。'][index]}];
+      if(project.type==='short_text')items=[{id:'body',label:'全文',content:[
+        '把日常，放映成光。社區影像展邀請你從街角與生活片段裡，看見熟悉卻未曾停下來欣賞的故事。居民與創作者一起分享畫面，讓每一個平凡瞬間都有被看見的機會。',
+        '故事，就在我們之間。帶著好奇走進社區影像展，與居民、創作者一起發現生活裡的小小光亮。不必熟悉電影，也能在一個畫面、一段回憶中找到共鳴。',
+        '那些未完的畫面，等待我們一起觀看。社區影像展用熟悉的生活片段，串起居民與創作者的故事。邀請你暫停腳步，讓日常開啟新的想像。'
+      ][index]}];
+      if(project.type==='article')items=[{id:'paragraph-1',label:'開場',content:`${candidate.title}。每天走過的街道、熟悉的店家與回家的路，都有等待被看見的故事。社區影像展從這些生活片段出發，邀請觀眾重新觀看自己的日常。`},{id:'paragraph-2',label:'展覽內容',content:'展覽匯集居民與創作者的影像作品，記錄人與地方之間的連結。從街角的問候到一段共同回憶，每個畫面都帶來不同的觀看角度，也讓平凡生活留下可以分享的痕跡。'},{id:'paragraph-3',label:'邀請與結語',content:['不論你是熟悉影像的創作者，或第一次走進影展的觀眾，都歡迎一起觀看、交流。讓我們把日常放映成光，發現身邊值得被記住的故事。','故事不只在銀幕上，也在我們彼此之間。歡迎居民與創作者帶著好奇走進影展，用自己的生活經驗回應這些畫面。','畫面可以結束，故事仍會繼續。邀請每位觀眾停下腳步，從作品裡找到自己的生活片段，帶著新的眼光回到熟悉的日常。'][index]}];
+      const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),...candidate,title:items[0].content.slice(0,180),items,goalText:['以影像意象讓觀眾重新看見生活日常。','強調觀眾與創作者之間的親近感及共同故事。','以生活片段與未完成的畫面留下想像空間。'][index],goalSource:'ai',changeSummary:`固定腳本候選方向：${candidate.rationale}`,discussionMessageIds:project.messages.filter(m=>['student','assistant'].includes(m.role)).map(m=>m.id),source:'generated',basedOnVersionId:null,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:provenance(project)};v.goalSnapshot={summary:v.goalText};v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);
     });project.phase='work';project.lifecycle='in_progress';
   }
   function addSnapshot(project,items,rationale,basedOnVersionId=null,versionMode='major',goalText=undefined,goalAndRationale=undefined) {
     const base=project.versions.find(v=>v.id===basedOnVersionId);goalText=goalText===undefined?(base?versionGoalText(base):project.brief?.summary || ''):goalText;
     if(goalAndRationale!==undefined){goalText=base?versionGoalText(base):project.brief?.summary || '';rationale=base?.rationale || '';}
     const msg=message(project,'system','你把工作區的編輯成果另存成新版本。原版本保持不變。','snapshot',{versionIds:[]});
-    const v={id:id('version'),number:project.versions.length+1,...nextVersionCoordinates(project,versionMode,project.versions.find(v=>v.id===basedOnVersionId)),title:items[0].content.slice(0,180),items:clone(items),rationale,goalText,goalSource:'user',changeSummary:rationale,discussionMessageIds:clone(project.versions.find(v=>v.id===basedOnVersionId)?.discussionMessageIds || []),source:'snapshot',basedOnVersionId,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:null};
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,versionMode,project.versions.find(v=>v.id===basedOnVersionId)),title:items[0].content.slice(0,180),items:clone(items),rationale,goalText,goalSource:'user',changeSummary:rationale,discussionMessageIds:clone(project.versions.find(v=>v.id===basedOnVersionId)?.discussionMessageIds || []),source:'snapshot',basedOnVersionId,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:null};
     v.goalSnapshot={summary:v.goalText};if(goalAndRationale!==undefined)v.changeSummary=base?.changeSummary || '';v.goalAndRationale=goalAndRationale===undefined?versionGoalAndRationale(v):goalAndRationale;project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
-  function addScriptedRevision(project,base,items) {
-    const msg=message(project,'assistant','已逐字替換你指定的第一項內容，其餘項目原樣保留。請閱讀完整修改版與差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）','revision',{versionIds:[]});
-    const v={id:id('version'),number:project.versions.length+1,...nextVersionCoordinates(project,'minor',base),title:items[0].content.slice(0,180),items:clone(items),rationale:'固定腳本僅替換明確指定的第一項，未修改其他內容。',goalText:versionGoalText(base),goalSource:'ai',changeSummary:`固定腳本本次將第一項由「${base.items[0].content}」替換為「${items[0].content}」，其餘內容不變。`,discussionMessageIds:[project.messages.at(-2).id,msg.id],source:'revision',basedOnVersionId:base.id,goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+  function addScriptedRevision(project,base,items,targetItemIds=[]) {
+    const changed=items.filter(item=>item.content!==base.items.find(previous=>previous.id===item.id)?.content);
+    const summary=changed.length?`固定腳本逐字替換${changed.map(item=>`「${item.label}」`).join('、')}，其餘內容不變。`:'固定腳本保留完整內容，僅調整明確指定的目標。';
+    const msg=message(project,'assistant','已逐字替換你明確指定的內容，其餘項目原樣保留。請閱讀完整修改版與差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）','revision',{versionIds:[]});
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project,'minor',base),title:items[0].content.slice(0,180),items:clone(items),rationale:'固定腳本僅替換明確指定的內容，未修改其他內容。',goalText:versionGoalText(base),goalSource:'ai',changeSummary:summary,discussionMessageIds:[project.messages.at(-2).id,msg.id],source:'revision',basedOnVersionId:base.id,targetItemIds:clone(targetItemIds),goalSnapshot:clone(project.brief),referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
     v.goalSnapshot={summary:v.goalText};v.goalAndRationale=typeof base.goalAndRationale==='string'?[base.goalAndRationale,`本次修改：\n${v.changeSummary}`].filter(Boolean).join('\n\n'):versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
   }
   function addComparison(project,versionIds,question='') {
     const msg=message(project,'assistant','各版本創作內容的比較已整理在右側。各版本有不同優點與取捨，沒有自動選出贏家，也沒有變更正式版。\n（固定腳本意見，不是真實 AI 評估）','comparison');
-    const comparison={id:id('comparison'),versionIds:[...versionIds],goalBasis:'version_snapshots',versionGoalSnapshots:versionIds.map(versionId=>({versionId,goalSnapshot:clone(project.versions.find(v=>v.id===versionId).goalSnapshot || null),goalText:versionGoalText(project.versions.find(v=>v.id===versionId)),goalAndRationale:versionGoalAndRationale(project.versions.find(v=>v.id===versionId)),goalSource:project.versions.find(v=>v.id===versionId).goalSource || null,changeSummary:project.versions.find(v=>v.id===versionId).changeSummary || '',rationale:project.versions.find(v=>v.id===versionId).rationale || '',discussionMessageIds:clone(project.versions.find(v=>v.id===versionId).discussionMessageIds || [])})),goalSnapshot:null,referencesSnapshot:clone(project.references || []),items:versionIds.map((versionId,index)=>({versionId,fit:index===0?'名稱與宣傳短句方向一致，能連結這次展示情境。':'情感較直接，能邀請讀者走進創作者的故事。',strength:index===0?'中英文名稱有共同意象，宣傳短句能接續同一方向。':'親近、好理解，容易形成觀眾共鳴。',tradeoff:index===0?'意象較多，可能需要副標補充活動資訊。':'名稱、短句與短文的語氣可以再確認是否一致。',suggestion:index===0?'可以試著調整動詞，讓語氣更主動。':'保留情緒核心，再考慮是否加入影像相關詞彙。'})),summary:'這些版本適合不同的溝通重點：有的強調影像意象，有的強調人與故事的關係。請回到你最希望觀眾記得的那件事，決定下一步。'+(question?' 這是固定腳本示範，不會因比較問題而改寫分析。':''),messageId:msg.id,createdAt:now(),provenance:provenance()};
+    const comparison={id:id('comparison'),versionIds:[...versionIds],goalBasis:'version_snapshots',versionGoalSnapshots:versionIds.map(versionId=>({versionId,goalSnapshot:clone(project.versions.find(v=>v.id===versionId).goalSnapshot || null),goalText:versionGoalText(project.versions.find(v=>v.id===versionId)),goalAndRationale:versionGoalAndRationale(project.versions.find(v=>v.id===versionId)),goalSource:project.versions.find(v=>v.id===versionId).goalSource || null,changeSummary:project.versions.find(v=>v.id===versionId).changeSummary || '',rationale:project.versions.find(v=>v.id===versionId).rationale || '',discussionMessageIds:clone(project.versions.find(v=>v.id===versionId).discussionMessageIds || [])})),goalSnapshot:null,referencesSnapshot:clone(project.references || []),items:versionIds.map((versionId,index)=>({versionId,fit:index===0?'名稱與宣傳短句方向一致，能連結這次展示情境。':'情感較直接，能邀請讀者走進創作者的故事。',strength:index===0?'中英文名稱有共同意象，宣傳短句能接續同一方向。':'親近、好理解，容易形成觀眾共鳴。',tradeoff:index===0?'意象較多，可能需要副標補充活動資訊。':'名稱、短句與短文的語氣可以再確認是否一致。',suggestion:index===0?'可以試著調整動詞，讓語氣更主動。':'保留情緒核心，再考慮是否加入影像相關詞彙。'})),summary:'這些版本適合不同的溝通重點：有的強調影像意象，有的強調人與故事的關係。請回到你最希望觀眾記得的那件事，決定下一步。'+(question?' 這是固定腳本示範，不會因比較問題而改寫分析。':''),messageId:msg.id,createdAt:now(),provenance:provenance(project)};
     project.comparisons.push(comparison);msg.comparisonId=comparison.id;msg.goalBasis=comparison.goalBasis;msg.text+='\n'+COMPARISON_SNAPSHOT_NOTE;return comparison;
   }
+  function pinVersion(version) {
+    const pinned=clone(version);delete pinned.fusionSourceSnapshots;
+    if(Array.isArray(pinned.referencesSnapshot))pinned.referencesSnapshot=pinned.referencesSnapshot.map(reference=>{const source=reference.versionSnapshot;delete reference.versionSnapshot;reference.sourceProvenance=source?.provenance || null;return reference;});
+    return pinned;
+  }
+  function addFusion(project,versionIds,question='') {
+    const sources=versionIds.map(versionId=>project.versions.find(version=>version.id===versionId));
+    // Deterministic sampling is not model inference: preserve the first source's schema,
+    // take matching fields in source order, and show the literal construction method.
+    const items=sources[0].items.map((item,index)=>clone(sources[index%sources.length].items.find(candidate=>candidate.id===item.id && candidate.label===item.label) || item));
+    if(project.type==='short_text')items[0].content=sources.map(source=>source.items[0].content).join('\n\n');
+    if(!validItems(items,project.type))throw new ApiError('示範融合結果超過內容限制，請減少來源版本或縮短內容。',400);
+    const msg=message(project,'assistant','已建立獨立的融合候選，沒有變更任何來源或正式版。此示範只依選取順序輪流取用同名欄位；短文則逐篇串接，不是真實 AI 融合。','fusion',{versionIds:[]});
+    const rationale='固定腳本依順序取用來源內容，僅示範融合版本與來源快照的保存方式。';
+    const v={id:id('version'),number:project.versions.length+1,contentType:project.type,...nextVersionCoordinates(project),title:items[0].content.slice(0,180),items,rationale,goalText:versionGoalText(sources[0]),goalSource:'ai',changeSummary:'建立獨立融合候選；原版本和正式版維持不變。'+(question?' 已保存融合重點，但固定腳本不會解析或依此重寫內容。':''),discussionMessageIds:[msg.id],source:'fusion',basedOnVersionId:null,fusionSourceVersionIds:[...versionIds],fusionSourceSnapshots:sources.map(pinVersion),fusionInstruction:question,goalSnapshot:{summary:versionGoalText(sources[0])},referencesSnapshot:clone(project.references || []),messageId:msg.id,createdAt:now(),provenance:clone(msg.provenance)};
+    v.goalAndRationale=versionGoalAndRationale(v);project.versions.push(v);msg.versionIds.push(v.id);project.phase='work';project.lifecycle='in_progress';return v;
+  }
   if(seed) {
-    const project=newProject('社區影像展 · 共創企劃','為年度社區影像展規劃名稱、宣傳與主視覺。希望邀請居民、創作者與第一次來看影展的觀眾，從日常看見故事。');
+    const project=newProject('社區影像展 · 共創企劃','為年度社區影像展規劃名稱、宣傳與主視覺。希望邀請居民、創作者與第一次來看影展的觀眾，從日常看見故事。',bindingFor(settings.activeMemberId,settings.settingsRevision));
     const p=project.creativeItems[0];p.title='影像展創作內容';p.description='中文名稱、英文名稱與宣傳短句，也可以延伸策展短文。';
     message(p,'student','我想替社區影像展取一個主標題，會用在海報上。');
     message(p,'assistant','這次最希望吸引誰來看？先想像一位會站在海報前的觀眾。');
@@ -75,12 +128,12 @@ export function createDemoAdapter({seed=true}={}) {
     p.officialVersionId=version.id;p.title=officialItemTitle(version.items);message(p,'system',`你將 ${versionLabel(version)}「${version.title}」設為正式版。所有候選仍保留。`,'promotion',{versionIds:[version.id]});
     addComparison(p,[version.id,p.versions[0].id,p.versions[1].id]);project.revision=10;project.projectLifecycle='in_progress';
     const poster=newItem('poster','主視覺海報規劃','未來將引用創作內容，發展活動海報。目前僅保存規劃，尚未提供生成。');
-    poster.references.push({id:id('reference'),projectId:project.id,targetItemId:p.id,targetItemTitle:p.title,versionId:version.id,versionSnapshot:clone(version),pinnedAt:now()});project.creativeItems.push(poster);
+    poster.references.push({id:id('reference'),projectId:project.id,targetItemId:p.id,targetItemTitle:p.title,versionId:version.id,versionSnapshot:pinVersion(version),pinnedAt:now()});project.creativeItems.push(poster);
   }
   function state() {return {...settings,projects:[...projects.values()].map(p=>({id:p.id,title:p.title,description:p.description,projectLifecycle:p.projectLifecycle,lifecycle:p.projectLifecycle,itemCount:p.creativeItems.length,updatedAt:p.updatedAt})).reverse()};}
   async function request(action,body={}) {
     if(action==='state')return clone(state());
-    if(action==='new')return {project:view(newProject(body.title || '新的創作專案',body.description || ''))};
+    if(action==='new')return {project:view(newProject(body.title || '新的創作專案',body.description || '',body.memberId?bindingFor(body.memberId,body.expectedSettingsRevision):null))};
     if(action==='list_models')throw new ApiError('離線腳本示範無法讀取真實模型清單，沒有連接任何服務。',400);
     if(['save_members','select_member'].includes(action) && body.expectedSettingsRevision!==undefined && body.expectedSettingsRevision!==settings.settingsRevision)throw new ApiError('AI 成員設定已更新，請重新載入最新設定；你的草稿仍保留。',409);
     if(action==='save_members'){
@@ -96,10 +149,20 @@ export function createDemoAdapter({seed=true}={}) {
       settings.activeMemberId=active?.id || null;settings.memberId=active?.id || null;settings.memberNickname=active?.nickname || null;if(active){settings.provider=active.provider;settings.model=active.model;settings.ollamaUrl=active.ollamaUrl;}settings.settingsRevision++;return clone(state());
     }
     if(['set_key','save_settings','clear_key','test_connection'].includes(action))throw new ApiError('腳本示範不設定或測試任何真實 AI 來源。',400);
-    const raw=projects.get(body.id);if(!raw)throw new ApiError('找不到這個示範專案。',404);
+    const saved=projects.get(body.id);if(!saved)throw new ApiError('找不到這個示範專案。',404);
+    // Commit the working copy once, after all validation succeeds. Failed operations
+    // never leave half-approved directions or partially appended versions behind.
+    const raw=clone(saved),requestKey=body.requestId?`${raw.id}:${body.requestId}`:null;
     if(action==='project')return {project:view(raw)};
-    if(body.requestId && requests.has(body.requestId))return {project:view(raw),...requests.get(body.requestId)};
+    if(requestKey && requests.has(requestKey)){
+      const prior=requests.get(requestKey);if(prior.action!==action || prior.itemId!==body.itemId)fail('REQUEST_ID_REUSED','這個請求識別碼已用於另一個操作。');
+      return {project:view(raw),...prior.result};
+    }
     if(body.revision!==raw.revision)throw new ApiError('示範資料已更新，請重新載入。',409);
+    if(action==='bind_project_model'){
+      if(raw.aiBinding)fail('PROJECT_MODEL_ALREADY_BOUND','此專案已選定固定模型，不可重新綁定。');
+      raw.aiBinding=bindingFor(body.memberId,body.expectedSettingsRevision);raw.revision++;raw.updatedAt=now();projects.set(raw.id,raw);return {project:view(raw)};
+    }
     const p=raw.creativeItems.find(i=>i.id===raw.activeItemId);
     const shellActions=['edit_project','create_item','select_item','edit_item','archive_item','restore_item','attach_reference','remove_reference','finalize_project','reopen_project'];
     if(shellActions.includes(action)) {
@@ -113,7 +176,7 @@ export function createDemoAdapter({seed=true}={}) {
           if(!MODULES.some(m=>m.id===body.type))throw new ApiError('未知項目類型。',400);
           const item=newItem(body.type,body.title,body.description || '');raw.creativeItems.push(item);raw.activeItemId=item.id;
         }else if(action==='edit_project'){
-          if(raw.description!==body.description || raw.title!==body.title){raw.sharedContextRevision++;raw.creativeItems.forEach(i=>{i.goalApprovedAt=null;i.phase='discussion';});}raw.title=body.title;raw.description=body.description;
+          if(raw.description!==body.description || raw.title!==body.title){raw.sharedContextRevision++;raw.creativeItems.forEach(i=>{i.goalApprovedAt=null;i.summaryRevision=null;i.phase='discussion';});}raw.title=body.title;raw.description=body.description;
         }else if(action==='finalize_project'){
           const active=raw.creativeItems.filter(i=>!i.archived);
           if(!active.length || active.some(i=>i.lifecycle!=='finalized' || !i.goalApprovedAt))throw new ApiError('所有未封存項目都需先定稿。尚未實作的規劃項目可先封存。',409);
@@ -125,7 +188,7 @@ export function createDemoAdapter({seed=true}={}) {
           }else if(action==='restore_item'){p.archived=false;}
           else{
             if(p.archived)throw new ApiError('請先還原封存項目。',409);
-            if(action==='edit_item'){if(p.lifecycle==='finalized')throw new ApiError('請先重新開啟項目，再編輯資料。',409);if(p.title!==body.title || p.description!==body.description){p.goalApprovedAt=null;p.phase='discussion';}p.title=body.title;p.description=body.description;}
+            if(action==='edit_item'){if(p.lifecycle==='finalized')throw new ApiError('請先重新開啟項目，再編輯資料。',409);if(p.title!==body.title || p.description!==body.description){p.goalApprovedAt=null;p.summaryRevision=null;p.phase='discussion';}p.title=body.title;p.description=body.description;}
             else{
               if(p.lifecycle==='finalized')throw new ApiError('請先重新開啟這個項目。',409);
               if(action==='attach_reference'){
@@ -133,90 +196,105 @@ export function createDemoAdapter({seed=true}={}) {
                 if(!version)throw new ApiError('找不到可引用的來源版本。',400);
                 if(isArchivedVersion(source,version.id))throw new ApiError('來源版本已封存，請先還原後再引用。',409);
                 if(p.references.some(r=>r.targetItemId===source.id && r.versionId===version.id))throw new ApiError('這份固定版本已經引用過。',409);
-                p.references.push({id:id('reference'),projectId:raw.id,targetItemId:source.id,targetItemTitle:source.title,versionId:version.id,versionSnapshot:clone(version),pinnedAt:now()});message(p,'system','你加入一份明確選定的固定引用。來源之後更新不會自動改寫。','reference_added');
+                p.references.push({id:id('reference'),projectId:raw.id,targetItemId:source.id,targetItemTitle:source.title,versionId:version.id,versionSnapshot:pinVersion(version),pinnedAt:now()});message(p,'system','你加入一份明確選定的固定引用。來源之後更新不會自動改寫。','reference_added');
               }else{p.references=p.references.filter(r=>r.id!==body.referenceId);message(p,'system','你移除了固定引用，來源版本不變。','reference_removed');}
-              p.goalApprovedAt=null;p.phase='discussion';
+              p.goalApprovedAt=null;p.summaryRevision=null;p.phase='discussion';
             }
           }
         }
         if(action!=='finalize_project')raw.projectLifecycle='in_progress';
       }
-      raw.revision++;raw.updatedAt=now();return {project:view(raw)};
+      raw.revision++;raw.updatedAt=now();projects.set(raw.id,raw);return {project:view(raw)};
     }
     if(body.itemId!==raw.activeItemId)throw new ApiError('目前創作項目已切換。',409);
     if(raw.projectLifecycle==='finalized' || p.archived)throw new ApiError('專案已結案或項目已封存，請先重新開啟。',409);
     if(!p.enabled)throw new ApiError('這個項目類型尚未實作，不能執行 AI 或保存版本。',409);
     if(p.lifecycle==='finalized' && action!=='reopen')throw new ApiError('項目已定稿，請先重新開啟討論。',409);
-    if(['discuss','summarize','generate','compare'].includes(action)){
-      if(!body.consent || !settings.usageConsent || !settings.members.some(member=>member.id===settings.activeMemberId && member.enabled))throw new ApiError('請先選取已勾選的成員，並在系統設定同意使用範圍。',400);
-      if(body.approvedMemberId && body.approvedMemberId!==settings.activeMemberId)throw new ApiError('AI 成員已變更，請重新確認下一次使用的成員。',409);
-      if(body.approvedSettingsRevision!==undefined && body.approvedSettingsRevision!==settings.settingsRevision)throw new ApiError('AI 設定已更新。',409);
-    }
-    let revisionVersionId=null;
+    if(['discuss','summarize','generate','confirm_generate','compare','fuse'].includes(action))requireProjectModel(raw,body);
+    let revisionVersionId=null,fusionVersionId=null,directionResult=null;
     switch(action) {
       case 'discuss': {
         if(!String(body.text || '').trim())throw new ApiError('請先寫下想法。',400);
         if(body.officialVersionId!==undefined && body.officialVersionId!==p.officialVersionId)throw new ApiError('正式版已變更，請重新載入後再回應。',409);
+        const baseId=body.baseVersionId || p.officialVersionId || null,base=baseId?p.versions.find(version=>version.id===baseId):null;
+        if(baseId && (!base || isArchivedVersion(p,baseId)))throw new ApiError('修改來源不存在、屬於其他項目或已封存，請重新選取。',409);
+        let targetItemIds=[];
+        if(base && p.type==='article'){
+          if(!Array.isArray(body.targetItemIds) || !body.targetItemIds.length || new Set(body.targetItemIds).size!==body.targetItemIds.length || body.targetItemIds.some(target=>typeof target!=='string' || !base.items.some(item=>item.id===target)))throw new ApiError('請明確選擇來源文章中要修改的段落，未選段落會保持不變。',400);
+          targetItemIds=[...body.targetItemIds].sort();
+        }else if(body.targetItemIds!==undefined && (!Array.isArray(body.targetItemIds) || body.targetItemIds.length))throw new ApiError('只有文章修改可指定段落範圍。',400);
         let studentExtra={};
         if(body.choiceAnswer!==undefined){
           const question=p.messages.at(-1),answer=body.choiceAnswer;
           if(!answer || typeof answer!=='object' || Array.isArray(answer) || Object.keys(answer).length!==2 || typeof answer.questionMessageId!=='string' || typeof answer.choiceId!=='string')throw new ApiError('選項答案格式不正確。',400);
-          if(!currentChoiceQuestion(view(raw),question) || answer.questionMessageId!==question.id || body.officialVersionId!==p.officialVersionId)throw new ApiError('這個選項問題已失效，請重新載入最新討論。',409);
+          const context=question?.choiceContext;
+          if(!currentChoiceQuestion(view(raw),question,{baseVersionId:baseId,targetItemIds}) || answer.questionMessageId!==question.id || body.officialVersionId!==p.officialVersionId || context.baseVersionId!==baseId || JSON.stringify(context.targetItemIds)!==JSON.stringify(targetItemIds))throw new ApiError('這個選項問題已失效，請重新載入最新討論或確認修改來源。',409);
           const choice=question.choices.find(option=>option.id===answer.choiceId);
           if(!choice || body.text!==choice.value)throw new ApiError('選項答案與保存的問題不一致。',400);
           studentExtra={choiceAnswer:{questionMessageId:question.id,choiceId:choice.id,label:choice.label,value:choice.value}};
         }
-        const official=p.versions.find(v=>v.id===p.officialVersionId);
-        if(official){
-          // A deliberately narrow literal-command fixture, never inference or generic rewriting.
-          const match=String(body.text).trim().match(/^請把第一項內容改為「([^「」\r\n]+)」[。！]?$/u);
+        if(base){
+          // A deliberately narrow literal-command fixture, never semantic rewriting.
+          const match=String(body.text).trim().match(/^請把(第一項內容|全文|選取段落)改為「([^「」\r\n]+)」[。！]?$/u);
           const goalMatch=String(body.text).trim().match(/^請把本版目標改為「([^「」\r\n]+)」[。！]?$/u);
-          const replacement=match?.[1].trim(),goalReplacement=goalMatch?.[1].trim(),items=clone(official.items);
-          if(goalReplacement && goalReplacement!==versionGoalText(official)){
+          const replacement=match?.[2].trim(),goalReplacement=goalMatch?.[1].trim(),items=clone(base.items);
+          const changedIds=p.type==='article'?targetItemIds:[items[0].id];
+          if(goalReplacement && goalReplacement!==versionGoalText(base)){
             if(snapshotMetadataError(goalReplacement,''))throw new ApiError(snapshotMetadataError(goalReplacement,''),400);
-            message(p,'student',body.text,'discussion',studentExtra);const revised=addScriptedRevision(p,official,items);revised.goalText=goalReplacement;revised.goalSnapshot={summary:goalReplacement};revised.changeSummary='固定腳本僅替換明確指定的本版目標，完整內容欄位維持不變。';revised.rationale='依照明確指定的目標文字另存待審修改版。';delete revised.goalAndRationale;revised.goalAndRationale=versionGoalAndRationale(revised);p.messages.find(m=>m.id===revised.messageId).text='已逐字替換你指定的本版目標，完整內容欄位原樣保留。請閱讀目標差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）';revisionVersionId=revised.id;
-          }else if(replacement && replacement!==items[0].content){
-            items[0].content=replacement;
-            if(!validItems(items))throw new ApiError('這次示範替換超過項目內容限制。',400);
-            message(p,'student',body.text,'discussion',studentExtra);revisionVersionId=addScriptedRevision(p,official,items).id;
+            message(p,'student',body.text,'discussion',studentExtra);const revised=addScriptedRevision(p,base,items,targetItemIds);revised.goalText=goalReplacement;revised.goalSnapshot={summary:goalReplacement};revised.changeSummary='固定腳本僅替換明確指定的本版目標，完整內容欄位維持不變。';revised.rationale='依照明確指定的目標文字另存待審修改版。';delete revised.goalAndRationale;revised.goalAndRationale=versionGoalAndRationale(revised);p.messages.find(m=>m.id===revised.messageId).text='已逐字替換你指定的本版目標，完整內容欄位原樣保留。請閱讀目標差異，再決定是否採用。\n（固定字串替換示範，不是真實 AI）';revisionVersionId=revised.id;
+          }else if(replacement && changedIds.some(target=>items.find(item=>item.id===target).content!==replacement)){
+            for(const item of items)if(changedIds.includes(item.id))item.content=replacement;
+            if(!validItems(items,p.type))throw new ApiError('這次示範替換超過項目內容限制。',400);
+            message(p,'student',body.text,'discussion',studentExtra);revisionVersionId=addScriptedRevision(p,base,items,targetItemIds).id;
           }else{
+            const field=p.type==='article'?'選取段落':p.type==='short_text'?'全文':'第一項內容';
             message(p,'student',body.text,'discussion',studentExtra);
-            message(p,'assistant','你希望第一項具體改成什麼文字？請使用「請把第一項內容改為「你的新名稱」」或「請把本版目標改為「你的新目標」」這個固定示範格式，並提供與目前不同的內容。\n（固定腳本追問，不是真實 AI；這次沒有新增修改版，正式內容不變。）','clarification',scriptedQuestion(raw,p,'想先示範哪一種明確修改？',[
-              {id:'revise-name',label:'示範修改第一項名稱',value:'請把第一項內容改為「一起，看見日常」'},
-              {id:'revise-goal',label:'示範修改本版目標',value:'請把本版目標改為「以清楚易讀的名稱邀請居民看見日常故事。」'}
-            ]));
+            message(p,'assistant',`你希望${field}具體改成什麼文字？請使用「請把${field}改為「你的新內容」」或「請把本版目標改為「你的新目標」」這個固定示範格式，並提供與目前不同的內容。\n（固定腳本追問，不是真實 AI；這次沒有新增修改版，正式內容不變。）`,'clarification',scriptedQuestion(raw,p,'想先示範哪一種明確修改？',[
+              {id:'revise-name',label:p.type==='titles'?'示範修改第一項名稱':`示範修改${field}`,value:`請把${field}改為「一起，看見日常」`},
+              {id:'revise-goal',label:'示範修改本版目標',value:'請把本版目標改為「以清楚易讀的內容邀請居民看見日常故事。」'}
+            ],base.id,targetItemIds));
             p.lifecycle='in_progress';
           }
           break;
         }
-        message(p,'student',body.text,'discussion',studentExtra);p.phase='discussion';p.goalApprovedAt=null;p.lifecycle='in_progress';
-        const count=p.messages.filter(m=>m.role==='student').length;
-        const scripted=count===1?'這次最希望吸引誰？可以先描述主要的讀者或觀眾。':count===2?'如果讀者只記得一件事，你最希望他記得什麼？':'現在可以按「整理目前目標」，看看用途、對象與重點是否一致。整理完成後仍要由你確認，才會進入候選創作。';
-        const options=count===1?scriptedQuestion(raw,p,'這次最希望吸引誰？',[
+        message(p,'student',body.text,'discussion',studentExtra);p.phase='discussion';p.brief=null;p.summaryRevision=null;p.goalApprovedAt=null;p.lifecycle='in_progress';
+        // This fixture recognizes a few literal sample cues; it does not call a model
+        // or imply that arbitrary input has been understood. One complete input is enough.
+        const sample=[raw.description,p.description,...p.messages.filter(m=>m.role==='student').map(m=>m.text)].join(' ');
+        const hasPurpose=/海報|影展|影像展|宣傳|文章|短文|用途|目的|命名/u.test(sample),hasAudience=/居民|創作者|觀眾|讀者|對象|客群|家長/u.test(sample),hasMessage=/故事|日常|重點|訊息|溫暖|連結|傳達/u.test(sample);
+        if(hasPurpose && hasAudience && hasMessage){markDirectionReady(raw,p,'discussion');directionResult={directionStatus:'ready',direction:clone(p.brief)};break;}
+        const options=!hasAudience?scriptedQuestion(raw,p,'這次最希望吸引誰？',[
           {id:'neighbors',label:'社區居民',value:'主要希望吸引社區居民。'},
           {id:'creators',label:'影像創作者',value:'主要希望吸引影像創作者。'},
           {id:'newcomers',label:'第一次接觸影展的觀眾',value:'希望第一次接觸影展的觀眾也願意參加。'}
-        ]):count===2?scriptedQuestion(raw,p,'最希望觀眾記得什麼？',[
+        ]):!hasPurpose?scriptedQuestion(raw,p,'這次內容主要會用在哪裡？',[
+          {id:'poster-use',label:'影展海報',value:'這次會用在社區影展海報。'},
+          {id:'promotion-use',label:'活動宣傳',value:'這次會用在社區影像展的活動宣傳。'}
+        ]):scriptedQuestion(raw,p,'最希望觀眾記得什麼？',[
           {id:'daily-stories',label:'日常裡的故事',value:'日常裡也有值得被看見的故事。'},
           {id:'shared-life',label:'一起生活的連結',value:'希望觀眾記得我們一起生活的連結。'}
-        ]):{};
-        message(p,'assistant',`${scripted}\n（固定腳本示範，不會解析你輸入的內容）`,'discussion',options);break;
+        ]);
+        directionResult={directionStatus:'exploring',direction:null};
+        message(p,'assistant',`${options.question}\n（固定腳本只辨識範例關鍵字，不是真實 AI 理解；也可以隨時整理目前方向。）`,'discussion',{...options,...directionResult});break;
       }
       case 'summarize': {
-        if(!canSummarize(p))throw new ApiError('請先完成至少三次回應，再整理目標。',400);
-        p.brief=clone(DEMO_BRIEF);p.phase='summary';p.goalApprovedAt=null;p.lifecycle='in_progress';
-        message(p,'assistant',`${DEMO_BRIEF.summary}\n（此為社區影像展的固定示範目標，不是依據輸入推論）`,'summary');break;
+        if(!p.messages.some(m=>m.role==='student' && (!m.kind || m.kind==='discussion')))throw new ApiError('請先寫下一些創作想法，再整理方向。',400);
+        markDirectionReady(raw,p);directionResult={directionStatus:'ready',direction:clone(p.brief)};break;
       }
       case 'approve_goal': {
         if(p.phase!=='summary' || !p.brief)throw new ApiError('請先整理目標。',400);
         p.goalApprovedAt=now();p.phase='ready';p.lifecycle='in_progress';message(p,'system','你已確認這份目標。候選尚未生成，需要另外按下「產生候選」並確認。','goal_approved');break;
       }
+      case 'confirm_generate': {
+        if(p.phase!=='summary' || !p.brief || !Number.isInteger(p.summaryRevision) || p.summaryRevision>raw.revision)throw new ApiError('請先檢閱最新整理的主軸與方向，再確認生成。',409);
+        p.goalApprovedAt=now();p.phase='ready';message(p,'system','你已確認目前主軸與方向，並明確要求產生候選。','goal_approved');addGenerated(p);break;
+      }
       case 'generate': {
         if(!canGenerate(p))throw new ApiError('請先確認創作目標。',400);addGenerated(p);break;
       }
       case 'snapshot': {
-        if(!p.goalApprovedAt && !p.versions.some(v=>v.id===p.officialVersionId))throw new ApiError('請先確認創作目標。',400);
-        if(!validItems(body.items))throw new ApiError('請保留 1 到 12 個項目，每項都要有名稱與內容。',400);
+        if(!p.goalApprovedAt && !p.versions.some(v=>(v.id===p.officialVersionId || v.id===body.basedOnVersionId) && !isArchivedVersion(p,v.id)))throw new ApiError('請先確認創作目標，或明確選取現有版本作為修改來源。',400);
+        if(!validItems(body.items,p.type))throw new ApiError('內容不符合此類型的欄位、段落或長度限制。',400);
         if(body.basedOnVersionId && (!p.versions.some(v=>v.id===body.basedOnVersionId) || isArchivedVersion(p,body.basedOnVersionId)))throw new ApiError('來源版本不存在或已封存，請先還原。',400);
         if(body.versionMode && !['major','minor'].includes(body.versionMode))throw new ApiError('未知版本模式。',400);
         if(body.versionMode==='minor' && !body.basedOnVersionId)throw new ApiError('小修改必須指定來源版本。',400);
@@ -227,7 +305,7 @@ export function createDemoAdapter({seed=true}={}) {
       }
       case 'promote': {
         const version=p.versions.find(v=>v.id===body.versionId);if(!version || isArchivedVersion(p,version.id))throw new ApiError('版本不存在或已封存，請先還原。',400);
-        p.officialVersionId=version.id;p.title=officialItemTitle(version.items);p.lifecycle='in_progress';message(p,'system',`你指定 ${versionLabel(version)}「${version.title}」為正式版，其他版本仍完整保留。`,'promotion',{versionIds:[version.id]});break;
+        p.officialVersionId=version.id;if(p.type==='titles')p.title=officialItemTitle(version.items);p.lifecycle='in_progress';message(p,'system',`你指定 ${versionLabel(version)}「${version.title}」為正式版，其他版本仍完整保留。`,'promotion',{versionIds:[version.id]});break;
       }
       case 'archive_version':
       case 'restore_version': {
@@ -243,6 +321,11 @@ export function createDemoAdapter({seed=true}={}) {
         if(comparisonQuestionError(body.question))throw new ApiError(comparisonQuestionError(body.question),400);
         addComparison(p,body.versionIds,body.question);p.lifecycle='in_progress';break;
       }
+      case 'fuse': {
+        if(!validComparison(body.versionIds,p))throw new ApiError('請選擇 2 到 5 個不同且未封存的融合來源。',400);
+        if(comparisonQuestionError(body.question))throw new ApiError(comparisonQuestionError(body.question),400);
+        fusionVersionId=addFusion(p,body.versionIds,body.question || '').id;break;
+      }
       case 'finalize': {
         if(!p.goalApprovedAt)throw new ApiError('請先確認最新的創作目標。',409);
         const version=p.versions.find(v=>v.id===p.officialVersionId);if(!version)throw new ApiError('請先指定正式版。',400);
@@ -255,8 +338,8 @@ export function createDemoAdapter({seed=true}={}) {
       }
       default:throw new ApiError('這個操作沒有對應的示範腳本。',400);
     }
-    const result=revisionVersionId?{revisionVersionId}:{};
-    raw.revision++;raw.updatedAt=now();raw.projectLifecycle='in_progress';if(body.requestId)requests.set(body.requestId,result);return {project:view(raw),...result};
+    const result={...(revisionVersionId?{revisionVersionId}:{}),...(fusionVersionId?{fusionVersionId}:{}),...(directionResult || {})};
+    raw.revision++;raw.updatedAt=now();raw.projectLifecycle='in_progress';projects.set(raw.id,raw);if(requestKey)requests.set(requestKey,{action,itemId:body.itemId,result});return {project:view(raw),...result};
   }
   return {request};
 }
